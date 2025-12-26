@@ -34,7 +34,7 @@ The system simply validates that payments have been made by checking transaction
 
 #### Developers
 - Full REST API access
-- API keys for programmatic integration
+- 2 API keys for programmatic integration
 - Webhook support for real-time notifications
 - Perfect for e-commerce platforms and fintech companies
 
@@ -84,7 +84,7 @@ Kifiya Auth supports verification from multiple Ethiopian banks:
 ### 5. Developer API Features
 
 - **RESTful API**: Simple HTTP-based API
-- **API Keys**: Secure authentication
+- **2 API Keys**: Secure authentication (2 keys per account)
 - **Webhooks**: Real-time payment notifications
 - **Comprehensive Documentation**: Complete API reference
 - **Code Examples**: Ready-to-use code samples
@@ -217,7 +217,7 @@ kifiya-pay/
 
 ### For Developers
 1. Sign up for a developer account
-2. Get your API key
+2. Get your 2 API keys
 3. Read the API documentation
 4. Start integrating
 

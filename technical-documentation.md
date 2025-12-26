@@ -35,10 +35,12 @@ Authorization: Bearer YOUR_API_KEY
 ```
 
 #### API Key Management
+- All plans include 2 API keys
 - API keys are obtained from the merchant dashboard
 - Keys should be kept secure and never exposed in client-side code
 - Keys can be regenerated from the dashboard
-- Each merchant account has its own unique API key
+- Each merchant account has 2 unique API keys
+- Use different keys for different environments (production, development) or applications
 
 ### API Endpoints
 
@@ -808,10 +810,11 @@ The verifier page analyzes payments by:
 
 ### For Developers (API Users)
 
-1. **Get API Key**
+1. **Get API Keys**
    - Sign up for developer account
-   - Obtain API key from dashboard
-   - Store API key securely
+   - Obtain 2 API keys from dashboard
+   - Store API keys securely
+   - Use different keys for different environments or applications
 
 2. **Create Payment Intent**
    ```javascript
@@ -881,10 +884,12 @@ The verifier page analyzes payments by:
 ## Security Best Practices
 
 1. **API Key Security**
+   - All accounts have 2 API keys
    - Never expose API keys in client-side code
    - Use environment variables
    - Rotate keys regularly
-   - Use different keys for development and production
+   - Use one key for development and one for production
+   - Or use different keys for different applications
 
 2. **Webhook Security**
    - Always verify webhook signatures
@@ -956,46 +961,83 @@ The verifier page analyzes payments by:
 - Error handling
 - Rate limiting
 
-## SDK & Libraries
+## API Integration Examples
 
 ### JavaScript/TypeScript
 ```javascript
-import PayAuth from '@payauth/sdk';
-
-const payAuth = new PayAuth('YOUR_API_KEY');
+// Direct API integration using fetch
+const API_KEY = 'YOUR_API_KEY'; // Use one of your 2 API keys
 
 // Create payment intent
-const intent = await payAuth.paymentIntents.create({
-  amount: 1000.00,
-  currency: 'ETB',
-  payer_name: 'John Doe'
+const intentResponse = await fetch('https://api.kifiya-auth.com/v1/payment-intents', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    amount: 1000.00,
+    currency: 'ETB',
+    payer_name: 'John Doe'
+  })
 });
 
+const intent = await intentResponse.json();
+
 // Verify payment
-const verification = await payAuth.verifications.create({
-  payment_intent_id: intent.id,
-  transaction_reference: 'TXN123456789'
+const verificationResponse = await fetch('https://api.kifiya-auth.com/v1/verifications', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    payment_intent_id: intent.data.id,
+    transaction_reference: 'TXN123456789',
+    bank_name: 'CBE'
+  })
 });
+
+const verification = await verificationResponse.json();
 ```
 
 ### Python
 ```python
-from payauth import PayAuth
+import requests
 
-client = PayAuth(api_key='YOUR_API_KEY')
+API_KEY = 'YOUR_API_KEY'  # Use one of your 2 API keys
+BASE_URL = 'https://api.kifiya-auth.com/v1'
+
+headers = {
+    'Authorization': f'Bearer {API_KEY}',
+    'Content-Type': 'application/json'
+}
 
 # Create payment intent
-intent = client.payment_intents.create(
-    amount=1000.00,
-    currency='ETB',
-    payer_name='John Doe'
+intent_response = requests.post(
+    f'{BASE_URL}/payment-intents',
+    headers=headers,
+    json={
+        'amount': 1000.00,
+        'currency': 'ETB',
+        'payer_name': 'John Doe'
+    }
 )
 
+intent = intent_response.json()
+
 # Verify payment
-verification = client.verifications.create(
-    payment_intent_id=intent.id,
-    transaction_reference='TXN123456789'
+verification_response = requests.post(
+    f'{BASE_URL}/verifications',
+    headers=headers,
+    json={
+        'payment_intent_id': intent['data']['id'],
+        'transaction_reference': 'TXN123456789',
+        'bank_name': 'CBE'
+    }
 )
+
+verification = verification_response.json()
 ```
 
 ## Bank Integrations
@@ -1070,10 +1112,9 @@ verification = client.verifications.create(
 1. **GraphQL API**: Alternative to REST API
 2. **gRPC Support**: For high-performance integrations
 3. **WebSocket**: Real-time updates
-4. **Mobile SDKs**: Native iOS and Android SDKs
-5. **Advanced Analytics**: Real-time analytics dashboard
-6. **Machine Learning**: Enhanced fraud detection
-7. **Multi-region**: Geographic distribution
-8. **API Versioning**: Better version management
+4. **Advanced Analytics**: Real-time analytics dashboard
+5. **Machine Learning**: Enhanced fraud detection
+6. **Multi-region**: Geographic distribution
+7. **API Versioning**: Better version management
 
 

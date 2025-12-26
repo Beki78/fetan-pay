@@ -149,6 +149,7 @@ CREATE TABLE verifications (
 - **Authentication**:
   - API key-based authentication
   - Bearer token in Authorization header
+  - 2 API keys per account (all plans)
   - Key rotation support
   - Rate limiting per API key
 
@@ -230,22 +231,6 @@ ORDER BY date DESC;
 
 **Icon**: Bar chart
 
-### 6. Reliable Support
-
-**Description**: Dedicated support team ready to help
-
-**Technical Implementation**:
-- Support ticket system
-- Email support integration
-- Documentation portal
-- Community forum (future)
-
-**Benefits**:
-- Expert assistance
-- Quick problem resolution
-- Smooth implementation
-
-**Icon**: Target/concentric circles
 
 ### 7. Waiter Tip & Bonus Management
 
@@ -518,6 +503,7 @@ CREATE TABLE bank_accounts (
 
 **Technical Implementation**:
 - **API Key Management**:
+  - 2 API keys per account (all plans)
   - Secure key generation (UUID v4)
   - Key hashing (bcrypt)
   - Key rotation endpoint
@@ -531,11 +517,6 @@ CREATE TABLE bank_accounts (
   - Request validation
   - Error sanitization
 
-- **SDK Libraries**:
-  - JavaScript/TypeScript SDK
-  - Python SDK
-  - PHP SDK (future)
-  - Ruby SDK (future)
 
 ### Security Features
 
@@ -616,56 +597,83 @@ CREATE TABLE bank_accounts (
 
 ### JavaScript/TypeScript
 ```typescript
-import { KifiyaAuth } from '@kifiya/auth-sdk';
-
-const client = new KifiyaAuth('YOUR_API_KEY');
+// Direct API calls using fetch
+const API_KEY = 'YOUR_API_KEY'; // Use one of your 2 API keys
 
 // Create payment intent
-const intent = await client.paymentIntents.create({
-  amount: 1000.00,
-  currency: 'ETB',
-  payer_name: 'John Doe'
+const intentResponse = await fetch('https://api.kifiya-auth.com/v1/payment-intents', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    amount: 1000.00,
+    currency: 'ETB',
+    payer_name: 'John Doe'
+  })
 });
+
+const intent = await intentResponse.json();
 
 // Verify by transaction ID
-const verification = await client.verifications.create({
-  payment_intent_id: intent.id,
-  transaction_reference: 'TXN123456789',
-  bank_name: 'CBE'
+const verificationResponse = await fetch('https://api.kifiya-auth.com/v1/verifications', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    payment_intent_id: intent.data.id,
+    transaction_reference: 'TXN123456789',
+    bank_name: 'CBE'
+  })
 });
 
-// Verify by QR code
-const qrVerification = await client.verifications.createQR({
-  payment_intent_id: intent.id,
-  qr_code_data: 'base64_qr_data',
-  bank_name: 'CBE'
-});
+const verification = await verificationResponse.json();
 ```
 
 ### Python
 ```python
-from kifiya_auth import KifiyaAuth
+import requests
 
-client = KifiyaAuth(api_key='YOUR_API_KEY')
+API_KEY = 'YOUR_API_KEY'  # Use one of your 2 API keys
+BASE_URL = 'https://api.kifiya-auth.com/v1'
+
+headers = {
+    'Authorization': f'Bearer {API_KEY}',
+    'Content-Type': 'application/json'
+}
 
 # Create payment intent
-intent = client.payment_intents.create(
-    amount=1000.00,
-    currency='ETB',
-    payer_name='John Doe'
+intent_response = requests.post(
+    f'{BASE_URL}/payment-intents',
+    headers=headers,
+    json={
+        'amount': 1000.00,
+        'currency': 'ETB',
+        'payer_name': 'John Doe'
+    }
 )
 
+intent = intent_response.json()
+
 # Verify payment
-verification = client.verifications.create(
-    payment_intent_id=intent.id,
-    transaction_reference='TXN123456789',
-    bank_name='CBE'
+verification_response = requests.post(
+    f'{BASE_URL}/verifications',
+    headers=headers,
+    json={
+        'payment_intent_id': intent['data']['id'],
+        'transaction_reference': 'TXN123456789',
+        'bank_name': 'CBE'
+    }
 )
+
+verification = verification_response.json()
 ```
 
 ## Future Enhancements
 
-- Mobile SDK (iOS, Android)
 - Payment receipt OCR
 - Advanced fraud detection (ML)
 - Multi-currency support

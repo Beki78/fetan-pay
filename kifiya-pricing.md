@@ -6,24 +6,29 @@ Kifiya Auth offers flexible pricing plans to suit businesses of all sizes, from 
 
 ## Pricing Plans
 
-### Free Trial
+### Free Plan
 
 **Perfect for**: Testing the platform and small businesses getting started
 
 **Included**:
-- ✅ 100 free verifications
+
+- ✅ 100 free verifications per month
 - ✅ Full API access
+- ✅ 2 API keys
 - ✅ Vendor dashboard access
 - ✅ Basic analytics
-- ✅ Email support
 - ✅ All verification methods (Transaction ID + QR Code)
 - ✅ Multi-bank support
+- ✅ Frontend UI Package (with watermark)
+- ✅ Bank account management (up to 2 accounts)
 
 **Limitations**:
-- 100 verifications total
+
+- 100 verifications per month
 - No webhook support
 - Basic analytics only
-- 30-day trial period
+- Frontend UI shows watermark
+- Transaction history (30 days)
 
 **Price**: **FREE**
 
@@ -34,16 +39,18 @@ Kifiya Auth offers flexible pricing plans to suit businesses of all sizes, from 
 **Perfect for**: Small businesses and startups
 
 **Included**:
+
 - ✅ 1,000 verifications per month
 - ✅ Full API access
+- ✅ 2 API keys
 - ✅ Vendor dashboard
 - ✅ Webhook support
 - ✅ Advanced analytics
-- ✅ Email support
 - ✅ Transaction history (6 months)
 - ✅ All verification methods
 - ✅ Multi-bank support
 - ✅ Bank account management (up to 5 accounts)
+- ✅ Frontend UI Package (with watermark)
 
 **Overage**: $0.10 per additional verification
 
@@ -56,19 +63,21 @@ Kifiya Auth offers flexible pricing plans to suit businesses of all sizes, from 
 **Perfect for**: Growing businesses and medium-sized companies
 
 **Included**:
+
 - ✅ 10,000 verifications per month
 - ✅ Full API access
+- ✅ 2 API keys
 - ✅ Vendor dashboard
 - ✅ Webhook support
 - ✅ Advanced analytics & reporting
-- ✅ Priority email support
 - ✅ Transaction history (12 months)
 - ✅ All verification methods
 - ✅ Multi-bank support
 - ✅ Bank account management (unlimited)
-- ✅ API key management
 - ✅ Custom webhook endpoints
 - ✅ Export functionality (CSV, PDF)
+- ✅ **Frontend UI Package (NO watermark)**
+- ✅ Custom integration support
 
 **Overage**: $0.08 per additional verification
 
@@ -76,115 +85,109 @@ Kifiya Auth offers flexible pricing plans to suit businesses of all sizes, from 
 
 ---
 
-### Business Plan
+### Custom Plan
 
-**Perfect for**: Established businesses and high-volume merchants
+**Perfect for**: Large enterprises, fintech companies, and businesses with specific needs
 
 **Included**:
-- ✅ 50,000 verifications per month
+
+- ✅ Custom verification limits (based on your needs)
 - ✅ Full API access
+- ✅ 2 API keys
 - ✅ Vendor dashboard
 - ✅ Webhook support
 - ✅ Advanced analytics & reporting
-- ✅ Priority support (24/7)
 - ✅ Transaction history (unlimited)
 - ✅ All verification methods
 - ✅ Multi-bank support
 - ✅ Bank account management (unlimited)
-- ✅ Multiple API keys
-- ✅ Custom webhook endpoints
-- ✅ Export functionality (CSV, PDF, Excel)
-- ✅ Dedicated account manager
-- ✅ Custom integrations support
-- ✅ SLA guarantee (99.9% uptime)
-
-**Overage**: $0.06 per additional verification
-
-**Price**: **$799/month**
-
----
-
-### Enterprise Plan
-
-**Perfect for**: Large enterprises, fintech companies, and payment processors
-
-**Included**:
-- ✅ Unlimited verifications
-- ✅ Full API access
-- ✅ Vendor dashboard
-- ✅ Webhook support
-- ✅ Advanced analytics & reporting
-- ✅ Dedicated support (24/7)
-- ✅ Transaction history (unlimited)
-- ✅ All verification methods
-- ✅ Multi-bank support
-- ✅ Bank account management (unlimited)
-- ✅ Multiple API keys
 - ✅ Custom webhook endpoints
 - ✅ Export functionality (all formats)
-- ✅ Dedicated account manager
-- ✅ Custom integrations support
-- ✅ SLA guarantee (99.99% uptime)
-- ✅ Custom pricing
+- ✅ Frontend UI Package (NO watermark, white-label options)
+- ✅ **Custom system integration** (We help integrate with your existing systems)
 - ✅ Volume discounts
 - ✅ White-label options
-- ✅ On-premise deployment (optional)
 - ✅ Custom features development
+- ✅ On-premise deployment (optional)
 
-**Price**: **Custom** (Contact sales)
+**Pricing**: **Custom** - Contact us for personalized pricing based on your requirements
+
+**Contact**: sales@kifiya-auth.com or schedule a call to discuss your needs
 
 ---
 
 ## Feature Comparison
 
-| Feature | Free Trial | Starter | Growth | Business | Enterprise |
-|---------|-----------|---------|--------|----------|------------|
-| Verifications/month | 100 | 1,000 | 10,000 | 50,000 | Unlimited |
-| API Access | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Vendor Dashboard | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Webhooks | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Analytics | Basic | Advanced | Advanced | Advanced | Advanced |
-| Support | Email | Email | Priority | Priority 24/7 | Dedicated 24/7 |
-| Transaction History | 30 days | 6 months | 12 months | Unlimited | Unlimited |
-| Bank Accounts | 2 | 5 | Unlimited | Unlimited | Unlimited |
-| API Keys | 1 | 1 | 1 | Multiple | Multiple |
-| Export | ❌ | ❌ | CSV, PDF | CSV, PDF, Excel | All formats |
-| Account Manager | ❌ | ❌ | ❌ | ✅ | ✅ |
-| SLA | ❌ | ❌ | ❌ | 99.9% | 99.99% |
-| Custom Features | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Feature             | Free           | Starter        | Growth            | Custom                          |
+| ------------------- | -------------- | -------------- | ----------------- | ------------------------------- |
+| Verifications/month | 100            | 1,000          | 10,000            | Custom                          |
+| API Access          | ✅             | ✅             | ✅                | ✅                              |
+| API Keys            | 2              | 2              | 2                 | 2                               |
+| Vendor Dashboard    | ✅             | ✅             | ✅                | ✅                              |
+| Webhooks            | ❌             | ✅             | ✅                | ✅                              |
+| Analytics           | Basic          | Advanced       | Advanced          | Advanced                        |
+| Transaction History | 30 days        | 6 months       | 12 months         | Unlimited                       |
+| Bank Accounts       | 2              | 5              | Unlimited         | Unlimited                       |
+| Export              | ❌             | ❌             | CSV, PDF          | All formats                     |
+| Frontend UI Package | ✅ (Watermark) | ✅ (Watermark) | ✅ (No Watermark) | ✅ (No Watermark + White-label) |
+| Custom Integration  | ❌             | ❌             | ✅                | ✅ (Full Support)               |
+| Custom Features     | ❌             | ❌             | ❌                | ✅                              |
 
 ## Verification Methods Pricing
 
 All verification methods are included in all plans:
+
 - ✅ Transaction ID verification
 - ✅ QR code scanning
 - ✅ Multi-bank support (BOA, Awash, CBE, Telebirr, and more)
 
+## Frontend UI Package
+
+### Frontend UI Package
+
+Pre-built, customizable UI components for integrating payment verification into your website or application:
+
+- Payment verification forms
+- QR code scanner component
+- Payment status display
+- Transaction history widget
+- Mobile-responsive design
+- Easy integration (copy-paste or npm package)
+
+**Watermark Policy**:
+
+- **Free & Starter Plans**: UI shows "Powered by Kifiya Auth" watermark
+- **Growth & Custom Plans**: No watermark, fully white-label option available
+
 ## Additional Services
 
 ### Bank Integration
+
 - **Standard Banks** (BOA, Awash, CBE, Telebirr): Included in all plans
-- **Additional Banks**: Custom integration available (Enterprise plan or custom pricing)
+- **Additional Banks**: Custom integration available (Custom plan)
 
-### Support Levels
+### Custom System Integration
 
-**Email Support**:
-- Response time: 24-48 hours
-- Available: Business hours (Mon-Fri, 9 AM - 5 PM EAT)
+**We help you integrate Kifiya Auth with your existing systems!**
 
-**Priority Support**:
-- Response time: 4-8 hours
-- Available: Extended hours (Mon-Fri, 8 AM - 8 PM EAT)
+Whether you need integration with:
 
-**Priority 24/7 Support**:
-- Response time: 1-2 hours
-- Available: 24/7/365
+- E-commerce platforms (WooCommerce, Shopify, etc.)
+- POS systems
+- Accounting software
+- ERP systems
+- Custom business applications
+- Payment gateways
 
-**Dedicated Support**:
-- Response time: < 1 hour
-- Available: 24/7/365
-- Dedicated account manager
-- Custom support channels
+**Contact us** to discuss your integration needs. Our team will work with you to:
+
+- Analyze your current system
+- Design the integration architecture
+- Implement the integration
+- Test and deploy
+- Provide ongoing support
+
+**Pricing**: Based on complexity and requirements (discussed during consultation)
 
 ## Payment Methods
 
@@ -201,40 +204,43 @@ All verification methods are included in all plans:
 - **Invoices**: Available in dashboard
 - **Refunds**: Pro-rated refunds for annual plans
 
-## Free Trial Details
-
-- **Duration**: 30 days
-- **Verifications**: 100 total (not per month)
-- **No Credit Card Required**: Sign up without payment
-- **Full Features**: Access to all core features
-- **Upgrade Anytime**: Upgrade to paid plan anytime during trial
-
 ## Overage Pricing
 
 If you exceed your plan's verification limit:
 
 - **Starter Plan**: $0.10 per additional verification
 - **Growth Plan**: $0.08 per additional verification
-- **Business Plan**: $0.06 per additional verification
-- **Enterprise Plan**: Custom pricing (volume discounts available)
+- **Custom Plan**: Custom pricing (volume discounts available)
 
 ## Volume Discounts
 
 For high-volume usage, contact sales for custom pricing:
+
 - 100,000+ verifications/month
 - Multi-year commitments
 - Enterprise agreements
 
-## Enterprise Custom Pricing
+## Custom Plan Details
 
-Enterprise plans include:
-- Custom verification limits
-- Volume discounts
-- Custom features development
-- On-premise deployment options
-- White-label solutions
-- Dedicated infrastructure
-- Custom SLA agreements
+Custom plans are tailored to your specific needs and include:
+
+- **Custom verification limits**: Based on your business volume
+- **Volume discounts**: Better pricing for higher volumes
+- **Custom features development**: Build features specific to your needs
+- **System integration**: We help integrate with your existing systems
+- **On-premise deployment**: Optional self-hosted solution
+- **White-label options**: Fully branded solution
+- **Dedicated infrastructure**: Isolated resources if needed
+- **Flexible payment terms**: Monthly, quarterly, or annual options
+
+**How it works**:
+
+1. Contact our sales team
+2. Schedule a consultation call
+3. Discuss your requirements and integration needs
+4. Receive custom proposal with pricing
+5. Review and approve
+6. Get started with dedicated onboarding
 
 ## Money-Back Guarantee
 
@@ -245,37 +251,61 @@ Enterprise plans include:
 ## Frequently Asked Questions
 
 ### Can I change plans?
+
 Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately, and billing is pro-rated.
 
 ### What happens if I exceed my limit?
+
 You'll be charged for overage at the end of the billing cycle. You can set up usage alerts in your dashboard.
 
 ### Do unused verifications roll over?
+
 No, verification limits reset each billing cycle. Unused verifications do not roll over.
 
 ### Is there a setup fee?
+
 No, there are no setup fees for any plan.
 
 ### Can I cancel anytime?
+
 Yes, you can cancel your subscription at any time. You'll continue to have access until the end of your billing period.
 
 ### Do you offer discounts for annual plans?
+
 Yes, annual plans receive a 10% discount compared to monthly billing.
 
+### What is the Frontend UI Package?
+
+The Frontend UI Package includes pre-built, ready-to-use UI components that you can integrate into your website or application. It includes payment verification forms, QR scanners, status displays, and more. Free and Starter plans show a watermark, while Growth and Custom plans have no watermark.
+
+### Can you help integrate with our existing system?
+
+Yes! For Growth and Custom plans, we offer integration support. Contact our sales team to discuss your integration needs, and we'll work with you to integrate Kifiya Auth with your existing systems.
+
 ### What payment methods do you accept?
+
 We accept credit/debit cards, bank transfers, and mobile money payments.
 
 ## Contact Sales
 
-For Enterprise pricing, custom plans, or volume discounts:
+For Custom plan pricing, system integration, or volume discounts:
+
 - **Email**: sales@kifiya-auth.com
 - **Phone**: +251 XXX XXX XXX
-- **Schedule a Call**: [Book a demo](https://kifiya-auth.com/demo)
+- **Schedule a Call**: [Book a consultation](https://kifiya-auth.com/demo)
+
+**What to discuss in consultation**:
+
+- Your verification volume needs
+- System integration requirements
+- Custom features needed
+- White-label preferences
+- Deployment preferences (cloud/on-premise)
 
 ## Getting Started
 
 1. **Sign Up**: Create a free account
-2. **Start Free Trial**: Get 100 free verifications
+2. **Start Free Plan**: Get 100 free verifications per month
 3. **Choose a Plan**: Select the plan that fits your needs
 4. **Start Verifying**: Begin verifying payments immediately
 
@@ -284,4 +314,3 @@ For Enterprise pricing, custom plans, or volume discounts:
 **Note**: All prices are in USD. Prices may vary by region. Contact sales for local pricing.
 
 **Last Updated**: January 2025
-

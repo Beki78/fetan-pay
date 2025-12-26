@@ -87,15 +87,11 @@ Get instant notifications when payments are verified. Integrate seamlessly with 
 
 ### 💻 Developer-Friendly API
 
-Simple REST API with comprehensive documentation. Get started in minutes, not days. API keys provided for developers.
+Simple REST API with comprehensive documentation. Get started in minutes, not days. 2 API keys provided for all plans.
 
 ### 📊 Analytics Dashboard
 
 Track all your transactions, verification rates, and business metrics in one place.
-
-### 🎯 Reliable Support
-
-Dedicated support team ready to help you integrate and scale your payment verification.
 
 ## How It Works
 
@@ -135,10 +131,10 @@ Dedicated support team ready to help you integrate and scale your payment verifi
 
 ### For Developers (API Users)
 
-1. **Get API Key**
+1. **Get API Keys**
 
    - Sign up for developer account
-   - Obtain API key from dashboard
+   - Obtain 2 API keys from dashboard
 
 2. **Create Payment Intent**
 
@@ -161,11 +157,11 @@ Dedicated support team ready to help you integrate and scale your payment verifi
 
 ## Quick Start
 
-### 1. Get Your API Key (For Developers)
+### 1. Get Your API Keys (For Developers)
 
 1. Sign up for a developer account
 2. Navigate to your dashboard
-3. Generate and copy your API key
+3. Generate and copy your 2 API keys
 
 ### 2. Create a Payment Intent
 
@@ -297,7 +293,7 @@ For detailed API documentation, see [technical-documentation.md](./technical-doc
 
 ## Authentication
 
-All API requests require authentication using your API key:
+All API requests require authentication using one of your API keys:
 
 ```http
 Authorization: Bearer YOUR_API_KEY
@@ -308,6 +304,8 @@ Or as a query parameter:
 ```
 ?api_key=YOUR_API_KEY
 ```
+
+**Note**: All plans include 2 API keys. You can use different keys for different environments (production, development) or applications.
 
 ## Webhooks
 
@@ -365,6 +363,7 @@ Error responses include detailed information:
 API requests are rate limited to ensure fair usage:
 
 - Default: 100 requests per minute per API key
+- Each of your 2 API keys has its own rate limit
 - Rate limit information is included in response headers
 
 ## Pricing
@@ -376,9 +375,10 @@ API requests are rate limited to ensure fair usage:
 All plans include:
 
 - Full API access
-- Email support
-- Webhook support
+- 2 API keys
+- Webhook support (Starter and above)
 - Analytics dashboard
+- Frontend UI Package
 
 Contact sales for enterprise pricing: https://payauth.amixmon.com/#contact
 
@@ -410,17 +410,11 @@ Verify payments between buyers and sellers, providing trust and security.
 
 ## Security
 
-- **API Key Security**: Secure key generation and management
+- **API Key Security**: Secure key generation and management (2 keys per account)
 - **Webhook Security**: Signature verification for all webhooks
 - **Data Encryption**: All data encrypted in transit (HTTPS)
 - **Fraud Prevention**: Built-in duplicate transaction detection
 - **Rate Limiting**: Protection against abuse
-
-## Support
-
-- **Email**: support@payauth.et
-- **Documentation**: https://payauth.amixmon.com/docs/v1
-- **Dashboard**: https://payauth.amixmon.com/dashboard
 
 ## Legal
 
@@ -486,7 +480,7 @@ Kifiya Auth is designed for two types of users:
 ### For Developers
 
 1. **Sign Up**: Create a developer account
-2. **Get API Key**: Generate your API key from the dashboard
+2. **Get API Keys**: Generate your 2 API keys from the dashboard
 3. **Read Documentation**: Review the technical documentation
 4. **Integrate**: Use the API to integrate payment verification
 5. **Test**: Test your integration with sample transactions
