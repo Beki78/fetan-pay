@@ -10,7 +10,6 @@
     "start:docs": "next dev --port 8080",
     "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind"
   },
-  
   "dependencies": {
     "next": "16.1.1",
     "nextra": "^4.6.1",
@@ -21,7 +20,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^19",
+    "@types/react": "19.2.7",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
