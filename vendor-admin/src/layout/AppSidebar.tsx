@@ -5,20 +5,18 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import {
-  BoxCubeIcon,
-  CalenderIcon,
+  BoltIcon,
   ChevronDownIcon,
   DollarLineIcon,
   GridIcon,
-  GroupIcon,
   HorizontaLDots,
   ListIcon,
-  PageIcon,
+  PaperPlaneIcon,
   PieChartIcon,
   PlugInIcon,
   ShootingStarIcon,
-  TableIcon,
-  UserCircleIcon,
+  TaskIcon,
+  DocsIcon,
 } from "../icons/index";
 // import SidebarWidget from "./SidebarWidget";
 
@@ -29,30 +27,16 @@ type NavItem = {
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
-const navItems: NavItem[] = [
+// MAIN section items
+const mainItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
-  },
-  // {
-  //   icon: <CalenderIcon />,
-  //   name: "Calendar",
-  //   path: "/calendar",
-  // },
-  {
-    icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/profile",
+    path: "/",
   },
   {
-    icon: <GroupIcon />,
-    name: "Vendors",
-    path: "/vendors",
-  },
-  {
-    icon: <DollarLineIcon />,
-    name: "Payments",
+    icon: <ListIcon />,
+    name: "Transactions",
     path: "/payments",
   },
   {
@@ -61,69 +45,52 @@ const navItems: NavItem[] = [
     path: "/analytics",
   },
   {
+    icon: <DollarLineIcon />,
+    name: "Wallet",
+    path: "/wallet",
+  },
+  {
     icon: <ShootingStarIcon />,
-    name: "Billing",
+    name: "Subscription",
     path: "/billing",
   },
-  {
-    icon: <DollarLineIcon />,
-    name: "Tips",
-    path: "/tips",
-  },
-  {
-    icon: <PlugInIcon />,
-    name: "API Management",
-    path: "/api-keys",
-  },
-
-  // {
-  //   name: "Forms",
-  //   icon: <ListIcon />,
-  //   subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  // },
-  // {
-  //   name: "Tables",
-  //   icon: <TableIcon />,
-  //   subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
-  // },
-  // {
-  //   name: "Pages",
-  //   icon: <PageIcon />,
-  //   subItems: [
-  //     { name: "Blank Page", path: "/blank", pro: false },
-  //     { name: "404 Error", path: "/error-404", pro: false },
-  //   ],
-  // },
 ];
 
-const othersItems: NavItem[] = [
-  // {
-  //   icon: <PieChartIcon />,
-  //   name: "Charts",
-  //   subItems: [
-  //     { name: "Line Chart", path: "/line-chart", pro: false },
-  //     { name: "Bar Chart", path: "/bar-chart", pro: false },
-  //   ],
-  // },
-  // {
-  //   icon: <BoxCubeIcon />,
-  //   name: "UI Elements",
-  //   subItems: [
-  //     { name: "Alerts", path: "/alerts", pro: false },
-  //     { name: "Avatar", path: "/avatars", pro: false },
-  //     { name: "Badge", path: "/badge", pro: false },
-  //     { name: "Buttons", path: "/buttons", pro: false },
-  //     { name: "Images", path: "/images", pro: false },
-  //     { name: "Videos", path: "/videos", pro: false },
-  //   ],
-  // },
+// CONFIGURATION section items
+const configurationItems: NavItem[] = [
   {
     icon: <PlugInIcon />,
-    name: "Authentication",
-    subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      { name: "Sign Up", path: "/signup", pro: false },
-    ],
+    name: "Payment Providers",
+    path: "/payment-providers",
+  },
+  {
+    icon: <ShootingStarIcon />,
+    name: "Branding",
+    path: "/branding",
+  },
+  {
+    icon: <BoltIcon />,
+    name: "API Keys",
+    path: "/api-keys",
+  },
+  {
+    icon: <PaperPlaneIcon />,
+    name: "Webhooks",
+    path: "/webhooks",
+  },
+];
+
+// RESOURCES section items
+const resourcesItems: NavItem[] = [
+  {
+    icon: <DocsIcon />,
+    name: "API Docs",
+    path: "/api-keys?tab=docs",
+  },
+  {
+    icon: <TaskIcon />,
+    name: "Settings",
+    path: "/profile",
   },
 ];
 
@@ -133,7 +100,7 @@ const AppSidebar: React.FC = () => {
 
   const renderMenuItems = (
     navItems: NavItem[],
-    menuType: "main" | "others"
+    menuType: "main" | "configuration" | "resources"
   ) => (
     <ul className="flex flex-col gap-4">
       {navItems.map((nav, index) => (
@@ -258,7 +225,7 @@ const AppSidebar: React.FC = () => {
   );
 
   const [openSubmenu, setOpenSubmenu] = useState<{
-    type: "main" | "others";
+    type: "main" | "configuration" | "resources";
     index: number;
   } | null>(null);
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
@@ -272,14 +239,19 @@ const AppSidebar: React.FC = () => {
   useEffect(() => {
     // Check if the current path matches any submenu item
     let submenuMatched = false;
-    ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : othersItems;
+    ["main", "configuration", "resources"].forEach((menuType) => {
+      const items =
+        menuType === "main"
+          ? mainItems
+          : menuType === "configuration"
+          ? configurationItems
+          : resourcesItems;
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
             if (isActive(subItem.path)) {
               setOpenSubmenu({
-                type: menuType as "main" | "others",
+                type: menuType as "main" | "configuration" | "resources",
                 index,
               });
               submenuMatched = true;
@@ -308,7 +280,7 @@ const AppSidebar: React.FC = () => {
     }
   }, [openSubmenu]);
 
-  const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
+  const handleSubmenuToggle = (index: number, menuType: "main" | "configuration" | "resources") => {
     setOpenSubmenu((prevOpenSubmenu) => {
       if (
         prevOpenSubmenu &&
@@ -371,39 +343,59 @@ const AppSidebar: React.FC = () => {
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
+            {/* MAIN Section */}
             <div>
               <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                className={`mb-4 text-xs uppercase font-semibold flex leading-[20px] text-gray-400 ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Menu"
+                  "MAIN"
                 ) : (
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(mainItems, "main")}
             </div>
 
-            <div className="">
+            {/* CONFIGURATION Section */}
+            <div>
               <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                className={`mb-4 text-xs uppercase font-semibold flex leading-[20px] text-gray-400 ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
+                  "CONFIGURATION"
                 ) : (
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(othersItems, "others")}
+              {renderMenuItems(configurationItems, "configuration")}
+            </div>
+
+            {/* RESOURCES Section */}
+            <div>
+              <h2
+                className={`mb-4 text-xs uppercase font-semibold flex leading-[20px] text-gray-400 ${
+                  !isExpanded && !isHovered
+                    ? "lg:justify-center"
+                    : "justify-start"
+                }`}
+              >
+                {isExpanded || isHovered || isMobileOpen ? (
+                  "RESOURCES"
+                ) : (
+                  <HorizontaLDots />
+                )}
+              </h2>
+              {renderMenuItems(resourcesItems, "resources")}
             </div>
           </div>
         </nav>
