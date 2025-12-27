@@ -1,0 +1,70 @@
+"use client";
+import React from "react";
+import { BoxIcon, CheckCircleIcon, TimeIcon, DollarLineIcon } from "@/icons";
+
+// Mock data
+const mockMetrics = {
+  totalTransactions: 1,
+  verified: 0,
+  pending: 1,
+  walletBalance: 0.00,
+};
+
+export default function DashboardMetrics() {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Total Transactions */}
+      <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center justify-center w-10 h-10 bg-gray-700 rounded-lg">
+            <BoxIcon className="text-gray-300 size-5" />
+          </div>
+          <span className="text-sm text-gray-400">Total Transactions</span>
+        </div>
+        <h4 className="text-2xl font-semibold text-white">
+          {mockMetrics.totalTransactions}
+        </h4>
+      </div>
+
+      {/* Verified */}
+      <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center justify-center w-10 h-10 bg-green-500/20 rounded-lg">
+            <CheckCircleIcon className="text-green-400 size-5" />
+          </div>
+          <span className="text-sm text-gray-400">Verified</span>
+        </div>
+        <h4 className="text-2xl font-semibold text-white">
+          {mockMetrics.verified}
+        </h4>
+      </div>
+
+      {/* Pending */}
+      <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center justify-center w-10 h-10 bg-orange-500/20 rounded-lg">
+            <TimeIcon className="text-orange-400 size-5" />
+          </div>
+          <span className="text-sm text-gray-400">Pending</span>
+        </div>
+        <h4 className="text-2xl font-semibold text-white">
+          {mockMetrics.pending}
+        </h4>
+      </div>
+
+      {/* Wallet Balance */}
+      <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center justify-center w-10 h-10 bg-blue-500/20 rounded-lg">
+            <DollarLineIcon className="text-blue-400 size-5" />
+          </div>
+          <span className="text-sm text-gray-400">Wallet Balance</span>
+        </div>
+        <h4 className="text-2xl font-semibold text-blue-400">
+          {mockMetrics.walletBalance.toFixed(2)} ETB
+        </h4>
+      </div>
+    </div>
+  );
+}
+
