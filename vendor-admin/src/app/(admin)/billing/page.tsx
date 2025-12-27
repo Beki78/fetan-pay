@@ -61,12 +61,7 @@ export default function BillingPage() {
         </TabPanel>
 
         <TabPanel activeTab={activeTab} tabId="plans">
-          <ComponentCard
-            title="Available Plans"
-            desc="Compare plans and upgrade or downgrade your subscription"
-          >
-            <PlanComparison />
-          </ComponentCard>
+          <PlanComparison />
         </TabPanel>
 
         <TabPanel activeTab={activeTab} tabId="history">

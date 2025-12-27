@@ -8,520 +8,320 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
-import { Dropdown } from "../ui/dropdown/Dropdown";
-import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { MoreDotIcon, EyeIcon, DownloadIcon, CheckCircleIcon, AlertIcon } from "@/icons";
+import { PlusIcon } from "@/icons";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
+import CreatePaymentIntentModal from "./CreatePaymentIntentModal";
 
 // Mock data
 interface Payment {
   id: string;
-  transactionId: string;
-  vendor: {
-    id: string;
+  type: "payment";
+  code: string;
+  payer: string;
+  receiver: {
     name: string;
-    email: string;
+    bank: string;
   };
   amount: number;
-  paymentMethod: string;
-  status: "Submitted" | "Confirmed" | "Unconfirmed";
-  submittedAt: string;
-  confirmedAt?: string;
-  bank: string;
-  receiverAccount: string;
-  senderAccount: string;
-  confirmationDetails?: {
-    transactionExists: boolean;
-    paymentSuccess: boolean;
-    amountMatched: boolean;
-    receiverMatched: boolean;
-    source: string;
-    failureReason?: string;
-  };
+  status: "expired" | "pending" | "verified" | "unconfirmed";
+  date: string;
 }
 
 const mockPayments: Payment[] = [
   {
     id: "1",
-    transactionId: "TXN-2024-001234",
-    vendor: {
-      id: "1",
-      name: "John Doe",
-      email: "john.doe@example.com",
+    type: "payment",
+    code: "TXNSF7HPΙВКО8",
+    payer: "lemlem toyiba",
+    receiver: {
+      name: "EPHREM DEBEBE",
+      bank: "Commercial Bank of Ethiopia",
     },
-    amount: 15000.00,
-    paymentMethod: "Bank Transfer",
-    status: "Confirmed",
-    submittedAt: "2024-01-15T10:30:00Z",
-    confirmedAt: "2024-01-15T10:31:15Z",
-    bank: "CBE",
-    receiverAccount: "1000123456789",
-    senderAccount: "2000987654321",
-    confirmationDetails: {
-      transactionExists: true,
-      paymentSuccess: true,
-      amountMatched: true,
-      receiverMatched: true,
-      source: "CBE API",
-    },
+    amount: 2143.60,
+    status: "expired",
+    date: "Dec 27, 06:27 PM",
   },
   {
     id: "2",
-    transactionId: "TXN-2024-001235",
-    vendor: {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane.smith@example.com",
+    type: "payment",
+    code: "TXNHEHWW8EUF2",
+    payer: "test test",
+    receiver: {
+      name: "EPHREM DEBEBE",
+      bank: "Commercial Bank of Ethiopia",
     },
-    amount: 8500.50,
-    paymentMethod: "Bank Transfer",
-    status: "Confirmed",
-    submittedAt: "2024-01-15T09:15:00Z",
-    confirmedAt: "2024-01-15T09:16:30Z",
-    bank: "Awash Bank",
-    receiverAccount: "1000123456789",
-    senderAccount: "2000111222333",
-    confirmationDetails: {
-      transactionExists: true,
-      paymentSuccess: true,
-      amountMatched: true,
-      receiverMatched: true,
-      source: "Awash Bank API",
-    },
-  },
-  {
-    id: "3",
-    transactionId: "TXN-2024-001236",
-    vendor: {
-      id: "3",
-      name: "Michael Johnson",
-      email: "michael.j@example.com",
-    },
-    amount: 25000.00,
-    paymentMethod: "Bank Transfer",
-    status: "Unconfirmed",
-    submittedAt: "2024-01-15T08:45:00Z",
-    bank: "BOA",
-    receiverAccount: "1000123456789",
-    senderAccount: "2000444555666",
-    confirmationDetails: {
-      transactionExists: false,
-      paymentSuccess: false,
-      amountMatched: false,
-      receiverMatched: false,
-      source: "BOA API",
-      failureReason: "Transaction not found in bank records",
-    },
-  },
-  {
-    id: "4",
-    transactionId: "TXN-2024-001237",
-    vendor: {
-      id: "1",
-      name: "John Doe",
-      email: "john.doe@example.com",
-    },
-    amount: 12000.00,
-    paymentMethod: "Bank Transfer",
-    status: "Submitted",
-    submittedAt: "2024-01-15T11:20:00Z",
-    bank: "Telebirr",
-    receiverAccount: "1000123456789",
-    senderAccount: "2000777888999",
-  },
-  {
-    id: "5",
-    transactionId: "TXN-2024-001238",
-    vendor: {
-      id: "4",
-      name: "Sarah Williams",
-      email: "sarah.w@example.com",
-    },
-    amount: 18500.75,
-    paymentMethod: "Bank Transfer",
-    status: "Confirmed",
-    submittedAt: "2024-01-14T16:30:00Z",
-    confirmedAt: "2024-01-14T16:31:45Z",
-    bank: "CBE",
-    receiverAccount: "1000123456789",
-    senderAccount: "2000123456789",
-    confirmationDetails: {
-      transactionExists: true,
-      paymentSuccess: true,
-      amountMatched: true,
-      receiverMatched: true,
-      source: "CBE API",
-    },
-  },
-  {
-    id: "6",
-    transactionId: "TXN-2024-001239",
-    vendor: {
-      id: "5",
-      name: "David Brown",
-      email: "david.brown@example.com",
-    },
-    amount: 9500.00,
-    paymentMethod: "Bank Transfer",
-    status: "Unconfirmed",
-    submittedAt: "2024-01-14T14:15:00Z",
-    bank: "Awash Bank",
-    receiverAccount: "1000123456789",
-    senderAccount: "2000555666777",
-    confirmationDetails: {
-      transactionExists: true,
-      paymentSuccess: true,
-      amountMatched: false,
-      receiverMatched: true,
-      source: "Awash Bank API",
-      failureReason: "Amount mismatch: Expected 9500.00, Found 9000.00",
-    },
+    amount: 10.00,
+    status: "expired",
+    date: "Dec 27, 06:04 PM",
   },
 ];
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 const formatAmount = (amount: number) => {
-  return `ETB ${amount.toLocaleString("en-US", {
+  return `${amount.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`;
+  })} ETB`;
 };
 
 interface PaymentTableProps {
   onView: (payment: Payment) => void;
   onExport: () => void;
+  onCreatePaymentIntent?: (data: { payerName: string; amount: number; notes?: string }) => void;
 }
 
 export default function PaymentTable({
   onView,
   onExport,
+  onCreatePaymentIntent,
 }: PaymentTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "All" | "Submitted" | "Confirmed" | "Unconfirmed"
-  >("All");
-  const [vendorFilter, setVendorFilter] = useState<string>("All");
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("All");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-
-  // Get unique vendors for filter
-  const vendors = useMemo(() => {
-    const uniqueVendors = Array.from(
-      new Set(mockPayments.map((p) => p.vendor.id))
-    );
-    return [
-      "All",
-      ...uniqueVendors.map((id) => {
-        const vendor = mockPayments.find((p) => p.vendor.id === id)?.vendor;
-        return { id, name: vendor?.name || "" };
-      }),
-    ];
-  }, []);
+  const [typeFilter, setTypeFilter] = useState<string>("All Types");
+  const [statusFilter, setStatusFilter] = useState<string>("All Status");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Filter payments
   const filteredPayments = useMemo(() => {
     return mockPayments.filter((payment) => {
       const matchesSearch =
-        payment.transactionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payment.vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payment.vendor.email.toLowerCase().includes(searchQuery.toLowerCase());
+        payment.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        payment.payer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        payment.receiver.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesType = typeFilter === "All Types" || payment.type === typeFilter.toLowerCase();
 
       const matchesStatus =
-        statusFilter === "All" || payment.status === statusFilter;
+        statusFilter === "All Status" || payment.status === statusFilter.toLowerCase();
 
-      const matchesVendor =
-        vendorFilter === "All" || payment.vendor.id === vendorFilter;
-
-      const matchesPaymentMethod =
-        paymentMethodFilter === "All" ||
-        payment.paymentMethod === paymentMethodFilter;
-
-      const matchesDate =
-        (!dateFrom || new Date(payment.submittedAt) >= new Date(dateFrom)) &&
-        (!dateTo || new Date(payment.submittedAt) <= new Date(dateTo));
-
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesVendor &&
-        matchesPaymentMethod &&
-        matchesDate
-      );
+      return matchesSearch && matchesType && matchesStatus;
     });
-  }, [
-    searchQuery,
-    statusFilter,
-    vendorFilter,
-    paymentMethodFilter,
-    dateFrom,
-    dateTo,
-  ]);
+  }, [searchQuery, typeFilter, statusFilter]);
 
-  const handleDropdownToggle = (paymentId: string) => {
-    setOpenDropdown(openDropdown === paymentId ? null : paymentId);
-  };
-
-  const getStatusBadge = (status: Payment["status"]) => {
+  const getStatusColor = (status: Payment["status"]) => {
     switch (status) {
-      case "Confirmed":
-        return (
-          <Badge size="sm" color="success">
-            <CheckCircleIcon className="w-3 h-3 mr-1" />
-            Confirmed
-          </Badge>
-        );
-      case "Unconfirmed":
-        return (
-          <Badge size="sm" color="error">
-            <AlertIcon className="w-3 h-3 mr-1" />
-            Unconfirmed
-          </Badge>
-        );
-      case "Submitted":
-        return (
-          <Badge size="sm" color="warning">
-            Submitted
-          </Badge>
-        );
+      case "verified":
+        return "text-green-600 dark:text-green-400";
+      case "pending":
+        return "text-orange-600 dark:text-orange-400";
+      case "expired":
+        return "text-gray-500 dark:text-gray-400";
+      case "unconfirmed":
+        return "text-red-600 dark:text-red-400";
       default:
-        return null;
+        return "text-gray-500 dark:text-gray-400";
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Search and Filters */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="flex-1 max-w-md">
-            <Input
-              type="text"
-              placeholder="Search by Transaction ID, Vendor name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
-            />
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <select
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(
-                  e.target.value as "All" | "Submitted" | "Confirmed" | "Unconfirmed"
-                )
-              }
-              className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
-            >
-              <option value="All">All Status</option>
-              <option value="Submitted">Submitted</option>
-              <option value="Confirmed">Confirmed</option>
-              <option value="Unconfirmed">Unconfirmed</option>
-            </select>
-            <select
-              value={vendorFilter}
-              onChange={(e) => setVendorFilter(e.target.value)}
-              className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
-            >
-              {vendors.map((vendor) => (
-                <option
-                  key={typeof vendor === "string" ? vendor : vendor.id}
-                  value={typeof vendor === "string" ? vendor : vendor.id}
-                >
-                  {typeof vendor === "string" ? vendor : vendor.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={paymentMethodFilter}
-              onChange={(e) => setPaymentMethodFilter(e.target.value)}
-              className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
-            >
-              <option value="All">All Methods</option>
-              <option value="Bank Transfer">Bank Transfer</option>
-              <option value="QR Code">QR Code</option>
-            </select>
-            <Button size="sm" variant="outline" onClick={onExport}>
-              <DownloadIcon className="w-4 h-4" />
-              Export
-            </Button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Transactions</h1>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 dark:bg-green-500/10 dark:border-green-500/20">
+            <div className="w-2 h-2 rounded-full bg-green-500 dark:bg-green-400 animate-pulse"></div>
+            <span className="text-xs font-medium text-green-600 dark:text-green-400">Live</span>
           </div>
         </div>
-        {/* Date Range */}
+        <p className="text-sm text-gray-600 dark:text-gray-400">Manage your payment intents</p>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex-1 max-w-md">
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+              <svg
+                className="w-5 h-5 text-gray-400 dark:text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </span>
+            <Input
+              type="text"
+              placeholder="Search by transaction code..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12"
+            />
+          </div>
+        </div>
         <div className="flex items-center gap-3">
-          <Input
-            type="date"
-            placeholder="From Date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="max-w-[180px]"
-          />
-          <span className="text-gray-500 dark:text-gray-400">to</span>
-          <Input
-            type="date"
-            placeholder="To Date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="max-w-[180px]"
-          />
+          <button
+            onClick={() => setTypeFilter(typeFilter === "All Types" ? "payment" : "All Types")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              typeFilter === "All Types"
+                ? "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white"
+                : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            }`}
+          >
+            All Types
+          </button>
+          <button
+            onClick={() => setStatusFilter(statusFilter === "All Status" ? "expired" : "All Status")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              statusFilter === "All Status"
+                ? "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white"
+                : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            }`}
+          >
+            All Status
+          </button>
+          <Button
+            size="sm"
+            className="bg-purple-500 hover:bg-purple-600 text-white border-0"
+            startIcon={<PlusIcon />}
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            New Payment Intent
+          </Button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-        <div className="max-w-full overflow-x-auto">
-          <div className="min-w-[1200px]">
-            <Table>
-              <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="border-b border-gray-200 dark:border-gray-700">
+              <TableRow className="bg-gray-50 dark:bg-gray-800/80">
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  TYPE
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  CODE
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  PAYER
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  RECEIVER
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  AMOUNT
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  STATUS
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  DATE
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  ACTIONS
+                </TableCell>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredPayments.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                    colSpan={8}
+                    className="px-5 py-8 text-center text-gray-500 dark:text-gray-400"
                   >
-                    Transaction ID
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Vendor
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Amount
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Payment Method
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Bank
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Status
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Submitted
-                  </TableCell>
-                  <TableCell
-                    isHeader
-                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                  >
-                    Actions
+                    No transactions found
                   </TableCell>
                 </TableRow>
-              </TableHeader>
-
-              <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                {filteredPayments.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="px-5 py-8 text-center text-gray-500 dark:text-gray-400"
-                    >
-                      No payments found
+              ) : (
+                filteredPayments.map((payment) => (
+                  <TableRow
+                    key={payment.id}
+                    className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors border-b border-gray-200 dark:border-gray-700/50"
+                  >
+                    <TableCell className="px-5 py-4">
+                      <Badge size="sm" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0">
+                        {payment.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className="font-medium text-blue-600 dark:text-blue-400">
+                        {payment.code}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                      {payment.payer}
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <div>
+                        <span className="block font-semibold text-gray-800 dark:text-white">
+                          {payment.receiver.name}
+                        </span>
+                        <span className="block text-sm text-gray-500 dark:text-gray-400">
+                          {payment.receiver.bank}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className="font-semibold text-gray-800 dark:text-white">
+                        {formatAmount(payment.amount)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className={`font-medium ${getStatusColor(payment.status)}`}>
+                        {payment.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-600 dark:text-gray-400">
+                      {payment.date}
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <button
+                        onClick={() => onView(payment as any)}
+                        className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
+                      >
+                        View
+                      </button>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filteredPayments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="px-5 py-4 sm:px-6 text-start">
-                        <span className="font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                          {payment.transactionId}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-start">
-                        <div>
-                          <span className="block text-gray-800 text-theme-sm dark:text-white/90">
-                            {payment.vendor.name}
-                          </span>
-                          <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
-                            {payment.vendor.email}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-gray-800 text-theme-sm dark:text-white/90 font-medium">
-                        {formatAmount(payment.amount)}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                        {payment.paymentMethod}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                        {payment.bank}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-start">
-                        {getStatusBadge(payment.status)}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                        {formatDate(payment.submittedAt)}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-start">
-                        <div className="relative">
-                          <button
-                            onClick={() => handleDropdownToggle(payment.id)}
-                            className="dropdown-toggle flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                          >
-                            <MoreDotIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                          </button>
-                          <Dropdown
-                            isOpen={openDropdown === payment.id}
-                            onClose={() => setOpenDropdown(null)}
-                          >
-                            <DropdownItem
-                              onClick={() => {
-                                onView(payment);
-                                setOpenDropdown(null);
-                              }}
-                              className="dark:text-gray-300 dark:hover:bg-gray-800"
-                            >
-                              <div className="flex items-center gap-2">
-                                <EyeIcon className="w-4 h-4" />
-                                View Details
-                              </div>
-                            </DropdownItem>
-                          </Dropdown>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
-      {/* Results count */}
-      <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-        <p>
-          Showing {filteredPayments.length} of {mockPayments.length} payments
-        </p>
-      </div>
+      {/* Create Payment Intent Modal */}
+      <CreatePaymentIntentModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={(data) => {
+          if (onCreatePaymentIntent) {
+            onCreatePaymentIntent(data);
+          }
+          setIsCreateModalOpen(false);
+        }}
+      />
     </div>
   );
 }
