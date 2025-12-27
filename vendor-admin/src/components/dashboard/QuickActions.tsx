@@ -7,7 +7,7 @@ import Link from "next/link";
 export default function QuickActions() {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-white">Quick Actions</h3>
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Quick Actions</h3>
       <div className="flex flex-wrap gap-3">
         <Button
           size="sm"
@@ -20,7 +20,7 @@ export default function QuickActions() {
           <Button
             size="sm"
             variant="outline"
-            className="bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600"
+            className="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"
             startIcon={<PieChartIcon />}
           >
             View Analytics
@@ -30,7 +30,7 @@ export default function QuickActions() {
           <Button
             size="sm"
             variant="outline"
-            className="bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600"
+            className="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"
             startIcon={<BoltIcon />}
           >
             View API Key
