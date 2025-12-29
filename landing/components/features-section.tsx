@@ -53,7 +53,7 @@ export function FeaturesSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            Unlock your financial potential with Fetan Pay's powerful suite of
+            Unlock your financial potential with Fetan Pay's powerful suite of 
             tools designed to drive your financial success
           </motion.p>
         </div>
