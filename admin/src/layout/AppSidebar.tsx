@@ -22,14 +22,32 @@ import {
 
 // Custom icon components for better representation
 const CreditCardIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clipPath="url(#clip0_4418_4360)">
+      <path d="M17.4999 17.8301H15.6499C15.2399 17.8301 14.8999 17.4901 14.8999 17.0801C14.8999 16.6701 15.2399 16.3301 15.6499 16.3301H17.4999C17.9099 16.3301 18.2499 16.6701 18.2499 17.0801C18.2499 17.4901 17.9099 17.8301 17.4999 17.8301Z" fill="currentColor" />
+      <path d="M12.97 17.8301H6.5C6.09 17.8301 5.75 17.4901 5.75 17.0801C5.75 16.6701 6.09 16.3301 6.5 16.3301H12.97C13.38 16.3301 13.72 16.6701 13.72 17.0801C13.72 17.4901 13.39 17.8301 12.97 17.8301Z" fill="currentColor" />
+      <path d="M17.5002 14.0703H11.9702C11.5602 14.0703 11.2202 13.7303 11.2202 13.3203C11.2202 12.9103 11.5602 12.5703 11.9702 12.5703H17.5002C17.9102 12.5703 18.2502 12.9103 18.2502 13.3203C18.2502 13.7303 17.9102 14.0703 17.5002 14.0703Z" fill="currentColor" />
+      <path d="M9.27 14.0703H6.5C6.09 14.0703 5.75 13.7303 5.75 13.3203C5.75 12.9103 6.09 12.5703 6.5 12.5703H9.27C9.68 12.5703 10.02 12.9103 10.02 13.3203C10.02 13.7303 9.68 14.0703 9.27 14.0703Z" fill="currentColor" />
+      <path opacity="0.4" d="M16.19 2H7.81C4.17 2 2 4.17 2 7.81V16.18C2 19.83 4.17 22 7.81 22H16.18C19.82 22 21.99 19.83 21.99 16.19V7.81C22 4.17 19.83 2 16.19 2Z" fill="currentColor" />
+    </g>
+    <defs>
+      <clipPath id="clip0_4418_4360">
+        <rect width="24" height="24" fill="white"/>
+      </clipPath>
+    </defs>
   </svg>
 );
 
 const ReceiptIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clipPath="url(#clip0_4418_169722)">
+      <path d="M15.78 2H8.22C4.44 2 3.5 3.01 3.5 7.04V18.3C3.5 20.96 4.96 21.59 6.73 19.69L6.74 19.68C7.56 18.81 8.81 18.88 9.52 19.83L10.53 21.18C11.34 22.25 12.65 22.25 13.46 21.18L14.47 19.83C15.19 18.87 16.44 18.8 17.26 19.68C19.04 21.58 20.49 20.95 20.49 18.29V7.04C20.5 3.01 19.56 2 15.78 2ZM14.75 10.75H9.25C8.84 10.75 8.5 10.41 8.5 10C8.5 9.59 8.84 9.25 9.25 9.25H14.75C15.16 9.25 15.5 9.59 15.5 10C15.5 10.41 15.16 10.75 14.75 10.75Z" fill="currentColor" />
+    </g>
+    <defs>
+      <clipPath id="clip0_4418_169722">
+        <rect width="24" height="24" fill="white"/>
+      </clipPath>
+    </defs>
   </svg>
 );
 
@@ -47,8 +65,21 @@ const SettingsIcon = () => (
 );
 
 const BankIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clipPath="url(#clip0_4418_8873)">
+      <path d="M22 19V22H2V19C2 18.45 2.45 18 3 18H21C21.55 18 22 18.45 22 19Z" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 11H5V18H7V11Z" fill="currentColor" />
+      <path d="M11 11H9V18H11V11Z" fill="currentColor" />
+      <path d="M15 11H13V18H15V11Z" fill="currentColor" />
+      <path d="M19 11H17V18H19V11Z" fill="currentColor" />
+      <path d="M23 22.75H1C0.59 22.75 0.25 22.41 0.25 22C0.25 21.59 0.59 21.25 1 21.25H23C23.41 21.25 23.75 21.59 23.75 22C23.75 22.41 23.41 22.75 23 22.75Z" fill="currentColor" />
+      <path d="M21.37 5.74984L12.37 2.14984C12.17 2.06984 11.83 2.06984 11.63 2.14984L2.63 5.74984C2.28 5.88984 2 6.29984 2 6.67984V9.99984C2 10.5498 2.45 10.9998 3 10.9998H21C21.55 10.9998 22 10.5498 22 9.99984V6.67984C22 6.29984 21.72 5.88984 21.37 5.74984ZM12 8.49984C11.17 8.49984 10.5 7.82984 10.5 6.99984C10.5 6.16984 11.17 5.49984 12 5.49984C12.83 5.49984 13.5 6.16984 13.5 6.99984C13.5 7.82984 12.83 8.49984 12 8.49984Z" fill="currentColor" />
+    </g>
+    <defs>
+      <clipPath id="clip0_4418_8873">
+        <rect width="24" height="24" fill="white"/>
+      </clipPath>
+    </defs>
   </svg>
 );
 
@@ -62,6 +93,38 @@ const WalletIcon = () => (
     </g>
     <defs>
       <clipPath id="clip0_4418_169713">
+        <rect width="24" height="24" fill="white"/>
+      </clipPath>
+    </defs>
+  </svg>
+);
+
+const UsersIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clipPath="url(#clip0_3111_32748)">
+      <path d="M11.4599 13.7303C13.0118 13.7303 14.2699 12.4723 14.2699 10.9203C14.2699 9.36843 13.0118 8.11035 11.4599 8.11035C9.90798 8.11035 8.6499 9.36843 8.6499 10.9203C8.6499 12.4723 9.90798 13.7303 11.4599 13.7303Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16.65 20.2007C16.65 17.8707 14.33 15.9707 11.46 15.9707C8.59002 15.9707 6.27002 17.8607 6.27002 20.2007" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 12.5C21 17.75 16.75 22 11.5 22C6.25 22 2 17.75 2 12.5C2 7.25 6.25 3 11.5 3C12.81 3 14.06 3.25999 15.2 3.73999C15.07 4.13999 15 4.56 15 5C15 5.75 15.21 6.46 15.58 7.06C15.78 7.4 16.04 7.70997 16.34 7.96997C17.04 8.60997 17.97 9 19 9C19.44 9 19.86 8.92998 20.25 8.78998C20.73 9.92998 21 11.19 21 12.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M23 5C23 5.32 22.96 5.62999 22.88 5.92999C22.79 6.32999 22.63 6.72 22.42 7.06C21.94 7.87 21.17 8.49998 20.25 8.78998C19.86 8.92998 19.44 9 19 9C17.97 9 17.04 8.60997 16.34 7.96997C16.04 7.70997 15.78 7.4 15.58 7.06C15.21 6.46 15 5.75 15 5C15 4.56 15.07 4.13999 15.2 3.73999C15.39 3.15999 15.71 2.64002 16.13 2.21002C16.86 1.46002 17.88 1 19 1C20.18 1 21.25 1.51002 21.97 2.33002C22.61 3.04002 23 3.98 23 5Z" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20.4898 4.97949H17.5098" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M19 3.51953V6.50952" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+    </g>
+    <defs>
+      <clipPath id="clip0_3111_32748">
+        <rect width="24" height="24" fill="white"/>
+      </clipPath>
+    </defs>
+  </svg>
+);
+
+const ApiDocsIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clipPath="url(#clip0_4418_8491)">
+      <path d="M15.7999 2.21048C15.3899 1.80048 14.6799 2.08048 14.6799 2.65048V6.14048C14.6799 7.60048 15.9199 8.81048 17.4299 8.81048C18.3799 8.82048 19.6999 8.82048 20.8299 8.82048C21.3999 8.82048 21.6999 8.15048 21.2999 7.75048C19.8599 6.30048 17.2799 3.69048 15.7999 2.21048Z" fill="currentColor" />
+      <path d="M20.5 10.19H17.61C15.24 10.19 13.31 8.26 13.31 5.89V3C13.31 2.45 12.86 2 12.31 2H8.07C4.99 2 2.5 4 2.5 7.57V16.43C2.5 20 4.99 22 8.07 22H15.93C19.01 22 21.5 20 21.5 16.43V11.19C21.5 10.64 21.05 10.19 20.5 10.19ZM11.5 17.75H7.5C7.09 17.75 6.75 17.41 6.75 17C6.75 16.59 7.09 16.25 7.5 16.25H11.5C11.91 16.25 12.25 16.59 12.25 17C12.25 17.41 11.91 17.75 11.5 17.75ZM13.5 13.75H7.5C7.09 13.75 6.75 13.41 6.75 13C6.75 12.59 7.09 12.25 7.5 12.25H13.5C13.91 12.25 14.25 12.59 14.25 13C14.25 13.41 13.91 13.75 13.5 13.75Z" fill="currentColor" />
+    </g>
+    <defs>
+      <clipPath id="clip0_4418_8491">
         <rect width="24" height="24" fill="white"/>
       </clipPath>
     </defs>
@@ -103,6 +166,11 @@ const mainItems: NavItem[] = [
     name: "Subscription",
     path: "/billing",
   },
+  {
+    icon: <UsersIcon />,
+    name: "Users",
+    path: "/users",
+  },
 ];
 
 // CONFIGURATION section items
@@ -132,7 +200,7 @@ const configurationItems: NavItem[] = [
 // RESOURCES section items
 const resourcesItems: NavItem[] = [
   {
-    icon: <DocsIcon />,
+    icon: <ApiDocsIcon />,
     name: "API Docs",
     path: "/api-keys?tab=docs",
   },

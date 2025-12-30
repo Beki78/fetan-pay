@@ -16,21 +16,142 @@ import CreatePaymentIntentModal from "./CreatePaymentIntentModal";
 // Mock data
 interface Payment {
   id: string;
-  type: "payment";
+  type: "payment" | "wallet";
   code: string;
   payer: string;
-  receiver: {
+  receiver?: {
     name: string;
     bank: string;
   };
   amount: number;
-  status: "expired" | "pending" | "verified" | "unconfirmed";
+  status: "expired" | "pending" | "verified" | "unconfirmed" | "debit" | "credit";
   date: string;
+  verifiedBy?: string;
 }
 
 const mockPayments: Payment[] = [
   {
     id: "1",
+    type: "wallet",
+    code: "TXNWKQGGQGF9I",
+    payer: "Verification Fee",
+    amount: -2.00,
+    status: "debit",
+    date: "Dec 30, 08:30 PM",
+  },
+  {
+    id: "2",
+    type: "payment",
+    code: "TXNWKQGGQGF9I",
+    payer: "Bamlak",
+    receiver: {
+      name: "ENGIDAGET ENDESHAW DEBEB",
+      bank: "Commercial Bank of Ethiopia",
+    },
+    amount: 320.00,
+    status: "verified",
+    date: "Dec 30, 08:28 PM",
+    verifiedBy: "John Doe",
+  },
+  {
+    id: "3",
+    type: "payment",
+    code: "TXNW5LDOJVAD1",
+    payer: "Bamlak Feleke",
+    receiver: {
+      name: "ENGIDAGET ENDESHAW DEBEB",
+      bank: "Commercial Bank of Ethiopia",
+    },
+    amount: 300.00,
+    status: "pending",
+    date: "Dec 30, 08:24 PM",
+  },
+  {
+    id: "4",
+    type: "payment",
+    code: "TXNSW8PMTXFV7",
+    payer: "bamlak",
+    receiver: {
+      name: "ENGIDAGET ENDESHAW DEBEB",
+      bank: "Commercial Bank of Ethiopia",
+    },
+    amount: 250.00,
+    status: "expired",
+    date: "Dec 30, 07:31 PM",
+  },
+  {
+    id: "5",
+    type: "payment",
+    code: "TXNQC7NBBXB10",
+    payer: "Bamlak",
+    receiver: {
+      name: "ENGIDAGET ENDESHAW DEBEB",
+      bank: "Commercial Bank of Ethiopia",
+    },
+    amount: 150.00,
+    status: "expired",
+    date: "Dec 30, 07:20 PM",
+  },
+  {
+    id: "6",
+    type: "wallet",
+    code: "TXN4DX0V9JNVL",
+    payer: "Verification Fee",
+    amount: -2.00,
+    status: "debit",
+    date: "Dec 30, 07:18 PM",
+  },
+  {
+    id: "7",
+    type: "payment",
+    code: "TXN4DX0V9JNVL",
+    payer: "Bamlak",
+    receiver: {
+      name: "ENGIDAGET ENDESHAW DEBEB",
+      bank: "Commercial Bank of Ethiopia",
+    },
+    amount: 160.00,
+    status: "verified",
+    date: "Dec 30, 07:16 PM",
+    verifiedBy: "John Doe",
+  },
+  {
+    id: "8",
+    type: "wallet",
+    code: "TOPUP",
+    payer: "Wallet Top-up",
+    amount: 10.00,
+    status: "credit",
+    date: "Dec 30, 04:24 PM",
+  },
+  {
+    id: "9",
+    type: "payment",
+    code: "TXNOLCGV3KWUB",
+    payer: "Bamlak",
+    receiver: {
+      name: "ENGIDAGET ENDESHAW DEBEB",
+      bank: "Commercial Bank of Ethiopia",
+    },
+    amount: 150.00,
+    status: "expired",
+    date: "Dec 30, 03:19 PM",
+  },
+  {
+    id: "10",
+    type: "payment",
+    code: "TXNCY5ANBKVE3",
+    payer: "Qui consequatur Ven",
+    receiver: {
+      name: "ENGIDAGET ENDESHAW DEBEB",
+      bank: "Commercial Bank of Ethiopia",
+    },
+    amount: 48.00,
+    status: "expired",
+    date: "Dec 27, 10:50 PM",
+  },
+  {
+    id: "11",
     type: "payment",
     code: "TXNSF7HPΙВКО8",
     payer: "lemlem toyiba",
@@ -43,7 +164,7 @@ const mockPayments: Payment[] = [
     date: "Dec 27, 06:27 PM",
   },
   {
-    id: "2",
+    id: "12",
     type: "payment",
     code: "TXNHEHWW8EUF2",
     payer: "test test",
@@ -57,11 +178,18 @@ const mockPayments: Payment[] = [
   },
 ];
 
-const formatAmount = (amount: number) => {
-  return `${amount.toLocaleString("en-US", {
+const formatAmount = (amount: number, type?: "payment" | "wallet") => {
+  const formatted = Math.abs(amount).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })} ETB`;
+  });
+  
+  if (type === "wallet") {
+    const sign = amount >= 0 ? "+" : "-";
+    return `${sign} ${formatted} ETB`;
+  }
+  
+  return `${formatted} ETB`;
 };
 
 interface PaymentTableProps {
@@ -86,7 +214,7 @@ export default function PaymentTable({
       const matchesSearch =
         payment.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
         payment.payer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payment.receiver.name.toLowerCase().includes(searchQuery.toLowerCase());
+        (payment.receiver && payment.receiver.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesType = typeFilter === "All Types" || payment.type === typeFilter.toLowerCase();
 
@@ -107,6 +235,10 @@ export default function PaymentTable({
         return "text-gray-500 dark:text-gray-400";
       case "unconfirmed":
         return "text-red-600 dark:text-red-400";
+      case "debit":
+        return "text-red-600 dark:text-red-400";
+      case "credit":
+        return "text-green-600 dark:text-green-400";
       default:
         return "text-gray-500 dark:text-gray-400";
     }
@@ -155,26 +287,28 @@ export default function PaymentTable({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setTypeFilter(typeFilter === "All Types" ? "payment" : "All Types")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              typeFilter === "All Types"
-                ? "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white"
-                : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-            }`}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
           >
-            All Types
-          </button>
-          <button
-            onClick={() => setStatusFilter(statusFilter === "All Status" ? "expired" : "All Status")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              statusFilter === "All Status"
-                ? "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white"
-                : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-            }`}
+            <option value="All Types">All Types</option>
+            <option value="payment">Payment</option>
+            <option value="wallet">Wallet</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
           >
-            All Status
-          </button>
+            <option value="All Status">All Status</option>
+            <option value="verified">Verified</option>
+            <option value="pending">Pending</option>
+            <option value="expired">Expired</option>
+            <option value="unconfirmed">Unconfirmed</option>
+            <option value="debit">Debit</option>
+            <option value="credit">Credit</option>
+          </select>
           <Button
             size="sm"
             className="bg-purple-500 hover:bg-purple-600 text-white border-0"
@@ -238,6 +372,12 @@ export default function PaymentTable({
                     isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                   >
+                  VERIFIED BY
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
                   ACTIONS
                   </TableCell>
                 </TableRow>
@@ -247,7 +387,7 @@ export default function PaymentTable({
                 {filteredPayments.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={9}
                       className="px-5 py-8 text-center text-gray-500 dark:text-gray-400"
                     >
                     No transactions found
@@ -273,18 +413,28 @@ export default function PaymentTable({
                       {payment.payer}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                        <div>
-                        <span className="block font-semibold text-gray-800 dark:text-white">
-                          {payment.receiver.name}
-                          </span>
-                        <span className="block text-sm text-gray-500 dark:text-gray-400">
-                          {payment.receiver.bank}
-                          </span>
-                        </div>
+                        {payment.receiver ? (
+                          <div>
+                            <span className="block font-semibold text-gray-800 dark:text-white">
+                              {payment.receiver.name}
+                            </span>
+                            <span className="block text-sm text-gray-500 dark:text-gray-400">
+                              {payment.receiver.bank}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500">—</span>
+                        )}
                       </TableCell>
                     <TableCell className="px-5 py-4">
-                      <span className="font-semibold text-gray-800 dark:text-white">
-                        {formatAmount(payment.amount)}
+                      <span className={`font-semibold ${
+                        payment.type === "wallet" 
+                          ? payment.amount >= 0 
+                            ? "text-green-600 dark:text-green-400" 
+                            : "text-red-600 dark:text-red-400"
+                          : "text-gray-800 dark:text-white"
+                      }`}>
+                        {formatAmount(payment.amount, payment.type)}
                       </span>
                       </TableCell>
                     <TableCell className="px-5 py-4">
@@ -295,13 +445,26 @@ export default function PaymentTable({
                     <TableCell className="px-5 py-4 text-gray-600 dark:text-gray-400">
                       {payment.date}
                       </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-600 dark:text-gray-400">
+                      {payment.verifiedBy ? (
+                        <span className="font-medium text-gray-800 dark:text-white">
+                          {payment.verifiedBy}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 dark:text-gray-500">—</span>
+                      )}
+                      </TableCell>
                     <TableCell className="px-5 py-4">
-                          <button
-                        onClick={() => onView(payment as any)}
-                        className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
-                          >
-                        View
-                          </button>
+                      {payment.type === "payment" ? (
+                        <button
+                          onClick={() => onView(payment as any)}
+                          className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
+                        >
+                          View
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 dark:text-gray-500">—</span>
+                      )}
                       </TableCell>
                     </TableRow>
                   ))
