@@ -42,7 +42,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-center w-12 h-12 bg-purple-500/20 rounded-full">
               <BoltIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
-            <div>
+    <div>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">
                 Unlock Advanced Analytics
               </h3>
@@ -60,19 +60,19 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Transaction Metrics */}
-      <TransactionMetrics />
+        {/* Transaction Metrics */}
+        <TransactionMetrics />
 
       {/* Charts Grid - One Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Transaction Trend */}
         <div className="lg:col-span-1">
-          <RevenueTrendChart />
-        </div>
+            <RevenueTrendChart />
+          </div>
 
         {/* Status Distribution */}
         <div className="lg:col-span-1">
-          <ConfirmationChart />
+            <ConfirmationChart />
         </div>
       </div>
     </div>

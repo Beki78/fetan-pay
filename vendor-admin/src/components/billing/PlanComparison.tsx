@@ -1,8 +1,9 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import Button from "../ui/button/Button";
 import Badge from "../ui/badge/Badge";
 import { CheckCircleIcon } from "@/icons";
+import SubscribePaymentModal from "./SubscribePaymentModal";
 
 // Mock data
 const plans = [
@@ -77,9 +78,21 @@ const plans = [
 ];
 
 export default function PlanComparison() {
+  const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const getPrice = (plan: typeof plans[0]) => {
     return `ETB ${plan.price.toFixed(2)}/${plan.billingCycle}`;
+  };
+
+  const handleGetStarted = (plan: typeof plans[0]) => {
+    setSelectedPlan(plan);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPlan(null);
   };
 
   return (
@@ -136,6 +149,7 @@ export default function PlanComparison() {
 
             <Button
               size="sm"
+              onClick={() => handleGetStarted(plan)}
               className={`w-full ${
                 plan.popular
                   ? "bg-purple-500 hover:bg-purple-600 text-white border-0"
@@ -147,6 +161,20 @@ export default function PlanComparison() {
           </div>
         ))}
       </div>
+
+      {/* Payment Modal */}
+      {selectedPlan && (
+        <SubscribePaymentModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          plan={{
+            id: selectedPlan.id,
+            name: selectedPlan.name,
+            price: selectedPlan.price,
+            billingCycle: selectedPlan.billingCycle,
+          }}
+        />
+      )}
     </div>
   );
 }

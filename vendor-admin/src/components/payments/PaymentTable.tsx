@@ -128,7 +128,7 @@ export default function PaymentTable({
 
       {/* Search and Filters */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex-1 max-w-md">
+          <div className="flex-1 max-w-md">
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
               <svg
@@ -189,72 +189,72 @@ export default function PaymentTable({
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50">
         <div className="overflow-x-auto">
-          <Table>
+            <Table>
             <TableHeader className="border-b border-gray-200 dark:border-gray-700">
               <TableRow className="bg-gray-50 dark:bg-gray-800/80">
-                <TableCell
-                  isHeader
-                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
-                >
-                  TYPE
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
-                >
-                  CODE
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
-                >
-                  PAYER
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
-                >
-                  RECEIVER
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
-                >
-                  AMOUNT
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
-                >
-                  STATUS
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
-                >
-                  DATE
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
-                >
-                  ACTIONS
-                </TableCell>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredPayments.length === 0 ? (
-                <TableRow>
                   <TableCell
-                    colSpan={8}
-                    className="px-5 py-8 text-center text-gray-500 dark:text-gray-400"
+                    isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                   >
-                    No transactions found
+                  TYPE
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                  CODE
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                  PAYER
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                  RECEIVER
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                  AMOUNT
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                  STATUS
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                  DATE
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                  ACTIONS
                   </TableCell>
                 </TableRow>
-              ) : (
-                filteredPayments.map((payment) => (
+              </TableHeader>
+
+            <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredPayments.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      className="px-5 py-8 text-center text-gray-500 dark:text-gray-400"
+                    >
+                    No transactions found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredPayments.map((payment) => (
                   <TableRow
                     key={payment.id}
                     className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors border-b border-gray-200 dark:border-gray-700/50"
@@ -267,47 +267,47 @@ export default function PaymentTable({
                     <TableCell className="px-5 py-4">
                       <span className="font-medium text-blue-600 dark:text-blue-400">
                         {payment.code}
-                      </span>
-                    </TableCell>
+                        </span>
+                      </TableCell>
                     <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
                       {payment.payer}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <div>
+                        <div>
                         <span className="block font-semibold text-gray-800 dark:text-white">
                           {payment.receiver.name}
-                        </span>
+                          </span>
                         <span className="block text-sm text-gray-500 dark:text-gray-400">
                           {payment.receiver.bank}
-                        </span>
-                      </div>
-                    </TableCell>
+                          </span>
+                        </div>
+                      </TableCell>
                     <TableCell className="px-5 py-4">
                       <span className="font-semibold text-gray-800 dark:text-white">
                         {formatAmount(payment.amount)}
                       </span>
-                    </TableCell>
+                      </TableCell>
                     <TableCell className="px-5 py-4">
                       <span className={`font-medium ${getStatusColor(payment.status)}`}>
                         {payment.status}
                       </span>
-                    </TableCell>
+                      </TableCell>
                     <TableCell className="px-5 py-4 text-gray-600 dark:text-gray-400">
                       {payment.date}
-                    </TableCell>
+                      </TableCell>
                     <TableCell className="px-5 py-4">
-                      <button
+                          <button
                         onClick={() => onView(payment as any)}
                         className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
-                      >
+                          >
                         View
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                          </button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
         </div>
       </div>
 

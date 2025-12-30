@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
+import { PendingApprovalBanner } from "@/components/common/AccountStatus";
 import {
   BoltIcon,
   ChevronDownIcon,
@@ -97,6 +98,9 @@ const resourcesItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
+
+  // TODO: Replace this with real account status from API / context
+  const accountStatus: "pending" | "active" = "pending";
 
   const renderMenuItems = (
     navItems: NavItem[],
@@ -342,6 +346,8 @@ const AppSidebar: React.FC = () => {
         </Link>
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
+        {/* Pending approval banner (only when account is pending) */}
+        <PendingApprovalBanner status={accountStatus} />
         <nav className="mb-6">
           <div className="flex flex-col gap-6">
             {/* MAIN Section */}
