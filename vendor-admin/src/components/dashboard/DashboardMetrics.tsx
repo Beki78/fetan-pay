@@ -4,9 +4,9 @@ import { BoxIcon, CheckCircleIcon, TimeIcon, DollarLineIcon } from "@/icons";
 
 // Mock data
 const mockMetrics = {
-  totalTransactions: 1,
+  totalTransactions: 3,
   verified: 0,
-  pending: 1,
+  pending: 0,
   walletBalance: 0.00,
 };
 

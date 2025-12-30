@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Button from "@/components/ui/button/Button";
 import TopUpModal from "@/components/wallet/TopUpModal";
 import CompletePaymentModal from "@/components/wallet/CompletePaymentModal";
-import { AlertIcon } from "@/icons";
+import AlertBanner from "@/components/ui/alert/AlertBanner";
 
 export default function WalletPage() {
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
@@ -191,21 +191,15 @@ export default function WalletPage() {
 
       {/* Low Balance Warning */}
       {currentBalance < verificationFee && (
-        <div className="rounded-xl bg-orange-500/10 dark:bg-orange-500/20 border border-orange-500/20 p-6">
-          <div className="flex items-start gap-4">
-              <div className="flex items-center justify-center w-10 h-10 bg-orange-500/20 rounded-full shrink-0">
-              <AlertIcon className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">
-                Low Balance Warning
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Your balance is running low. Top up to continue verifying payments without interruption.
-              </p>
-            </div>
-          </div>
-        </div>
+        <AlertBanner
+          variant="warning"
+          title="Low Balance Warning"
+          message="Your balance is running low. Top up to continue verifying payments without interruption."
+          action={{
+            label: "Top Up",
+            onClick: () => handleTopUp(100),
+          }}
+        />
       )}
 
       {/* Transaction History */}

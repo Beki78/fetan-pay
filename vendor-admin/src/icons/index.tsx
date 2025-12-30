@@ -25,6 +25,7 @@ import AngleDownIcon from "./angle-down.svg";
 import PencilIcon from "./pencil.svg";
 import CheckLineIcon from "./check-line.svg";
 import CloseLineIcon from "./close-line.svg";
+import CrossIcon from "./cross.svg";
 import ChevronDownIcon from "./chevron-down.svg";
 import ChevronUpIcon from "./chevron-up.svg";
 import PaperPlaneIcon from "./paper-plane.svg";
@@ -82,6 +83,7 @@ export {
   PencilIcon,
   CheckLineIcon,
   CloseLineIcon,
+  CrossIcon,
   ChevronDownIcon,
   PaperPlaneIcon,
   EnvelopeIcon,
