@@ -313,35 +313,22 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex  ${
+        className={`py-8 flex items-center gap-2 ${
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/">
-          {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
-          ) : (
-            <Image
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/images/logo/fetan-logo.png"
+            alt="Fetan Logo"
+            width={isExpanded || isHovered || isMobileOpen ? 32 : 24}
+            height={isExpanded || isHovered || isMobileOpen ? 32 : 24}
+            className="object-contain"
+          />
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className="text-lg font-semibold text-gray-800 dark:text-white">
+              Fetan Pay
+            </span>
           )}
         </Link>
       </div>
