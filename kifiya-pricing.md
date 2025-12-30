@@ -58,7 +58,7 @@ Kifiya Auth offers flexible pricing plans to suit businesses of all sizes, from 
 
 ---
 
-### Growth Plan
+### Business Plan
 
 **Perfect for**: Growing businesses and medium-sized companies
 
@@ -118,7 +118,7 @@ Kifiya Auth offers flexible pricing plans to suit businesses of all sizes, from 
 
 ## Feature Comparison
 
-| Feature             | Free           | Starter        | Growth            | Custom                          |
+| Feature             | Free           | Starter        | Business            | Custom                          |
 | ------------------- | -------------- | -------------- | ----------------- | ------------------------------- |
 | Verifications/month | 100            | 1,000          | 10,000            | Custom                          |
 | API Access          | ✅             | ✅             | ✅                | ✅                              |
