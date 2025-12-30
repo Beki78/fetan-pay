@@ -9,13 +9,15 @@ export default function QuickActions() {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Quick Actions</h3>
       <div className="flex flex-wrap gap-3">
-        <Button
-          size="sm"
-          className="bg-purple-500 hover:bg-purple-600 text-white border-0"
-          startIcon={<PlusIcon />}
-        >
-          New Payment Intent
-        </Button>
+        <Link href="/payments">
+          <Button
+            size="sm"
+            className="bg-purple-500 hover:bg-purple-600 text-white border-0"
+            startIcon={<PlusIcon />}
+          >
+            New Payment Intent
+          </Button>
+        </Link>
         <Link href="/analytics">
           <Button
             size="sm"

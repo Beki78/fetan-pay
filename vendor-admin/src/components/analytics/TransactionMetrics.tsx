@@ -19,7 +19,7 @@ export default function TransactionMetrics() {
         </p>
         <h4 className="text-2xl font-bold text-gray-800 dark:text-white">
           {mockMetrics.totalTransactions}
-        </h4>
+            </h4>
       </div>
 
       {/* Verified */}
@@ -29,7 +29,7 @@ export default function TransactionMetrics() {
         </p>
         <h4 className="text-2xl font-bold text-green-600 dark:text-green-400">
           {mockMetrics.verified}
-        </h4>
+            </h4>
       </div>
 
       {/* Success Rate */}
@@ -39,7 +39,7 @@ export default function TransactionMetrics() {
         </p>
         <h4 className="text-2xl font-bold text-purple-600 dark:text-purple-400">
           {mockMetrics.successRate}%
-        </h4>
+            </h4>
       </div>
 
       {/* Total Amount */}
@@ -49,7 +49,7 @@ export default function TransactionMetrics() {
         </p>
         <h4 className="text-2xl font-bold text-gray-800 dark:text-white">
           {mockMetrics.totalAmount.toFixed(2)} ETB
-        </h4>
+            </h4>
       </div>
     </div>
   );
