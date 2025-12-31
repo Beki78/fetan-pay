@@ -71,21 +71,17 @@ const AppHeader: React.FC = () => {
             {/* Cross Icon */}
           </button>
 
-          <Link href="/" className="lg:hidden">
+          <Link href="/" className="lg:hidden flex items-center gap-2">
             <Image
-              width={154}
-              height={32}
-              className="dark:hidden"
-              src="./images/logo/logo.svg"
-              alt="Logo"
+              width={28}
+              height={28}
+              src="/images/logo/fetan-logo.png"
+              alt="Fetan Logo"
+              className="object-contain"
             />
-            <Image
-              width={154}
-              height={32}
-              className="hidden dark:block"
-              src="./images/logo/logo-dark.svg"
-              alt="Logo"
-            />
+            <span className="text-base font-semibold text-gray-800 dark:text-white">
+              Fetan Pay
+            </span>
           </Link>
 
           <button

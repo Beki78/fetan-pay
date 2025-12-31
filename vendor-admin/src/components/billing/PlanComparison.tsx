@@ -97,11 +97,11 @@ export default function PlanComparison() {
 
   return (
     <div className="space-y-6">
-      <div>
+        <div>
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Choose Your Plan</h1>
         <p className="text-sm text-gray-600 dark:text-gray-400">
           Select the plan that best fits your business needs
-        </p>
+          </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

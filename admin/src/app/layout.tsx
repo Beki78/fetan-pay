@@ -1,5 +1,6 @@
 import { Outfit } from 'next/font/google';
 import './globals.css';
+import type { Metadata } from 'next';
 
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
@@ -7,6 +8,16 @@ import { ThemeProvider } from '@/context/ThemeContext';
 const outfit = Outfit({
   subsets: ["latin"],
 });
+
+export const metadata: Metadata = {
+  title: 'FetanPay - Admin Dashboard',
+  description: 'FetanPay Admin - Manage payments, vendors, and system settings',
+  icons: {
+    icon: '/images/logo/fetan-logo.png',
+    shortcut: '/images/logo/fetan-logo.png',
+    apple: '/images/logo/fetan-logo.png',
+  },
+};
 
 export default function RootLayout({
   children,

@@ -16,7 +16,7 @@ export default function CreatePaymentIntentModal({
   onCreate,
 }: CreatePaymentIntentModalProps) {
   const [payerName, setPayerName] = useState("");
-  const [amount, setAmount] = useState("0.00");
+  const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<{ payerName?: string; amount?: string }>({});
 
@@ -46,7 +46,7 @@ export default function CreatePaymentIntentModal({
 
     // Reset form
     setPayerName("");
-    setAmount("0.00");
+    setAmount("");
     setNotes("");
     setErrors({});
     onClose();
@@ -54,7 +54,7 @@ export default function CreatePaymentIntentModal({
 
   const handleClose = () => {
     setPayerName("");
-    setAmount("0.00");
+    setAmount("");
     setNotes("");
     setErrors({});
     onClose();
@@ -102,14 +102,25 @@ export default function CreatePaymentIntentModal({
               Amount (ETB) <span className="text-red-500">*</span>
             </label>
             <Input
-              type="number"
-              step={0.01}
-              placeholder="0.00"
+              type="text"
+              inputMode="decimal"
+              placeholder="Enter amount"
               value={amount}
               onChange={(e) => {
-                setAmount(e.target.value);
-                if (errors.amount) {
-                  setErrors({ ...errors, amount: undefined });
+                const value = e.target.value;
+                // Allow only numbers and one decimal point
+                if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                  setAmount(value);
+                  if (errors.amount) {
+                    setErrors({ ...errors, amount: undefined });
+                  }
+                }
+              }}
+              onBlur={(e) => {
+                // Format to 2 decimal places on blur if valid
+                const numValue = parseFloat(e.target.value);
+                if (!isNaN(numValue) && numValue > 0) {
+                  setAmount(numValue.toFixed(2));
                 }
               }}
               error={!!errors.amount}

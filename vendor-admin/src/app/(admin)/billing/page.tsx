@@ -315,7 +315,7 @@ export default function BillingPage() {
           {!showUpgradePlans && (
             <div className="rounded-xl border border-purple-200 bg-purple-50 dark:border-purple-500/30 dark:bg-purple-500/10 p-4 mb-6">
               <div className="flex items-center justify-between">
-                <div>
+    <div>
                   <h3 className="text-base font-semibold text-gray-800 dark:text-white mb-1">
                     Want more features?
                   </h3>
@@ -653,7 +653,7 @@ export default function BillingPage() {
                 </div>
               ))}
             </div>
-          </div>
+      </div>
         </>
       )}
 
