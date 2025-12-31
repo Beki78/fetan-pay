@@ -129,7 +129,7 @@ export default function Settings() {
                 <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-1">
                   <svg
                     className="w-4 h-4 text-gray-600 dark:text-gray-400"
-                    viewBox="0 0 24 24"
+          viewBox="0 0 24 24"
                     fill="currentColor"
                   >
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -272,17 +272,17 @@ export default function Settings() {
                 <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                   <svg
                     className="w-5 h-5 text-gray-600 dark:text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
                       d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                    />
-                  </svg>
+          />
+        </svg>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -349,21 +349,21 @@ export default function Settings() {
               <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                 <svg
                   className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
+          />
+        </svg>
                 <p className="text-xs text-yellow-800 dark:text-yellow-300">
                   Set a password to enable email/password sign-in and to unlink Google.
-                </p>
-              </div>
+        </p>
+      </div>
             )}
           </div>
         </div>
@@ -473,7 +473,7 @@ export default function Settings() {
                   placeholder="Confirm password"
                 />
               </div>
-            </div>
+          </div>
 
             <div className="flex items-center gap-3 mt-6">
               <Button
@@ -495,9 +495,9 @@ export default function Settings() {
               >
                 {isSettingPassword ? "Setting..." : "Set Password"}
               </Button>
-            </div>
           </div>
-        </div>
+          </div>
+      </div>
       )}
     </div>
   );

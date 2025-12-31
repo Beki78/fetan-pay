@@ -149,7 +149,7 @@ const mockPayments: Payment[] = [
     amount: 48.00,
     status: "expired",
     date: "Dec 27, 10:50 PM",
-  },
+    },
   {
     id: "11",
     type: "payment",
@@ -287,20 +287,20 @@ export default function PaymentTable({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <select
+            <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
-          >
+              className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+            >
             <option value="All Types">All Types</option>
             <option value="payment">Payment</option>
             <option value="wallet">Wallet</option>
-          </select>
-          <select
+            </select>
+            <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
-          >
+              className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+            >
             <option value="All Status">All Status</option>
             <option value="verified">Verified</option>
             <option value="pending">Pending</option>
@@ -308,7 +308,7 @@ export default function PaymentTable({
             <option value="unconfirmed">Unconfirmed</option>
             <option value="debit">Debit</option>
             <option value="credit">Credit</option>
-          </select>
+            </select>
           <Button
             size="sm"
             className="bg-purple-500 hover:bg-purple-600 text-white border-0"
@@ -316,7 +316,7 @@ export default function PaymentTable({
             onClick={() => setIsCreateModalOpen(true)}
           >
             New Payment Intent
-          </Button>
+            </Button>
         </div>
       </div>
 
@@ -414,14 +414,14 @@ export default function PaymentTable({
                     </TableCell>
                     <TableCell className="px-5 py-4">
                         {payment.receiver ? (
-                          <div>
+                        <div>
                             <span className="block font-semibold text-gray-800 dark:text-white">
                               {payment.receiver.name}
-                            </span>
+                          </span>
                             <span className="block text-sm text-gray-500 dark:text-gray-400">
                               {payment.receiver.bank}
-                            </span>
-                          </div>
+                          </span>
+                        </div>
                         ) : (
                           <span className="text-gray-400 dark:text-gray-500">—</span>
                         )}
@@ -456,12 +456,12 @@ export default function PaymentTable({
                       </TableCell>
                     <TableCell className="px-5 py-4">
                       {payment.type === "payment" ? (
-                        <button
+                          <button
                           onClick={() => onView(payment as any)}
                           className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
-                        >
+                          >
                           View
-                        </button>
+                          </button>
                       ) : (
                         <span className="text-gray-400 dark:text-gray-500">—</span>
                       )}

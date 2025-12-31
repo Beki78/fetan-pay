@@ -435,7 +435,7 @@ const AppSidebar: React.FC = () => {
         }`}
       >
         <Link href="/" className="flex items-center gap-2">
-          <Image
+              <Image
             src="/images/logo/fetan-logo.png"
             alt="Fetan Logo"
             width={isExpanded || isHovered || isMobileOpen ? 32 : 24}
