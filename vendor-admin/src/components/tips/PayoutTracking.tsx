@@ -100,6 +100,7 @@ const mockPayouts: Payout[] = [
 export default function PayoutTracking() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const filteredPayouts = useMemo(() => {
     return mockPayouts.filter((payout) => {
@@ -123,7 +124,7 @@ export default function PayoutTracking() {
       case "Failed":
         return "error";
       default:
-        return "default";
+        return "light";
     }
   };
 
@@ -224,24 +225,41 @@ export default function PayoutTracking() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Dropdown
-                      trigger={
-                        <button className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                      }
-                    >
-                      <DropdownItem>
-                        <EyeIcon className="size-4" />
-                        View Details
-                      </DropdownItem>
-                      {payout.status === "Completed" && (
-                        <DropdownItem>
-                          <DownloadIcon className="size-4" />
-                          Download Receipt
+                    <div className="relative">
+                      <button
+                        onClick={() =>
+                          setOpenDropdown((prev) => (prev === payout.payoutId ? null : payout.payoutId))
+                        }
+                        className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
+                      </button>
+                      <Dropdown
+                        isOpen={openDropdown === payout.payoutId}
+                        onClose={() => setOpenDropdown(null)}
+                      >
+                        <DropdownItem
+                          onClick={() => {
+                            // Placeholder for view details action
+                            setOpenDropdown(null);
+                          }}
+                        >
+                          <EyeIcon className="size-4" />
+                          View Details
                         </DropdownItem>
-                      )}
-                    </Dropdown>
+                        {payout.status === "Completed" && (
+                          <DropdownItem
+                            onClick={() => {
+                              // Placeholder for download receipt action
+                              setOpenDropdown(null);
+                            }}
+                          >
+                            <DownloadIcon className="size-4" />
+                            Download Receipt
+                          </DropdownItem>
+                        )}
+                      </Dropdown>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

@@ -60,7 +60,7 @@ export default function TopUpModal({
             </label>
             <Input
               type="number"
-              step="0.01"
+              step={0.01}
               min={minAmount}
               max={maxAmount}
               value={amount}

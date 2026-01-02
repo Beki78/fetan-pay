@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import type { ApexOptions } from "apexcharts";
 import Badge from "../ui/badge/Badge";
 import { ArrowUpIcon, BoltIcon, CheckCircleIcon, AlertIcon, TimeIcon } from "@/icons";
 import dynamic from "next/dynamic";
@@ -17,7 +18,10 @@ const mockAnalytics = {
   errorRate: 1.26,
 };
 
-const usageTrendData = {
+const usageTrendData: {
+  series: { name: string; data: number[] }[];
+  options: ApexOptions;
+} = {
   series: [
     {
       name: "API Calls",
@@ -49,7 +53,10 @@ const usageTrendData = {
   },
 };
 
-const endpointDistributionData = {
+const endpointDistributionData: {
+  series: number[];
+  options: ApexOptions;
+} = {
   series: [45, 30, 15, 10],
   options: {
     chart: {
@@ -76,7 +83,7 @@ export default function UsageAnalytics() {
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total API Calls */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+  <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
           <div className="flex items-center justify-center w-12 h-12 bg-brand-100 rounded-xl dark:bg-brand-900/20">
             <BoltIcon className="text-brand-600 size-6 dark:text-brand-400" />
           </div>
@@ -100,7 +107,7 @@ export default function UsageAnalytics() {
         </div>
 
         {/* Success Rate */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+  <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
           <div className="flex items-center justify-center w-12 h-12 bg-success-100 rounded-xl dark:bg-success-900/20">
             <CheckCircleIcon className="text-success-600 size-6 dark:text-success-400" />
           </div>
@@ -123,7 +130,7 @@ export default function UsageAnalytics() {
         </div>
 
         {/* Average Response Time */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+  <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
           <div className="flex items-center justify-center w-12 h-12 bg-warning-100 rounded-xl dark:bg-warning-900/20">
             <TimeIcon className="text-warning-600 size-6 dark:text-warning-400" />
           </div>
@@ -147,7 +154,7 @@ export default function UsageAnalytics() {
         </div>
 
         {/* Rate Limit Usage */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+  <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
           <div className="flex items-center justify-center w-12 h-12 bg-info-100 rounded-xl dark:bg-info-900/20">
             <AlertIcon className="text-info-600 size-6 dark:text-info-400" />
           </div>
@@ -173,7 +180,7 @@ export default function UsageAnalytics() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Usage Trend Chart */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+  <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-4">
             Usage Trend (Last 7 Days)
           </h3>
@@ -188,7 +195,7 @@ export default function UsageAnalytics() {
         </div>
 
         {/* Endpoint Distribution Chart */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
+  <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-4">
             Endpoint Distribution
           </h3>

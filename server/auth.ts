@@ -31,6 +31,7 @@ export const auth = betterAuth({
     'c0c11d5c7b1a0d2c944f4c0d7d0bfd6e5bf0a62829a0f33daf0183ad0f8855ec',
 
   baseURL: BETTER_AUTH_BASE_URL,
+  basePath: '/api/auth',
 
   trustedOrigins: [
     'http://localhost:3000',

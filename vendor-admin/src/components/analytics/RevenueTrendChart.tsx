@@ -16,9 +16,8 @@ export default function RevenueTrendChart() {
       horizontalAlign: "left",
       fontFamily: "Outfit, sans-serif",
       markers: {
-        width: 8,
-        height: 8,
-        radius: 4,
+        size: 8,
+        strokeWidth: 0,
       },
     },
     colors: ["#9333EA", "#10B981", "#F59E0B", "#EF4444"], // Purple (Total), Green (Verified), Orange (Pending), Red (Failed)
@@ -117,7 +116,7 @@ export default function RevenueTrendChart() {
       ];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
+  <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
       <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">

@@ -13,7 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
       isGlobal: true,
       load: [databaseConfig],
     }),
-    BetterAuthModule.forRoot(auth),
+  BetterAuthModule.forRoot({ auth }),
     AuthModule,
   ],
   controllers: [AppController],

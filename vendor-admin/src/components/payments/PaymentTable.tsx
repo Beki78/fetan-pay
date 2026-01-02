@@ -14,7 +14,7 @@ import Input from "../form/input/InputField";
 import CreatePaymentIntentModal from "./CreatePaymentIntentModal";
 
 // Mock data
-interface Payment {
+export interface Payment {
   id: string;
   type: "payment" | "wallet";
   code: string;
@@ -400,7 +400,7 @@ export default function PaymentTable({
                     className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors border-b border-gray-200 dark:border-gray-700/50"
                   >
                     <TableCell className="px-5 py-4">
-                      <Badge size="sm" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0">
+                      <Badge size="sm" variant="light" color="info">
                         {payment.type}
                       </Badge>
                     </TableCell>

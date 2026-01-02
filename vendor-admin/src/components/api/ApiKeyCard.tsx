@@ -5,7 +5,6 @@ import Button from "../ui/button/Button";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { EyeIcon, EyeCloseIcon, CopyIcon, MoreDotIcon, PencilIcon, TrashBinIcon, BoltIcon } from "@/icons";
-import { useModal } from "@/hooks/useModal";
 
 interface ApiKey {
   id: string;
@@ -31,6 +30,7 @@ interface ApiKeyCardProps {
 export default function ApiKeyCard({ apiKey, onRevoke, onRotate, onEdit }: ApiKeyCardProps) {
   const [isRevealed, setIsRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const maskKey = (key: string) => {
     if (key.length <= 8) return "•".repeat(key.length);
@@ -82,13 +82,14 @@ export default function ApiKeyCard({ apiKey, onRevoke, onRotate, onEdit }: ApiKe
             </Button>
           </div>
         </div>
-        <Dropdown
-          trigger={
-            <button className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-              <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-            </button>
-          }
-        >
+        <div className="relative">
+          <button
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+            className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
+          </button>
+          <Dropdown isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)}>
           <DropdownItem onClick={() => onEdit(apiKey)}>
             <PencilIcon className="size-4" />
             Edit Name
@@ -101,7 +102,8 @@ export default function ApiKeyCard({ apiKey, onRevoke, onRotate, onEdit }: ApiKe
             <TrashBinIcon className="size-4" />
             Revoke Key
           </DropdownItem>
-        </Dropdown>
+          </Dropdown>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-800">
