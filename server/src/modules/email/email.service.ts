@@ -20,7 +20,6 @@ export class EmailService {
       requireTLS: true,
     });
 
-    // Log transport readiness to quickly surface SMTP auth/connection problems
     this.transporter
       .verify()
       .then((ok) => console.info('[EmailService] SMTP connection verified', ok))
@@ -58,7 +57,6 @@ export class EmailService {
 
     try {
       const info = await this.transporter.sendMail(mailOptions);
-      // Log metadata (not secrets) to help diagnose delivery
       console.info('[EmailService] OTP email sent', {
         to: email,
         subject,

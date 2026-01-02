@@ -5,7 +5,8 @@ import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from '../auth';
 import { ConfigModule } from '@nestjs/config';
 import databaseConfig from '../config/database.config';
-import { AuthModule } from './modules/auth/auth.module';
+import { EmailService } from './modules/email/email.service';
+import { VerifierModule } from './modules/verifier/verifier.module';
 
 @Module({
   imports: [
@@ -13,10 +14,10 @@ import { AuthModule } from './modules/auth/auth.module';
       isGlobal: true,
       load: [databaseConfig],
     }),
-  BetterAuthModule.forRoot({ auth }),
-    AuthModule,
+    BetterAuthModule.forRoot({ auth }),
+    VerifierModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, EmailService],
 })
 export class AppModule {}
