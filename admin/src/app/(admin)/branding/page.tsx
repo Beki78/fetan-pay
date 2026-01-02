@@ -136,8 +136,7 @@ export default function BrandingPage() {
                         size="sm"
                         variant="outline"
                         type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
+                        onClick={() => {
                           document.getElementById("logo-upload")?.click();
                         }}
                       >

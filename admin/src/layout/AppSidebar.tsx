@@ -156,46 +156,43 @@ const mainItems: NavItem[] = [
     name: "Analytics",
     path: "/analytics",
   },
-  {
-    icon: <WalletIcon />,
-    name: "Wallet",
-    path: "/wallet",
-  },
+  
   {
     icon: <CreditCardIcon />,
-    name: "Subscription",
-    path: "/billing",
+    name: "Plans",
+    path: "/plans",
   },
   {
     icon: <UsersIcon />,
     name: "Users",
     path: "/users",
   },
+  {
+    icon: <PieChartIcon />,
+    name: "Plan Stats",
+    path: "/plan-stats",
+  },
 ];
 
-// CONFIGURATION section items
-const configurationItems: NavItem[] = [
-  {
-    icon: <BankIcon />,
-    name: "Payment Providers",
-    path: "/payment-providers",
-  },
-  {
-    icon: <PaintBrushIcon />,
-    name: "Branding",
-    path: "/branding",
-  },
-  {
-    icon: <BoltIcon />,
-    name: "API Keys",
-    path: "/api-keys",
-  },
-  {
-    icon: <PaperPlaneIcon />,
-    name: "Webhooks",
-    path: "/webhooks",
-  },
-];
+// // CONFIGURATION section items
+// const configurationItems: NavItem[] = [
+ 
+//   {
+//     icon: <PaintBrushIcon />,
+//     name: "Branding",
+//     path: "/branding",
+//   },
+//   {
+//     icon: <BoltIcon />,
+//     name: "API Keys",
+//     path: "/api-keys",
+//   },
+//   {
+//     icon: <PaperPlaneIcon />,
+//     name: "Webhooks",
+//     path: "/webhooks",
+//   },
+// ];
 
 // RESOURCES section items
 const resourcesItems: NavItem[] = [
@@ -358,36 +355,36 @@ const AppSidebar: React.FC = () => {
   // const isActive = (path: string) => path === pathname;
    const isActive = useCallback((path: string) => path === pathname, [pathname]);
 
-  useEffect(() => {
-    // Check if the current path matches any submenu item
-    let submenuMatched = false;
-    ["main", "configuration", "resources"].forEach((menuType) => {
-      const items =
-        menuType === "main"
-          ? mainItems
-          : menuType === "configuration"
-          ? configurationItems
-          : resourcesItems;
-      items.forEach((nav, index) => {
-        if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
-            if (isActive(subItem.path)) {
-              setOpenSubmenu({
-                type: menuType as "main" | "configuration" | "resources",
-                index,
-              });
-              submenuMatched = true;
-            }
-          });
-        }
-      });
-    });
+  // useEffect(() => {
+  //   // Check if the current path matches any submenu item
+  //   let submenuMatched = false;
+  //   ["main", "configuration", "resources"].forEach((menuType) => {
+  //     const items =
+  //       menuType === "main"
+  //         ? mainItems
+  //         : menuType === "configuration"
+  //         ? configurationItems
+  //         : resourcesItems;
+  //     items.forEach((nav, index) => {
+  //       if (nav.subItems) {
+  //         nav.subItems.forEach((subItem) => {
+  //           if (isActive(subItem.path)) {
+  //             setOpenSubmenu({
+  //               type: menuType as "main" | "configuration" | "resources",
+  //               index,
+  //             });
+  //             submenuMatched = true;
+  //           }
+  //         });
+  //       }
+  //     });
+  //   });
 
-    // If no submenu item matches, close the open submenu
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
-  }, [pathname,isActive]);
+  //   // If no submenu item matches, close the open submenu
+  //   if (!submenuMatched) {
+  //     setOpenSubmenu(null);
+  //   }
+  // }, [pathname,isActive]);
 
   useEffect(() => {
     // Set the height of the submenu items when the submenu is opened
@@ -452,7 +449,7 @@ const AppSidebar: React.FC = () => {
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         {/* Pending approval banner (only when account is pending) */}
-        <PendingApprovalBanner status={accountStatus} />
+        {/* <PendingApprovalBanner status={accountStatus} /> */}
         <nav className="mb-6">
           <div className="flex flex-col gap-6">
             {/* MAIN Section */}
@@ -474,7 +471,7 @@ const AppSidebar: React.FC = () => {
             </div>
 
             {/* CONFIGURATION Section */}
-            <div>
+            {/* <div>
               <h2
                 className={`mb-4 text-xs uppercase font-semibold flex leading-[20px] text-gray-400 ${
                   !isExpanded && !isHovered
@@ -489,7 +486,7 @@ const AppSidebar: React.FC = () => {
                 )}
               </h2>
               {renderMenuItems(configurationItems, "configuration")}
-            </div>
+            </div> */}
 
             {/* RESOURCES Section */}
             <div>

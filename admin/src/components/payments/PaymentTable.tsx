@@ -175,14 +175,7 @@ export default function PaymentTable({
           >
             All Status
           </button>
-          <Button
-            size="sm"
-            className="bg-purple-500 hover:bg-purple-600 text-white border-0"
-            startIcon={<PlusIcon />}
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            New Payment Intent
-          </Button>
+          
         </div>
       </div>
 
@@ -260,7 +253,7 @@ export default function PaymentTable({
                     className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors border-b border-gray-200 dark:border-gray-700/50"
                   >
                     <TableCell className="px-5 py-4">
-                      <Badge size="sm" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0">
+                      <Badge size="sm" color="info">
                         {payment.type}
                       </Badge>
                     </TableCell>
