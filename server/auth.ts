@@ -1,9 +1,12 @@
 import 'dotenv/config';
 import { betterAuth } from 'better-auth';
+import { emailOTP } from 'better-auth/plugins/email-otp';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
+import { ConfigService } from '@nestjs/config';
+import { EmailService } from './src/email/email.service';
 
 const datasourceUrl = process.env.DATABASE_URL;
 
@@ -15,13 +18,21 @@ const adapter = new PrismaPg(new pg.Pool({ connectionString: datasourceUrl }));
 
 const prisma = new PrismaClient({ adapter });
 
+const configService = new ConfigService();
+const emailService = new EmailService(configService);
+
 // const prisma = new PrismaClient({ adapter });
 
-const BETTER_AUTH_BASE_URL = 'http://localhost:3003';
+const BETTER_AUTH_BASE_URL =
+  process.env.BETTER_AUTH_BASE_URL || process.env.AUTH_BASE_URL || 'http://localhost:3003';
 const DEFAULT_CLIENT_ORIGINS = ['http://localhost:3000'];
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'node';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || 'node';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set for Google OAuth.');
+}
 type Auth = ReturnType<typeof betterAuth>;
 
 export const auth = betterAuth({
@@ -87,5 +98,16 @@ export const auth = betterAuth({
     maxPasswordLength: 20,
     autoSignIn: true,
   },
-  plugins: [],
+  plugins: [
+    emailOTP({
+      overrideDefaultEmailVerification: true,
+      otpLength: 6,
+      expiresIn: 5 * 60, // 5 minutes
+      allowedAttempts: 3,
+      async sendVerificationOTP({ email, otp, type }) {
+        console.info('[auth] sendVerificationOTP -> sending', { email, type });
+        await emailService.sendOtpEmail(email, otp, type);
+      },
+    }),
+  ],
 }) as Auth; // Use the locally defined Auth type
