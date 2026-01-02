@@ -73,7 +73,11 @@ export default function UserDetailPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleSave = (updatedUser: User) => {
+  type EditableUser =
+    Partial<Pick<User, "id">> &
+    Omit<User, "transactions" | "createdAt" | "lastActive" | "id">;
+
+  const handleSave = (updatedUser: EditableUser) => {
     // Update user data
     setUser({ ...user!, ...updatedUser });
     setIsEditModalOpen(false);
@@ -186,7 +190,7 @@ export default function UserDetailPage() {
           <div className="space-y-6">
             {/* Profile Header */}
             <div className="flex items-start gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="w-20 h-20 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+              <div className="w-20 h-20 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
                 {user.avatar ? (
                   <Image
                     width={80}

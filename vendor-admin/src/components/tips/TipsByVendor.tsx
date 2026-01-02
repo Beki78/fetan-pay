@@ -112,6 +112,7 @@ const mockVendorTips: VendorTip[] = [
 export default function TipsByVendor() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const filteredVendorTips = useMemo(() => {
     return mockVendorTips.filter((vendorTip) => {
@@ -222,18 +223,32 @@ export default function TipsByVendor() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Dropdown
-                      trigger={
-                        <button className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                      }
-                    >
-                      <DropdownItem>
-                        <EyeIcon className="size-4" />
-                        View Details
-                      </DropdownItem>
-                    </Dropdown>
+                    <div className="relative">
+                      <button
+                        onClick={() =>
+                          setOpenDropdown((prev) =>
+                            prev === vendorTip.id ? null : vendorTip.id
+                          )
+                        }
+                        className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
+                      </button>
+                      <Dropdown
+                        isOpen={openDropdown === vendorTip.id}
+                        onClose={() => setOpenDropdown(null)}
+                      >
+                        <DropdownItem
+                          onClick={() => {
+                            // Placeholder for view details action
+                            setOpenDropdown(null);
+                          }}
+                        >
+                          <EyeIcon className="size-4" />
+                          View Details
+                        </DropdownItem>
+                      </Dropdown>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

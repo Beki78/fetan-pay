@@ -6,23 +6,23 @@ import Button from "@/components/ui/button/Button";
 import { EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const { signInWithGoogle, signInWithEmailAndPassword, isLoading, error } = useAuth();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // Mock API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // In real app, redirect to dashboard
-      console.log("Login successful", { email, password });
-    }, 1500);
+    const success = await signInWithEmailAndPassword(email, password, isChecked);
+    if (success) {
+      router.push("/");
+    }
   };
 
   return (
@@ -62,7 +62,17 @@ export default function SignInForm() {
           </div>
           <div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 mb-6">
-              <button className="inline-flex items-center justify-center gap-3 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg px-7 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10">
+              <button
+                type="button"
+                onClick={async () => {
+                  const success = await signInWithGoogle();
+                  if (success) {
+                    router.push("/");
+                  }
+                }}
+                disabled={isLoading}
+                className="inline-flex items-center justify-center gap-3 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg px-7 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10 disabled:opacity-60"
+              >
                 <svg
                   width="20"
                   height="20"
@@ -89,7 +99,11 @@ export default function SignInForm() {
                 </svg>
                 Google
               </button>
-              <button className="inline-flex items-center justify-center gap-3 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg px-7 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10">
+              <button
+                type="button"
+                disabled
+                className="inline-flex items-center justify-center gap-3 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg px-7 opacity-70 cursor-not-allowed dark:bg-white/5 dark:text-white/90"
+              >
                 <svg
                   width="21"
                   className="fill-current"
@@ -103,6 +117,11 @@ export default function SignInForm() {
                 X (Twitter)
               </button>
             </div>
+            {error && (
+              <div className="mb-4 text-sm text-error-600 dark:text-error-400">
+                {error}
+              </div>
+            )}
             <div className="relative py-3 sm:py-5">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
@@ -160,7 +179,7 @@ export default function SignInForm() {
                     </span>
                   </div>
                   <Link
-                    href="/reset-password"
+                    href="/forgot-password"
                     className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400 transition-colors"
                   >
                     Forgot password?

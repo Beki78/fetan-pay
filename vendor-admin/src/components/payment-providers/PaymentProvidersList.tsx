@@ -57,6 +57,8 @@ const mockProviders: PaymentProvider[] = [
 
 interface PaymentProvidersListProps {
   onConfigure: (providerId: string, provider?: PaymentProvider) => void;
+  onEnable?: (providerId: string) => void;
+  onDisable?: (providerId: string) => void;
 }
 
 export default function PaymentProvidersList({
@@ -68,25 +70,25 @@ export default function PaymentProvidersList({
     switch (status) {
       case "disabled":
         return (
-          <Badge className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-0">
+          <Badge variant="light" color="warning">
             Disabled
           </Badge>
         );
       case "enabled":
         return (
-          <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-0">
+          <Badge variant="light" color="success">
             Active
           </Badge>
         );
       case "coming-soon":
         return (
-          <Badge className="bg-gray-500/10 text-gray-600 dark:text-gray-400 border-0">
+          <Badge variant="light" color="light">
             Coming Soon
           </Badge>
         );
       case "not-configured":
         return (
-          <Badge className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-0">
+          <Badge variant="light" color="warning">
             Not Configured
           </Badge>
         );
@@ -131,7 +133,7 @@ export default function PaymentProvidersList({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1">
                   {/* Provider Icon */}
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-gray-700 overflow-hidden flex-shrink-0">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-gray-700 overflow-hidden shrink-0">
                     <Image
                       src={provider.imagePath}
                       alt={provider.name}
@@ -156,7 +158,7 @@ export default function PaymentProvidersList({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   {provider.status === "enabled" && (
                     <>
                       <Button
@@ -214,7 +216,7 @@ export default function PaymentProvidersList({
       {/* Information Box */}
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 dark:bg-blue-500/20 p-6">
         <div className="flex items-start gap-4">
-          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-500/20 flex-shrink-0">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-500/20 shrink-0">
             <InfoIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>

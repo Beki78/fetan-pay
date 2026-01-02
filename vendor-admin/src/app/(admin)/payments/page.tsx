@@ -1,21 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import PaymentTable from "@/components/payments/PaymentTable";
+import PaymentTable, { type Payment } from "@/components/payments/PaymentTable";
 import TransactionDetailsPage from "@/components/payments/TransactionDetailsPage";
-
-interface Payment {
-  id: string;
-  type: "payment";
-  code: string;
-  payer: string;
-  receiver: {
-    name: string;
-    bank: string;
-  };
-  amount: number;
-  status: "expired" | "pending" | "verified" | "unconfirmed";
-  date: string;
-}
 
 interface CreatedPaymentIntent {
   transactionId: string;
@@ -79,11 +65,20 @@ export default function PaymentsPage() {
     // Create expiresAt (20 minutes after created)
     const expiresDate = new Date(createdDate.getTime() + 20 * 60 * 1000);
     
+    const normalizedStatus: ViewingTransaction["status"] = [
+      "expired",
+      "pending",
+      "verified",
+      "unconfirmed",
+    ].includes(payment.status as ViewingTransaction["status"])
+      ? (payment.status as ViewingTransaction["status"])
+      : "pending";
+
     setViewingTransaction({
       transactionId: payment.code,
       payerName: payment.payer,
       amount: payment.amount,
-      status: payment.status,
+      status: normalizedStatus,
       createdAt: createdDate.toLocaleString("en-US", {
         year: "numeric",
         month: "short",
@@ -98,7 +93,7 @@ export default function PaymentsPage() {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      receiverName: payment.receiver.name,
+      receiverName: payment.receiver?.name ?? "N/A",
       receiverAccount: "****55415444",
     });
   };

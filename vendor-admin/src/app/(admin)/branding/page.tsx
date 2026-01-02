@@ -106,7 +106,7 @@ export default function BrandingPage() {
                 Logo
               </label>
               <div className="flex items-start gap-4">
-                <div className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-center overflow-hidden shrink-0">
                   {logoPreview ? (
                     <img
                       src={logoPreview}
@@ -136,8 +136,7 @@ export default function BrandingPage() {
                         size="sm"
                         variant="outline"
                         type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
+                        onClick={() => {
                           document.getElementById("logo-upload")?.click();
                         }}
                       >
