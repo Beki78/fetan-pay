@@ -100,7 +100,9 @@ export async function verifyCBE(
   }
 }
 
-async function parseCBEReceipt(buffer: ArrayBuffer): Promise<VerifyResult> {
+export async function parseCBEReceipt(
+  buffer: ArrayBuffer,
+): Promise<VerifyResult> {
   try {
     const parsed = await pdf(Buffer.from(buffer));
     const rawText = parsed.text.replace(/\s+/g, ' ').trim();
