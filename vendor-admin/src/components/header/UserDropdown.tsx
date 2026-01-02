@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import React, { useState, useMemo } from "react";
 import { useSession } from "@/hooks/useSession";
@@ -39,13 +38,8 @@ function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
         onClick={toggleDropdown} 
         className="flex items-center text-gray-700 dark:text-gray-400 dropdown-toggle"
       >
-        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <Image
-            width={44}
-            height={44}
-            src="/images/user/owner.jpg"
-            alt="User"
-          />
+        <span className="mr-3 flex items-center justify-center rounded-full h-11 w-11 bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200 font-semibold uppercase">
+          {displayName.slice(0, 1)}
         </span>
 
         <span className="block mr-1 font-medium text-theme-sm">

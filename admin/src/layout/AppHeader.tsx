@@ -4,17 +4,17 @@ import { AccountStatusPill } from "@/components/common/AccountStatus";
 import NotificationDropdown from "@/components/header/NotificationDropdown";
 import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
+import { useSession } from "@/hooks/useSession";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
-
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
+  const { isAuthenticated } = useSession();
 
-  // TODO: Replace this with real account status from API / context
-  const accountStatus: "pending" | "active" = "pending";
+  const accountStatus: "pending" | "active" = isAuthenticated ? "active" : "pending";
 
   const handleToggle = () => {
     if (window.innerWidth >= 1024) {
