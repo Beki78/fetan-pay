@@ -35,30 +35,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Upgrade Banner */}
-      <div className="rounded-xl bg-purple-500/10 dark:bg-purple-500/20 border border-purple-500/20 p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-12 h-12 bg-purple-500/20 rounded-full">
-              <BoltIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-    <div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">
-                Unlock Advanced Analytics
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Get detailed insights, trend analysis, forecasting, and export capabilities with a premium plan.
-              </p>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            className="bg-purple-500 hover:bg-purple-600 text-white border-0 whitespace-nowrap"
-          >
-            Upgrade Now
-          </Button>
-        </div>
-      </div>
+    
 
         {/* Transaction Metrics */}
         <TransactionMetrics />

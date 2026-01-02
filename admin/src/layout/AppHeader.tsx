@@ -1,6 +1,6 @@
 "use client";
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
-import { AccountStatusPill } from "@/components/common/AccountStatus";
+// import { AccountStatusPill } from "@/components/common/AccountStatus";
 import NotificationDropdown from "@/components/header/NotificationDropdown";
 import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
@@ -14,7 +14,7 @@ const AppHeader: React.FC = () => {
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
   const { isAuthenticated } = useSession();
 
-  const accountStatus: "pending" | "active" = isAuthenticated ? "active" : "pending";
+  // const accountStatus: "pending" | "active" = isAuthenticated ? "active" : "pending";
 
   const handleToggle = () => {
     if (window.innerWidth >= 1024) {
@@ -111,7 +111,7 @@ const AppHeader: React.FC = () => {
         >
           <div className="flex items-center gap-2 2xsm:gap-3">
             {/* Account Status */}
-            <AccountStatusPill status={accountStatus} />
+            {/* <AccountStatusPill status={accountStatus} /> */}
             {/* <!-- Dark Mode Toggler --> */}
             <ThemeToggleButton />
             {/* <!-- Dark Mode Toggler --> */}

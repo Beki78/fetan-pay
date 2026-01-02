@@ -1,9 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import Button from "../ui/button/Button";
 import Badge from "../ui/badge/Badge";
 import { CheckCircleIcon } from "@/icons";
-import SubscribePaymentModal from "./SubscribePaymentModal";
+import Link from "next/link";
 
 // Mock data
 const plans = [
@@ -78,30 +78,22 @@ const plans = [
 ];
 
 export default function PlanComparison() {
-  const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
   const getPrice = (plan: typeof plans[0]) => {
     return `ETB ${plan.price.toFixed(2)}/${plan.billingCycle}`;
   };
 
-  const handleGetStarted = (plan: typeof plans[0]) => {
-    setSelectedPlan(plan);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedPlan(null);
-  };
-
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Choose Your Plan</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Select the plan that best fits your business needs
-        </p>
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Manage Plans</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Configure and manage subscription plans for vendors
+          </p>
+        </div>
+        {/* <Button className="bg-green-500 hover:bg-green-600 text-white border-0">
+          + Add New Plan
+        </Button> */}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -139,7 +131,7 @@ export default function PlanComparison() {
             <div className="space-y-3 mb-6">
               {plan.features.map((feature, index) => (
                 <div key={index} className="flex items-start gap-2">
-                  <CheckCircleIcon className="w-5 h-5 text-green-500 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                  <CheckCircleIcon className="w-5 h-5 text-green-500 dark:text-green-400 shrink-0 mt-0.5" />
                   <span className="text-sm text-gray-700 dark:text-gray-300">
                     {feature}
                   </span>
@@ -147,34 +139,22 @@ export default function PlanComparison() {
               ))}
             </div>
 
-            <Button
-              size="sm"
-              onClick={() => handleGetStarted(plan)}
-              className={`w-full ${
-                plan.popular
-                  ? "bg-purple-500 hover:bg-purple-600 text-white border-0"
-                  : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-0"
-              }`}
-            >
-              Get Started
-            </Button>
+            <Link href={`/plans/edit/${plan.id}`}>
+              <Button
+                size="sm"
+                className={`w-full ${
+                  plan.popular
+                    ? "bg-blue-500 hover:bg-blue-600 text-white border-0"
+                    : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-0"
+                }`}
+              >
+                Edit Plan
+              </Button>
+            </Link>
           </div>
         ))}
       </div>
 
-      {/* Payment Modal */}
-      {selectedPlan && (
-        <SubscribePaymentModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          plan={{
-            id: selectedPlan.id,
-            name: selectedPlan.name,
-            price: selectedPlan.price,
-            billingCycle: selectedPlan.billingCycle,
-          }}
-        />
-      )}
     </div>
   );
 }
