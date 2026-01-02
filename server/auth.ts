@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import { ConfigService } from '@nestjs/config';
-import { EmailService } from './src/email/email.service';
+import { EmailService } from './src/modules/email/email.service';
 
 const datasourceUrl = process.env.DATABASE_URL;
 

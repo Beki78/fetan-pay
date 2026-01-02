@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@mistralai/mistralai": "^1.11.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -30,13 +31,19 @@
     "@prisma/client": "^7.2.0",
     "@thallesp/nestjs-better-auth": "^2.2.0",
     "@types/nodemailer": "^7.0.4",
+    "axios": "^1.13.2",
     "better-auth": "^1.4.10",
+    "cheerio": "^1.1.2",
     "cookie-parser": "^1.4.7",
     "nodemailer": "^7.0.12",
+  "pdf-parse": "^1.1.1",
     "pg": "^8.16.3",
     "prisma": "^7.2.0",
+    "puppeteer": "^24.34.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
