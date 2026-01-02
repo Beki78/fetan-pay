@@ -65,6 +65,32 @@ export class VerifyCbeBirrDto {
   apiKey?: string;
 }
 
+export class VerifyCbeSmartDto {
+  @ApiProperty({
+    example: 'FT25362L3FT732348645',
+    description:
+      'CBE reference to verify using the smart strategy (no suffix required).',
+  })
+  reference: string;
+}
+
+export class VerifyAbyssiniaSmartDto {
+  @ApiProperty({
+    example: 'FT23062669JJ',
+    description:
+      'Abyssinia Bank reference to verify via the smart helper (no suffix required).',
+  })
+  reference: string;
+}
+
+export class VerifyAwashSmartDto {
+  @ApiProperty({
+    example: '-2H1RJ8MA49-35BMW3',
+    description: 'Awash Bank receipt token returned by the AwashPay URL.',
+  })
+  reference: string;
+}
+
 export class VerifyImageQueryDto {
   @ApiPropertyOptional({
     example: 'true',

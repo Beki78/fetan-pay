@@ -22,8 +22,11 @@ import type { File as MulterFile } from 'multer';
 import { VerificationService } from '../services/verification.service';
 import {
   VerifyAbyssiniaDto,
+  VerifyAbyssiniaSmartDto,
+  VerifyAwashSmartDto,
   VerifyCbeBirrDto,
   VerifyCbeDto,
+  VerifyCbeSmartDto,
   VerifyDashenDto,
   VerifyImageQueryDto,
   VerifyTelebirrDto,
@@ -60,6 +63,9 @@ export class VerifyController {
         '/verify-abyssinia',
         '/verify-cbebirr',
         '/verify-image',
+        '/verify-cbe-smart',
+        '/verify-abyssinia-smart',
+        '/verify-awash-smart',
       ],
     };
   }
@@ -245,6 +251,55 @@ export class VerifyController {
       phoneNumber,
       effectiveApiKey,
     );
+  }
+
+  @Post('/verify-cbe-smart')
+  @ApiOperation({ summary: 'Verify a CBE transaction with the smart strategy' })
+  @ApiResponse({ status: 200, description: 'Smart CBE verification result.' })
+  @ApiBody({ type: VerifyCbeSmartDto })
+  async verifyCbeSmartRoute(@Body() body: VerifyCbeSmartDto) {
+    const { reference } = body;
+    if (!reference) {
+      return { success: false, error: 'Missing reference.' };
+    }
+
+    return await this.verificationService.verifyCbeSmart(reference);
+  }
+
+  @Post('/verify-abyssinia-smart')
+  @ApiOperation({
+    summary: 'Verify an Abyssinia reference with the smart strategy',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Smart Abyssinia verification result.',
+  })
+  @ApiBody({ type: VerifyAbyssiniaSmartDto })
+  async verifyAbyssiniaSmartRoute(@Body() body: VerifyAbyssiniaSmartDto) {
+    const { reference } = body;
+    if (!reference) {
+      return { success: false, error: 'Missing reference.' };
+    }
+
+    return await this.verificationService.verifyAbyssiniaSmart(reference);
+  }
+
+  @Post('/verify-awash-smart')
+  @ApiOperation({
+    summary: 'Verify an Awash Bank receipt with the smart strategy',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Smart Awash verification result.',
+  })
+  @ApiBody({ type: VerifyAwashSmartDto })
+  async verifyAwashSmartRoute(@Body() body: VerifyAwashSmartDto) {
+    const { reference } = body;
+    if (!reference) {
+      return { success: false, error: 'Missing reference.' };
+    }
+
+    return await this.verificationService.verifyAwashSmart(reference);
   }
 
   @Post('/verify-image')
