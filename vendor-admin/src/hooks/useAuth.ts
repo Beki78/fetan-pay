@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useSession } from "./useSession";
-import { toast } from "react-hot-toast";
 
 const SOCIAL_CALLBACK_URL = "http://localhost:3000";
 
@@ -58,10 +57,7 @@ export const useAuth = (): UseAuthReturn => {
           (result.error as { message?: string }).message ||
             "Authentication failed. Please try again."
         );
-        toast.error(
-          (result.error as { message?: string }).message ||
-            "Authentication failed. Please try again."
-        );
+        
         return false;
       }
       return false;
@@ -70,9 +66,7 @@ export const useAuth = (): UseAuthReturn => {
       setError(
         (error as Error)?.message || "Failed to authenticate. Please try again."
       );
-      toast.error(
-        (error as Error)?.message || "Failed to authenticate. Please try again."
-      );
+     
       return false;
     } finally {
       setIsLoading(false);
@@ -99,10 +93,7 @@ export const useAuth = (): UseAuthReturn => {
           (result.error as { message?: string }).message ||
             "Authentication failed. Please try again."
         );
-        toast.error(
-          (result.error as { message?: string }).message ||
-            "Authentication failed. Please try again."
-        );
+        
         return false;
       }
       return false;
@@ -111,9 +102,7 @@ export const useAuth = (): UseAuthReturn => {
       setError(
         (error as Error)?.message || "Failed to authenticate. Please try again."
       );
-      toast.error(
-        (error as Error)?.message || "Failed to authenticate. Please try again."
-      );
+      
       return false;
     } finally {
       setIsLoading(false);
@@ -140,10 +129,7 @@ export const useAuth = (): UseAuthReturn => {
           (result.error as { message?: string }).message ||
             "Authentication failed. Please try again."
         );
-        toast.error(
-          (result.error as { message?: string }).message ||
-            "Authentication failed. Please try again."
-        );
+       
         return false;
       }
       return false;
@@ -152,9 +138,7 @@ export const useAuth = (): UseAuthReturn => {
       setError(
         (error as Error)?.message || "Failed to authenticate. Please try again."
       );
-      toast.error(
-        (error as Error)?.message || "Failed to authenticate. Please try again."
-      );
+     
       return false;
     } finally {
       setIsLoading(false);
@@ -174,9 +158,7 @@ export const useAuth = (): UseAuthReturn => {
       setError(
         (error as Error)?.message || "Failed to send OTP. Please try again."
       );
-      toast.error(
-        (error as Error)?.message || "Failed to send OTP. Please try again."
-      );
+    
       return false;
     } finally {
       setIsLoading(false);
@@ -203,11 +185,9 @@ export const useAuth = (): UseAuthReturn => {
           // Refresh session to update the hook state
           await refreshSession();
 
-          toast.success("Login successful!");
           return true;
         } else {
           setError("Invalid OTP. Please try again.");
-          toast.error("Invalid OTP. Please try again.");
           return false;
         }
       } catch (error: unknown) {
@@ -218,7 +198,6 @@ export const useAuth = (): UseAuthReturn => {
             : (error as Error)?.message || "Invalid OTP. Please try again.";
 
         setError(errorMessage);
-        toast.error(errorMessage);
         return false;
       } finally {
         setIsLoading(false);
@@ -233,10 +212,8 @@ export const useAuth = (): UseAuthReturn => {
     try {
       const success = await sessionSignOut();
       console.info("[useAuth] Sign out result:", success);
-      toast.success("You have been signed out.");
     } catch (error) {
       console.error("❌ useAuth: Sign out error:", error);
-      toast.success("You have been signed out.");
     }
   }, [sessionSignOut]);
 
@@ -259,7 +236,6 @@ export const useAuth = (): UseAuthReturn => {
 
         if (result.data) {
           await refreshSession();
-          toast.success("Login successful!");
           return true;
         } else if (result.error) {
           console.error(
@@ -270,10 +246,7 @@ export const useAuth = (): UseAuthReturn => {
             (result.error as { message?: string }).message ||
               "Authentication failed. Please try again."
           );
-          toast.error(
-            (result.error as { message?: string }).message ||
-              "Authentication failed. Please try again."
-          );
+          
           return false;
         }
         return false;
@@ -283,10 +256,7 @@ export const useAuth = (): UseAuthReturn => {
           (error as Error)?.message ||
             "Failed to authenticate. Please try again."
         );
-        toast.error(
-          (error as Error)?.message ||
-            "Failed to authenticate. Please try again."
-        );
+     
         return false;
       } finally {
         setIsLoading(false);
@@ -313,7 +283,6 @@ export const useAuth = (): UseAuthReturn => {
 
         if (result.data) {
           await refreshSession();
-          toast.success("Registration successful! Welcome to Afriuz!");
           return true;
         } else if (result.error) {
           console.error("❌ Email/Password registration error:", result.error);
@@ -321,10 +290,7 @@ export const useAuth = (): UseAuthReturn => {
             (result.error as { message?: string }).message ||
               "Registration failed. Please try again."
           );
-          toast.error(
-            (result.error as { message?: string }).message ||
-              "Registration failed. Please try again."
-          );
+         
           return false;
         }
         return false;
@@ -333,9 +299,7 @@ export const useAuth = (): UseAuthReturn => {
         setError(
           (error as Error)?.message || "Failed to register. Please try again."
         );
-        toast.error(
-          (error as Error)?.message || "Failed to register. Please try again."
-        );
+       
         return false;
       } finally {
         setIsLoading(false);
