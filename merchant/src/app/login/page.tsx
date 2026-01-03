@@ -16,6 +16,7 @@ import { loginSchema } from "@/lib/schemas";
 import { APP_CONFIG } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useSession } from "@/hooks/useSession";
 
 type LoginFormData = {
   email: string;
@@ -25,6 +26,7 @@ type LoginFormData = {
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const { isAuthenticated, isLoading: isSessionLoading } = useSession();
   const { signInWithEmailAndPassword } = useAuth();
 
   const {
@@ -65,6 +67,20 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  // If already authenticated, don't show the login form.
+  if (isSessionLoading) {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center p-4">
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    router.replace("/scan");
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center p-4">

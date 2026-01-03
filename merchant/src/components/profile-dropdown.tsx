@@ -11,25 +11,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAppSelector, useAppDispatch } from "@/lib/hooks";
-import { logout } from "@/lib/slices/authSlice";
 import { toast } from "sonner";
+import { useSession } from "@/hooks/useSession";
 
 export function ProfileDropdown() {
   const router = useRouter();
-  const user = useAppSelector((state) => state.auth.user);
-  const dispatch = useAppDispatch();
+  const { user, isAuthenticated, isLoading, signOut } = useSession();
 
-  const handleLogout = () => {
-    dispatch(logout());
-    toast.success("Logged out successfully");
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Logged out successfully");
+    } finally {
+      router.push("/login");
+    }
   };
 
   const handleProfileClick = () => {
-    if (!user) {
-      router.push("/login");
-    }
+    if (!isAuthenticated) router.push("/login");
   };
 
   return (
@@ -41,17 +40,18 @@ export function ProfileDropdown() {
           className=""
           aria-label="User profile"
           onClick={handleProfileClick}
+          disabled={isLoading}
         >
           <User />
         </Button>
       </DropdownMenuTrigger>
-      {user ? (
+      {isAuthenticated ? (
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">Signed in as</p>
               <p className="text-xs leading-none text-muted-foreground">
-                {user.email}
+                {user?.email ?? ""}
               </p>
             </div>
           </DropdownMenuLabel>

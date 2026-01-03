@@ -14,6 +14,21 @@ export interface TransactionRecord {
   createdAt?: string;
   errorMessage?: string | null;
   verificationPayload?: unknown;
+  merchant?: {
+    id: string;
+    name: string;
+  } | null;
+  verifiedBy?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+    user?: {
+      id: string;
+      email: string;
+      name: string;
+    } | null;
+  } | null;
 }
 
 export interface TransactionListResponse {

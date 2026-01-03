@@ -5,6 +5,7 @@ import { VerificationService } from '../verifier/services/verification.service';
 import { ListTransactionsQueryDto } from './dto/list-transactions.dto';
 import { ListVerifiedByUserQueryDto } from './dto/list-verified-by-user.dto';
 import { VerifyFromQrDto } from './dto/verify-from-qr.dto';
+import type { Request } from 'express';
 
 @Injectable()
 export class TransactionsService {
@@ -13,7 +14,7 @@ export class TransactionsService {
     private readonly verificationService: VerificationService,
   ) {}
 
-  async verifyFromQr(body: VerifyFromQrDto) {
+  async verifyFromQr(body: VerifyFromQrDto, req?: Request) {
     const parsedUrl = this.parseUrl(body.qrUrl);
     const provider = this.inferProvider(parsedUrl, body.provider);
     const reference = this.extractReference(parsedUrl, body.reference);
@@ -47,6 +48,8 @@ export class TransactionsService {
         error instanceof Error ? error.message : 'Verification failed';
     }
 
+    const verifiedById = await this.resolveVerifiedById(req);
+
     const transaction = await this.prisma.transaction.upsert({
       where: {
         transaction_provider_reference_key: { provider, reference },
@@ -55,6 +58,7 @@ export class TransactionsService {
         qrUrl: body.qrUrl,
         status,
         verifiedAt: status === TransactionStatus.VERIFIED ? new Date() : null,
+        verifiedById: status === TransactionStatus.VERIFIED ? verifiedById : null,
         verificationPayload: verificationPayload ?? Prisma.JsonNull,
         errorMessage,
       },
@@ -64,6 +68,7 @@ export class TransactionsService {
         qrUrl: body.qrUrl,
         status,
         verifiedAt: status === TransactionStatus.VERIFIED ? new Date() : null,
+        verifiedById: status === TransactionStatus.VERIFIED ? verifiedById : null,
         verificationPayload: verificationPayload ?? Prisma.JsonNull,
         errorMessage,
       },
@@ -100,6 +105,29 @@ export class TransactionsService {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          verifiedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          merchant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       }),
       this.prisma.transaction.count({ where }),
     ]);
@@ -138,6 +166,29 @@ export class TransactionsService {
         orderBy: [{ verifiedAt: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          verifiedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          merchant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       }),
       this.prisma.transaction.count({ where }),
     ]);
@@ -263,5 +314,29 @@ export class TransactionsService {
 
   private serializePayload(input: unknown): Prisma.InputJsonValue {
     return JSON.parse(JSON.stringify(input)) as Prisma.InputJsonValue;
+  }
+
+  /**
+   * Best-effort mapping from Better Auth session user -> MerchantUser.id
+   *
+   * We store the relation as MerchantUser.userId (auth user id) and want to
+   * write Transaction.verifiedById = MerchantUser.id.
+   */
+  private async resolveVerifiedById(req?: Request): Promise<string | null> {
+    try {
+      const authUser = (req as any)?.user;
+      const authUserId: string | undefined = authUser?.id;
+      if (!authUserId) return null;
+
+      const membership = await (this.prisma as any).merchantUser.findFirst({
+        where: { userId: authUserId },
+        select: { id: true },
+      });
+
+      return membership?.id ?? null;
+    } catch {
+      // Never fail verification because attribution failed.
+      return null;
+    }
   }
 }

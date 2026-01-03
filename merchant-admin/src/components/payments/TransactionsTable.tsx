@@ -31,6 +31,16 @@ interface TransactionsTableProps {
   selectedId?: string;
 }
 
+function getVerifierLabel(tx: TransactionRecord) {
+  const by = tx.verifiedBy;
+  if (!by) return "—";
+
+  // Prefer MerchantUser name/email, then fallback to linked auth user.
+  const name = by.name ?? by.user?.name;
+  const email = by.email ?? by.user?.email;
+  return name?.trim() || email?.trim() || "—";
+}
+
 export default function TransactionsTable({ onView, selectedId }: TransactionsTableProps) {
   const [providerFilter, setProviderFilter] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -101,6 +111,9 @@ export default function TransactionsTable({ onView, selectedId }: TransactionsTa
                   Reference
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
+                  Verified By
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
                   Provider
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
@@ -120,14 +133,14 @@ export default function TransactionsTable({ onView, selectedId }: TransactionsTa
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
               {(isLoading || isFetching) && (
                 <TableRow>
-                  <TableCell colSpan={6} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={7} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
                     Loading transactions...
                   </TableCell>
                 </TableRow>
               )}
               {!isLoading && !isFetching && error && (
                 <TableRow>
-                  <TableCell colSpan={6} className="px-5 py-6 text-center text-red-500">
+                  <TableCell colSpan={7} className="px-5 py-6 text-center text-red-500">
                     {"status" in error && error.status === 0
                       ? "Network error"
                       : "data" in error && (error as any).data?.message
@@ -138,7 +151,7 @@ export default function TransactionsTable({ onView, selectedId }: TransactionsTa
               )}
               {!isLoading && !isFetching && !error && filteredTransactions.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={7} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
                     No transactions found
                   </TableCell>
                 </TableRow>
@@ -151,6 +164,9 @@ export default function TransactionsTable({ onView, selectedId }: TransactionsTa
                   >
                     <TableCell className="px-5 py-4">
                       <span className="font-semibold text-blue-600 dark:text-blue-300">{tx.reference}</span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                      {getVerifierLabel(tx)}
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <Badge size="sm" variant="light" color="info">

@@ -108,6 +108,10 @@ export const auth = betterAuth({
     admin({
       defaultRole: 'EMPLOYEE',
       roles: {
+        SUPERADMIN: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
         ADMIN: {
           authorize: () => ({ success: true }),
           statements: {},
@@ -133,7 +137,8 @@ export const auth = betterAuth({
           statements: {},
         },
       },
-      adminRoles: ['ADMIN', 'MERCHANT_OWNER'],
+      // SUPERADMIN should be able to access all admin plugin endpoints.
+      adminRoles: ['SUPERADMIN', 'ADMIN', 'MERCHANT_OWNER'],
     }),
     emailOTP({
       overrideDefaultEmailVerification: true,
