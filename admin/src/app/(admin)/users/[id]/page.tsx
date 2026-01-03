@@ -2,19 +2,14 @@ import UserDetail from '@/components/users/UserDetail'
 import React from 'react'
 
 interface UserDetailPageProps {
-  params: Promise<{
-    id: string
-  }>
+  params: Promise<{ id: string }>; // Next passes params as a Promise in this route
 }
 
-const UserDetailPage = async ({ params }: UserDetailPageProps) => {
-  const resolvedParams = await params;
-
+export default async function UserDetailPage({ params }: UserDetailPageProps) {
+  const resolved = await params;
   return (
     <div>
-      <UserDetail userId={resolvedParams.id} />
+      <UserDetail userId={resolved.id} />
     </div>
-  )
+  );
 }
-
-export default UserDetailPage

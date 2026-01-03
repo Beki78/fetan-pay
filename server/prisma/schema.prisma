@@ -68,6 +68,8 @@ model MerchantUser {
   id         String            @id @default(uuid())
   merchantId String
   merchant   Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   role       MerchantUserRole
   status     MerchantUserStatus @default(INVITED)
   name       String?
@@ -79,6 +81,7 @@ model MerchantUser {
   verifiedTransactions Transaction[] @relation("MerchantUserTransactions")
 
   @@index([merchantId])
+  @@index([userId])
   @@map("merchant_user")
 }
 
@@ -113,6 +116,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  merchantUsers MerchantUser[]
 
   @@unique([email])
   @@map("user")

@@ -3,17 +3,123 @@ import Checkbox from "@/components/form/input/Checkbox";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import { useAuth } from "@/hooks/useAuth";
+import { selfRegisterMerchant } from "@/lib/services/merchantsServiceApi";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 
 
 
 export default function SignUpForm() {
-  const { signInWithGoogle, signUpWithEmailAndPassword, isLoading } = useAuth();
+  const {
+    signInWithGoogle,
+    signUpWithEmailAndPassword,
+    sendEmailOtp,
+    verifyEmailWithOtp,
+    isLoading,
+  } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [formState, setFormState] = useState({
+    businessName: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    phone: "",
+  });
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"signup" | "verify">("signup");
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormState((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    setIsSubmitting(true);
+    if (!isChecked) {
+      setError("Please accept the terms and privacy policy.");
+      setIsSubmitting(false);
+      return;
+    }
+    const { email, password, firstName, lastName, businessName, phone } = formState;
+    if (!email || !password || !businessName) {
+      setError("Business name, email and password are required.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Name is optional for Better Auth; send a friendly display name
+    const fullName = `${firstName} ${lastName}`.trim() || email.split("@")[0];
+
+    try {
+      // First, create merchant + membership record (status pending, role MERCHANT_OWNER).
+      // If this fails, we stop before creating the auth user to avoid duplicate email errors on retry.
+      await selfRegisterMerchant({
+        name: businessName,
+        contactEmail: email,
+        contactPhone: phone || undefined,
+        ownerEmail: email,
+        ownerPhone: phone || undefined,
+        ownerName: fullName,
+      });
+
+      // Now create the Better Auth user
+      const ok = await signUpWithEmailAndPassword(email, password, fullName);
+      if (!ok) {
+        setError("Account created for business, but user signup failed. Please retry login or contact support.");
+        return;
+      }
+
+      // Better Auth already sends the verification email after signup; just move to verify step
+      setStep("verify");
+      setInfo(`Verification code sent to ${email}. Please enter it below.`);
+    } catch (err) {
+      console.error("❌ Self registration error", err);
+      setError((err as Error)?.message || "Failed to create merchant record.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    if (!otp) {
+      setError("Please enter the verification code from your email.");
+      return;
+    }
+    const verified = await verifyEmailWithOtp(formState.email, otp);
+    if (verified) {
+      setInfo("Email verified! Redirecting to login...");
+      router.push("/signin");
+    } else {
+      setError("Invalid code. Please try again or resend.");
+    }
+  };
+
+  const handleResend = async () => {
+    setError(null);
+    setInfo(null);
+    const sent = await sendEmailOtp(formState.email, "email-verification");
+    if (sent) {
+      setInfo(`Verification code re-sent to ${formState.email}.`);
+    } else {
+      setError("Failed to resend code. Please try again.");
+    }
+  };
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full overflow-y-auto no-scrollbar">
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
@@ -76,8 +182,57 @@ export default function SignUpForm() {
                 </span>
               </div>
             </div>
-            <form>
+            <form onSubmit={step === "signup" ? handleSubmit : handleVerify}>
               <div className="space-y-5">
+                {step === "verify" ? (
+                  <>
+                    <div className="space-y-2">
+                      <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                        Verify your email
+                      </h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        We sent a 6-digit code to {formState.email}. Enter it below to verify your account.
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Verification Code</Label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Enter the 6-digit code"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={isLoading}
+                        className="text-sm font-medium text-brand-500 hover:text-brand-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        Resend code
+                      </button>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        Didn’t get it? Check spam too.
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                <div>
+                  <Label>
+                    Business Name<span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    id="businessName"
+                    name="businessName"
+                    placeholder="Enter your business name"
+                    value={formState.businessName}
+                    onChange={handleChange}
+                  />
+                </div>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   {/* <!-- First Name --> */}
                   <div className="sm:col-span-1">
@@ -86,9 +241,11 @@ export default function SignUpForm() {
                     </Label>
                     <Input
                       type="text"
-                      id="fname"
-                      name="fname"
+                      id="firstName"
+                      name="firstName"
                       placeholder="Enter your first name"
+                      value={formState.firstName}
+                      onChange={handleChange}
                     />
                   </div>
                   {/* <!-- Last Name --> */}
@@ -98,9 +255,11 @@ export default function SignUpForm() {
                     </Label>
                     <Input
                       type="text"
-                      id="lname"
-                      name="lname"
+                      id="lastName"
+                      name="lastName"
                       placeholder="Enter your last name"
+                      value={formState.lastName}
+                      onChange={handleChange}
                     />
                   </div>
                 </div>
@@ -114,6 +273,8 @@ export default function SignUpForm() {
                     id="email"
                     name="email"
                     placeholder="Enter your email"
+                    value={formState.email}
+                    onChange={handleChange}
                   />
                 </div>
                 {/* <!-- Password --> */}
@@ -125,6 +286,9 @@ export default function SignUpForm() {
                     <Input
                       placeholder="Enter your password"
                       type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formState.password}
+                      onChange={handleChange}
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
@@ -137,6 +301,18 @@ export default function SignUpForm() {
                       )}
                     </span>
                   </div>
+                </div>
+                {/* <!-- Phone (optional) --> */}
+                <div>
+                  <Label>Phone (optional)</Label>
+                  <Input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    placeholder="Enter phone number"
+                    value={formState.phone}
+                    onChange={handleChange}
+                  />
                 </div>
                 {/* <!-- Checkbox --> */}
                 <div className="flex items-center gap-3">
@@ -156,11 +332,31 @@ export default function SignUpForm() {
                     </span>
                   </p>
                 </div>
+                  </>
+                )}
                 {/* <!-- Button --> */}
                 <div>
-                  <button className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600">
-                    Sign Up
+                  <button
+                    type="submit"
+                    disabled={isLoading || isSubmitting}
+                    className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {step === "verify"
+                      ? isLoading
+                        ? "Verifying..."
+                        : "Verify email"
+                      : isLoading || isSubmitting
+                      ? "Signing up..."
+                      : "Sign Up"}
                   </button>
+                  {info && (
+                    <p className="mt-3 text-sm text-success-600 dark:text-success-400">
+                      {info}
+                    </p>
+                  )}
+                  {error && (
+                    <p className="mt-3 text-sm text-error-500">{error}</p>
+                  )}
                 </div>
               </div>
             </form>

@@ -163,9 +163,9 @@ const mainItems: NavItem[] = [
     path: "/plans",
   },
   {
-    icon: <UsersIcon />,
-    name: "Users",
-    path: "/users",
+  icon: <UsersIcon />,
+  name: "Merchants",
+  path: "/users",
   },
   {
     icon: <PieChartIcon />,
@@ -455,7 +455,7 @@ const AppSidebar: React.FC = () => {
             {/* MAIN Section */}
             <div>
               <h2
-                className={`mb-4 text-xs uppercase font-semibold flex leading-[20px] text-gray-400 ${
+                className={`mb-4 text-xs uppercase font-semibold flex leading-5 text-gray-400 ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"
@@ -473,7 +473,7 @@ const AppSidebar: React.FC = () => {
             {/* CONFIGURATION Section */}
             {/* <div>
               <h2
-                className={`mb-4 text-xs uppercase font-semibold flex leading-[20px] text-gray-400 ${
+                className={`mb-4 text-xs uppercase font-semibold flex leading-5 text-gray-400 ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"

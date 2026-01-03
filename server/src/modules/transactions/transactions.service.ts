@@ -29,12 +29,12 @@ export class TransactionsService {
       );
     }
 
-  let verificationPayload: Prisma.InputJsonValue | null = null;
+    let verificationPayload: Prisma.InputJsonValue | null = null;
     let status: TransactionStatus = TransactionStatus.PENDING;
     let errorMessage: string | undefined;
 
     try {
-        verificationPayload = await this.runVerification(
+      verificationPayload = await this.runVerification(
         provider,
         reference,
         body.accountSuffix,
@@ -42,7 +42,8 @@ export class TransactionsService {
       status = this.computeStatus(verificationPayload);
     } catch (error) {
       status = TransactionStatus.FAILED;
-      errorMessage = error instanceof Error ? error.message : 'Verification failed';
+      errorMessage =
+        error instanceof Error ? error.message : 'Verification failed';
     }
 
     const transaction = await this.prisma.transaction.upsert({
@@ -53,7 +54,7 @@ export class TransactionsService {
         qrUrl: body.qrUrl,
         status,
         verifiedAt: status === TransactionStatus.VERIFIED ? new Date() : null,
-  verificationPayload: verificationPayload ?? Prisma.JsonNull,
+        verificationPayload: verificationPayload ?? Prisma.JsonNull,
         errorMessage,
       },
       create: {
@@ -62,7 +63,7 @@ export class TransactionsService {
         qrUrl: body.qrUrl,
         status,
         verifiedAt: status === TransactionStatus.VERIFIED ? new Date() : null,
-  verificationPayload: verificationPayload ?? Prisma.JsonNull,
+        verificationPayload: verificationPayload ?? Prisma.JsonNull,
         errorMessage,
       },
     });
@@ -72,7 +73,7 @@ export class TransactionsService {
       reference,
       status,
       transaction,
-  verification: verificationPayload,
+      verification: verificationPayload,
       error: errorMessage,
     };
   }
@@ -124,7 +125,8 @@ export class TransactionsService {
   ): TransactionProvider | undefined {
     if (providerHint) return providerHint;
 
-    const haystack = `${url.hostname}${url.pathname}${url.search}`.toLowerCase();
+    const haystack =
+      `${url.hostname}${url.pathname}${url.search}`.toLowerCase();
 
     if (haystack.includes('telebirr')) return TransactionProvider.TELEBIRR;
     if (haystack.includes('dashen')) return TransactionProvider.DASHEN;
@@ -158,17 +160,24 @@ export class TransactionsService {
     ];
 
     for (const key of candidates) {
-      const value = url.searchParams.get(key) ?? url.searchParams.get(key.toLowerCase());
+      const value =
+        url.searchParams.get(key) ?? url.searchParams.get(key.toLowerCase());
       if (value) return value.trim();
     }
 
     return undefined;
   }
 
-  private computeStatus(payload: Prisma.InputJsonValue | null): TransactionStatus {
+  private computeStatus(
+    payload: Prisma.InputJsonValue | null,
+  ): TransactionStatus {
     if (!payload) return TransactionStatus.FAILED;
     const maybeObject = payload as Record<string, unknown> | undefined;
-    if (maybeObject && typeof maybeObject === 'object' && 'success' in maybeObject) {
+    if (
+      maybeObject &&
+      typeof maybeObject === 'object' &&
+      'success' in maybeObject
+    ) {
       return (maybeObject as { success?: boolean }).success === false
         ? TransactionStatus.FAILED
         : TransactionStatus.VERIFIED;
@@ -184,7 +193,9 @@ export class TransactionsService {
     switch (provider) {
       case TransactionProvider.CBE: {
         if (!accountSuffix) {
-          throw new BadRequestException('accountSuffix is required for CBE verification');
+          throw new BadRequestException(
+            'accountSuffix is required for CBE verification',
+          );
         }
         return this.serializePayload(
           await this.verificationService.verifyCbe(reference, accountSuffix),

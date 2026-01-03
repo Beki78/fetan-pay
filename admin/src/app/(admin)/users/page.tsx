@@ -8,14 +8,14 @@ export default function UsersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-gray-800 dark:text-white mb-1">Users Management</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Manage and monitor all platform users</p>
+        <h1 className="text-2xl font-semibold text-gray-800 dark:text-white mb-1">Merchants</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Review merchant signups and approvals</p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards (can be updated later for merchant KPIs) */}
       <UsersStats />
 
-      {/* Users Table */}
+      {/* Merchants Table */}
       <UsersTable />
     </div>
   );

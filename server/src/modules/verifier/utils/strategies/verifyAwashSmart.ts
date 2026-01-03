@@ -68,7 +68,9 @@ async function fetchReceiptHtml(reference: string): Promise<string> {
   return typeof response.data === 'string' ? response.data : '';
 }
 
-export async function verifyAwashSmart(reference: string): Promise<VerifyResult> {
+export async function verifyAwashSmart(
+  reference: string,
+): Promise<VerifyResult> {
   const receiptId = reference?.trim();
   if (!receiptId) {
     logger.warn('⚠️ Missing Awash reference for smart strategy');

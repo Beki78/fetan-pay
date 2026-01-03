@@ -26,7 +26,8 @@ interface UseAuthReturn {
   ) => Promise<boolean>;
   signUpWithEmailAndPassword: (
     email: string,
-    password: string
+    password: string,
+    name?: string
   ) => Promise<boolean>;
 
   // Password reset
@@ -440,18 +441,18 @@ export const useAuth = (): UseAuthReturn => {
 
   // Email and password registration
   const signUpWithEmailAndPassword = useCallback(
-    async (email: string, password: string): Promise<boolean> => {
+    async (email: string, password: string, name?: string): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Extract name from email (part before @) or use email as fallback
-        const name = email.split("@")[0] || email;
+        // Extract name from email (part before @) or use provided name
+        const resolvedName = name?.trim() || email.split("@")[0] || email;
 
         const result = await authClient.signUp.email({
           email,
           password,
-          name,
+          name: resolvedName,
         });
 
         if (result.data) {

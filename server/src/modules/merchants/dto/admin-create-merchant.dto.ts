@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsPhoneNumber, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsPhoneNumber,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export enum MerchantStatusDto {
   PENDING = 'PENDING',
@@ -24,10 +31,15 @@ export class AdminCreateMerchantDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsPhoneNumber('ET', { message: 'contactPhone must be a valid Ethiopian phone number' })
+  @IsPhoneNumber('ET', {
+    message: 'contactPhone must be a valid Ethiopian phone number',
+  })
   contactPhone?: string;
 
-  @ApiPropertyOptional({ enum: MerchantStatusDto, default: MerchantStatusDto.ACTIVE })
+  @ApiPropertyOptional({
+    enum: MerchantStatusDto,
+    default: MerchantStatusDto.ACTIVE,
+  })
   @IsOptional()
   @IsEnum(MerchantStatusDto)
   status?: MerchantStatusDto = MerchantStatusDto.ACTIVE;
@@ -38,7 +50,9 @@ export class AdminCreateMerchantDto {
 
   @ApiPropertyOptional({ description: 'Owner phone' })
   @IsOptional()
-  @IsPhoneNumber('ET', { message: 'ownerPhone must be a valid Ethiopian phone number' })
+  @IsPhoneNumber('ET', {
+    message: 'ownerPhone must be a valid Ethiopian phone number',
+  })
   ownerPhone?: string;
 
   @ApiPropertyOptional({ description: 'Owner name' })

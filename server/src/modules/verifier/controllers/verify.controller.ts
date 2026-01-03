@@ -336,7 +336,8 @@ export class VerifyController {
       return { error: 'No file uploaded' };
     }
 
-    const buffer = file.buffer ?? (file.path ? fs.readFileSync(file.path) : null);
+    const buffer =
+      file.buffer ?? (file.path ? fs.readFileSync(file.path) : null);
     if (!buffer) {
       return { error: 'Failed to read uploaded file' };
     }
@@ -419,7 +420,11 @@ Return this JSON format exactly:
 
       const forwardMap: Record<
         string,
-        { forward: string; needsSuffix?: boolean; verifier: (ref: string, suffix?: string) => Promise<any> }
+        {
+          forward: string;
+          needsSuffix?: boolean;
+          verifier: (ref: string, suffix?: string) => Promise<any>;
+        }
       > = {
         telebirr: {
           forward: '/verify-telebirr',
@@ -465,8 +470,7 @@ Return this JSON format exactly:
 
       if (mapping.needsSuffix && !accountSuffix) {
         return {
-          error:
-            'Account suffix is required for this bank in autoVerify mode',
+          error: 'Account suffix is required for this bank in autoVerify mode',
         };
       }
 
