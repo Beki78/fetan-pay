@@ -14,20 +14,21 @@ export function Navbar() {
     { name: "Integrations", href: "#integrations" },
     { name: "Pricing", href: "#pricing" },
     { name: "Docs", href: "#docs" },
+    { name: "Test", href: "/test" },
     { name: "Contact", href: "#contact" },
   ]
 
   const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    e.preventDefault()
     if (href.startsWith("#")) {
+      e.preventDefault()
       const element = document.querySelector(href)
       if (element) {
         const elementPosition = element.getBoundingClientRect().top
         const offsetPosition = elementPosition + window.pageYOffset - 100 // 100px offset for navbar
-        
+
         window.scrollTo({
           top: offsetPosition,
-          behavior: "smooth"
+          behavior: "smooth",
         })
       }
     }
