@@ -1,6 +1,6 @@
 ## Kifiya Pay Server (Better Auth)
 
-Backend for FetanPay admin, powered by NestJS + Better Auth. This service exposes auth at `/api/auth` and is used by the vendor-admin frontend for sign-in, social login, and password reset flows.
+Backend for FetanPay admin, powered by NestJS + Better Auth. This service exposes auth at `/api/auth` and is used by the merchant-admin frontend for sign-in, social login, and password reset flows.
 
 ### Quick start
 

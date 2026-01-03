@@ -1,0 +1,51 @@
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { API_BASE_URL } from '../constants';
+
+export type TransactionProvider = 'CBE' | 'TELEBIRR' | 'AWASH' | 'BOA' | 'DASHEN';
+export type TransactionStatus = 'PENDING' | 'VERIFIED' | 'FAILED';
+
+export interface TransactionRecord {
+  id: string;
+  provider: TransactionProvider;
+  reference: string;
+  qrUrl: string;
+  status: TransactionStatus;
+  verifiedAt?: string | null;
+  createdAt?: string;
+  errorMessage?: string | null;
+  verificationPayload?: unknown;
+}
+
+export interface TransactionListResponse {
+  data: TransactionRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export const transactionsServiceApi = createApi({
+  reducerPath: 'transactionsServiceApi',
+  baseQuery: fetchBaseQuery({
+    baseUrl: API_BASE_URL,
+    credentials: 'include',
+  }),
+  endpoints: (builder) => ({
+    listTransactions: builder.query<
+      TransactionListResponse,
+      { provider?: TransactionProvider; status?: TransactionStatus; page?: number; pageSize?: number }
+    >({
+      query: (params) => {
+        const query = new URLSearchParams();
+        if (params.provider) query.set('provider', params.provider);
+        if (params.status) query.set('status', params.status);
+        query.set('page', String(params.page ?? 1));
+        query.set('pageSize', String(params.pageSize ?? 20));
+        return {
+          url: `/transactions?${query.toString()}`,
+        };
+      },
+    }),
+  }),
+});
+
+export const { useListTransactionsQuery } = transactionsServiceApi;

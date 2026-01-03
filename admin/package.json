@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "start:vendor-admin": "next dev --port 3001"
+  "start:admin": "next dev --port 3001"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",

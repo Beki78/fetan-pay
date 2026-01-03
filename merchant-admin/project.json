@@ -1,0 +1,12 @@
+{
+  "name": "merchant-admin",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "."
+      }
+    }
+  }
+}

@@ -12,6 +12,97 @@ datasource db {
   provider = "postgresql"
 }
 
+enum TransactionProvider {
+  CBE
+  TELEBIRR
+  AWASH
+  BOA
+  DASHEN
+}
+
+enum TransactionStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum MerchantStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum MerchantUserRole {
+  MERCHANT_OWNER
+  ADMIN
+  ACCOUNTANT
+  SALES
+  WAITER
+}
+
+enum MerchantUserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+model Merchant {
+  id            String          @id @default(uuid())
+  name          String
+  tin           String?
+  contactEmail  String?
+  contactPhone  String?
+  status        MerchantStatus  @default(PENDING)
+  source        String?
+  approvedAt    DateTime?
+  approvedBy    String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  users         MerchantUser[]
+  transactions  Transaction[]
+
+  @@map("merchant")
+}
+
+model MerchantUser {
+  id         String            @id @default(uuid())
+  merchantId String
+  merchant   Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  role       MerchantUserRole
+  status     MerchantUserStatus @default(INVITED)
+  name       String?
+  email      String?
+  phone      String?
+  invitedBy  String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  verifiedTransactions Transaction[] @relation("MerchantUserTransactions")
+
+  @@index([merchantId])
+  @@map("merchant_user")
+}
+
+model Transaction {
+  id                  String              @id @default(uuid())
+  provider            TransactionProvider
+  reference           String
+  qrUrl               String
+  status              TransactionStatus   @default(PENDING)
+  verifiedAt          DateTime?
+  verificationPayload Json?
+  errorMessage        String?
+  merchantId          String?
+  merchant            Merchant?           @relation(fields: [merchantId], references: [id])
+  verifiedById        String?
+  verifiedBy          MerchantUser?       @relation("MerchantUserTransactions", fields: [verifiedById], references: [id])
+  tipAmount           Decimal?            @db.Decimal(10, 2)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@unique([provider, reference], name: "transaction_provider_reference_key")
+  @@map("transaction")
+}
+
 model User {
   id            String    @id
   name          String

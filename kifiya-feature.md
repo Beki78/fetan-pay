@@ -372,6 +372,147 @@ ALTER TABLE verifications ADD COLUMN waiter_id UUID;
 
 **Icon**: 💰 Tip/Bonus icon
 
+## Vendor Admin Lifecycle & Waiter Verification Flow
+
+### States, Roles, and Sources
+- **Vendor status**: `pending` (awaiting admin approval) → `active` (can transact) → `suspended` (optional for future risk control).
+- **User status**: `invited`, `active`, `suspended`.
+- **Vendor user roles**: `VENDOR_OWNER` (created with the vendor), `ADMIN`, `ACCOUNTANT`, `SALES`, `WAITER`.
+- **Creation source**: `self_registered` (vendor signs up) or `admin_created` (platform admin onboards them). Keep this in the vendor record for audit.
+
+### Step-by-Step Flows
+1) **Vendor self-registration (Vendor Admin app)**
+   - Vendor fills registration form (business name, TIN, contact, email/phone, password).
+   - Record saved as `vendor.status = pending`, `source = self_registered`; initial user created as `VENDOR_OWNER` with `status = active` but vendor access is blocked until approval.
+   - Admin reviews pending vendors in Admin app, requests docs if needed, then sets `vendor.status = active`.
+   - System notifies the vendor owner; they can now log in and proceed.
+
+2) **Admin-created vendor (Admin app)**
+   - Admin enters vendor profile + contact; system creates vendor with `status = active` (or `pending` if extra checks needed) and `source = admin_created`.
+   - System auto-creates vendor owner account (email/phone) and sends password setup link/OTP.
+   - Vendor owner logs in and continues setup (banks, employees).
+
+3) **Vendor owner/admin sets up bank + settings (Vendor Admin app)**
+   - Adds bank accounts, API keys/webhook URLs (if applicable), and business profile.
+
+4) **Vendor admin creates employee accounts (Vendor Admin app)**
+   - Creates users for **sales/accountant/waiter** with role + permissions; optional branch/terminal scoping.
+   - User status starts as `invited`; once they set password/OTP, status becomes `active`.
+
+5) **Waiter verifies transactions (Vendor app)**
+   - Waiter logs in with their invited credentials (role = `WAITER`).
+   - Opens verification screen, enters/scan reference (or QR), optionally adds tip, and submits.
+   - System links verification to `vendor_id` and `employee_id`; response shows bank status (`PENDING | VERIFIED | FAILED`).
+   - Tips (if any) are recorded against waiter; admins can later approve/payout via the existing tip flow.
+
+### Minimal Data Model (DB-oriented, mock-friendly)
+```sql
+CREATE TABLE vendors (
+  id UUID PRIMARY KEY,
+  name VARCHAR,
+  tin VARCHAR,
+  contact_email VARCHAR,
+  contact_phone VARCHAR,
+  status VARCHAR CHECK (status IN ('pending','active','suspended')),
+  source VARCHAR CHECK (source IN ('self_registered','admin_created')),
+  approved_at TIMESTAMP,
+  approved_by UUID, -- admin user id
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+
+CREATE TABLE vendor_users (
+  id UUID PRIMARY KEY,
+  vendor_id UUID REFERENCES vendors(id),
+  role VARCHAR CHECK (role IN ('VENDOR_OWNER','ADMIN','ACCOUNTANT','SALES','WAITER')),
+  status VARCHAR CHECK (status IN ('invited','active','suspended')),
+  email VARCHAR,
+  phone VARCHAR,
+  password_hash VARCHAR,
+  invited_at TIMESTAMP,
+  invited_by UUID, -- vendor user or admin who created
+  last_login_at TIMESTAMP,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+
+CREATE TABLE verifications (
+  id UUID PRIMARY KEY,
+  vendor_id UUID REFERENCES vendors(id),
+  verified_by UUID REFERENCES vendor_users(id),
+  reference VARCHAR,
+  provider VARCHAR,
+  status VARCHAR CHECK (status IN ('PENDING','VERIFIED','FAILED')),
+  amount DECIMAL(12,2),
+  tip_amount DECIMAL(10,2),
+  verification_payload JSONB,
+  error_message TEXT,
+  verified_at TIMESTAMP,
+  created_at TIMESTAMP
+);
+```
+
+### Frontend Data Contracts (mock-ready)
+- **Vendor self-registration request**
+```json
+{
+  "name": "ABC Cafe",
+  "tin": "123456789",
+  "contact_email": "owner@abccafe.et",
+  "contact_phone": "+251900000000",
+  "password": "••••••••"
+}
+```
+
+- **Admin-created vendor request**
+```json
+{
+  "name": "XYZ Retail",
+  "tin": "556677",
+  "contact_email": "ops@xyzretail.et",
+  "contact_phone": "+251911111111",
+  "owner": {
+    "email": "owner@xyzretail.et",
+    "phone": "+251911111112"
+  },
+  "status": "active"
+}
+```
+
+- **Create employee (vendor admin)**
+```json
+{
+  "vendor_id": "vendor_123",
+  "role": "WAITER",
+  "name": "Liya Alemu",
+  "email": "liya@abccafe.et",
+  "phone": "+251922222222",
+  "status": "invited"
+}
+```
+
+- **Waiter verification action**
+```json
+{
+  "vendor_id": "vendor_123",
+  "employee_id": "user_987",
+  "reference": "TXN123456",
+  "provider": "CBE",
+  "tip_amount": 20.00
+}
+```
+
+### Permission Notes (for UI/back-end guards)
+- `VENDOR_OWNER/ADMIN`: manage vendor profile, banks, employees, tips approval, view all verifications.
+- `ACCOUNTANT`: view/export transactions, reconcile tips, no user management.
+- `SALES`: create payment intents, view own branch verifications.
+- `WAITER`: submit verifications (and tips), view their own history only.
+
+### Frontend Implementation Pointers
+- Keep `vendor.status` in auth/session context to block access until `active`.
+- Employee creation screens should emit payloads matching the mocks above; status defaults to `invited` and transitions to `active` after password/OTP.
+- Verification UI should include optional tip input and automatically attach `employee_id` and `vendor_id` from session when calling the verification endpoint.
+
 ## Additional Features
 
 ### Payment Intent Management
