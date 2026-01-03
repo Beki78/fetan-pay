@@ -47,38 +47,41 @@ enum MerchantUserStatus {
 }
 
 model Merchant {
-  id            String          @id @default(uuid())
-  name          String
-  tin           String?
-  contactEmail  String?
-  contactPhone  String?
-  status        MerchantStatus  @default(PENDING)
-  source        String?
-  approvedAt    DateTime?
-  approvedBy    String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  users         MerchantUser[]
-  transactions  Transaction[]
+  id           String         @id @default(uuid())
+  name         String
+  tin          String?
+  contactEmail String?
+  contactPhone String?
+  status       MerchantStatus @default(PENDING)
+  source       String?
+  approvedAt   DateTime?
+  approvedBy   String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  users        MerchantUser[]
+  transactions Transaction[]
 
   @@map("merchant")
 }
 
 model MerchantUser {
-  id         String            @id @default(uuid())
-  merchantId String
-  merchant   Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  role       MerchantUserRole
-  status     MerchantUserStatus @default(INVITED)
-  name       String?
-  email      String?
-  phone      String?
-  invitedBy  String?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  verifiedTransactions Transaction[] @relation("MerchantUserTransactions")
+  id                   String             @id @default(uuid())
+  merchantId           String
+  merchant             Merchant           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  userId               String?
+  user                 User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  role                 MerchantUserRole
+  status               MerchantUserStatus @default(INVITED)
+  name                 String?
+  email                String?
+  phone                String?
+  invitedBy            String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  verifiedTransactions Transaction[]      @relation("MerchantUserTransactions")
 
   @@index([merchantId])
+  @@index([userId])
   @@map("merchant_user")
 }
 
@@ -104,15 +107,21 @@ model Transaction {
 }
 
 model User {
-  id            String    @id
+  id            String         @id
   name          String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean        @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   sessions      Session[]
   accounts      Account[]
+  merchantUsers MerchantUser[]
+
+  role       String?
+  banned     Boolean?  @default(false)
+  banReason  String?
+  banExpires DateTime?
 
   @@unique([email])
   @@map("user")
@@ -128,6 +137,8 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  impersonatedBy String?
 
   @@unique([token])
   @@index([userId])

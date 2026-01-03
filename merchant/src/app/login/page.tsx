@@ -6,16 +6,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Mail, Lock, LogIn } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { loginSchema } from "@/lib/schemas";
-import { useAppDispatch } from "@/lib/hooks";
-import { setUser, setLoading } from "@/lib/slices/authSlice";
 import { APP_CONFIG } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useSession } from "@/hooks/useSession";
 
 type LoginFormData = {
   email: string;
@@ -24,8 +25,9 @@ type LoginFormData = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const dispatch = useAppDispatch();
   const [isLoading, setIsLoading] = useState(false);
+  const { isAuthenticated, isLoading: isSessionLoading } = useSession();
+  const { signInWithEmailAndPassword } = useAuth();
 
   const {
     register,
@@ -41,19 +43,13 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
-    dispatch(setLoading(true));
 
     try {
-      // Simulate API call - Replace with actual authentication API
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const ok = await signInWithEmailAndPassword(data.email, data.password);
 
-      // Mock successful login
-      dispatch(
-        setUser({
-          email: data.email,
-          id: "user_" + Date.now(),
-        })
-      );
+      if (!ok) {
+        throw new Error("Invalid email or password");
+      }
 
       toast.success("Login successful!", {
         description: `Welcome back, ${data.email}`,
@@ -63,22 +59,48 @@ export default function LoginPage() {
       router.push("/scan");
     } catch (error) {
       toast.error("Login failed", {
-        description: "Invalid email or password. Please try again.",
+        description:
+          (error as Error)?.message ||
+          "Invalid email or password. Please try again.",
       });
     } finally {
       setIsLoading(false);
-      dispatch(setLoading(false));
     }
   };
 
+  // If already authenticated, don't show the login form.
+  if (isSessionLoading) {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center p-4">
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    router.replace("/scan");
+    return null;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header with Theme Toggle */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold font-poppins tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-            {APP_CONFIG.name}
-          </h1>
+        <div className="flex items-start justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-background/60 dark:bg-background/30 border border-border/60 flex items-center justify-center overflow-hidden">
+              <Image
+               src="/images/logo/fetan-logo.png"
+                alt={APP_CONFIG.name}
+                width={28}
+                height={28}
+                priority
+              />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold font-poppins tracking-tight text-foreground">
+              {APP_CONFIG.name}
+            </h1>
+          </div>
           <ThemeToggle />
         </div>
 
@@ -87,7 +109,7 @@ export default function LoginPage() {
             <CardTitle className="text-2xl font-bold text-center">
               Welcome back
             </CardTitle>
-            <CardDescription className="text-center">
+            <CardDescription className="text-center text-muted-foreground dark:text-white/70">
               Sign in to your account to continue
             </CardDescription>
           </CardHeader>

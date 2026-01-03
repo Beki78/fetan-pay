@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsPhoneNumber, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsPhoneNumber,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class SelfRegisterMerchantDto {
   @ApiProperty()
@@ -18,7 +24,9 @@ export class SelfRegisterMerchantDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsPhoneNumber('ET', { message: 'contactPhone must be a valid Ethiopian phone number' })
+  @IsPhoneNumber('ET', {
+    message: 'contactPhone must be a valid Ethiopian phone number',
+  })
   contactPhone?: string;
 
   @ApiProperty({ description: 'Owner email' })
@@ -27,7 +35,9 @@ export class SelfRegisterMerchantDto {
 
   @ApiPropertyOptional({ description: 'Owner phone' })
   @IsOptional()
-  @IsPhoneNumber('ET', { message: 'ownerPhone must be a valid Ethiopian phone number' })
+  @IsPhoneNumber('ET', {
+    message: 'ownerPhone must be a valid Ethiopian phone number',
+  })
   ownerPhone?: string;
 
   @ApiPropertyOptional({ description: 'Owner name' })

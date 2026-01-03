@@ -30,6 +30,7 @@ export const transactionsServiceApi = createApi({
   reducerPath: "transactionsServiceApi",
   baseQuery: fetchBaseQuery({
     baseUrl: API_BASE_URL,
+    credentials: "include",
   }),
   endpoints: (builder) => ({
     verifyFromQr: builder.mutation<VerifyFromQrResponse, VerifyFromQrRequest>({

@@ -7,96 +7,23 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import Link from "next/link";
 import Button from "../ui/button/Button";
-
-// Mock user data
-interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  currentPlan: string;
-  status: "active" | "inactive" | "pending";
-  joinDate: string;
-  totalTransactions: number;
-}
-
-const mockUsers: User[] = [
-  {
-    id: "USR001",
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    currentPlan: "Premium",
-    status: "active",
-    joinDate: "2024-01-15",
-    totalTransactions: 245
-  },
-  {
-    id: "USR002",
-    firstName: "Jane",
-    lastName: "Smith",
-    email: "jane.smith@example.com",
-    currentPlan: "Intermediate",
-    status: "active",
-    joinDate: "2024-02-20",
-    totalTransactions: 89
-  },
-  {
-    id: "USR003",
-    firstName: "Mike",
-    lastName: "Johnson",
-    email: "mike.johnson@example.com",
-    currentPlan: "Enterprise",
-    status: "active",
-    joinDate: "2023-12-10",
-    totalTransactions: 567
-  },
-  {
-    id: "USR004",
-    firstName: "Sarah",
-    lastName: "Williams",
-    email: "sarah.williams@example.com",
-    currentPlan: "Early Access",
-    status: "pending",
-    joinDate: "2024-01-28",
-    totalTransactions: 12
-  },
-  {
-    id: "USR005",
-    firstName: "David",
-    lastName: "Brown",
-    email: "david.brown@example.com",
-    currentPlan: "Premium",
-    status: "inactive",
-    joinDate: "2023-11-05",
-    totalTransactions: 156
-  },
-];
+import Link from "next/link";
+import { useGetMerchantsQuery } from "@/lib/redux/features/merchantsApi";
 
 export default function UsersTable() {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "text-green-600 dark:text-green-400";
-      case "inactive":
-        return "text-red-600 dark:text-red-400";
-      case "pending":
-        return "text-orange-600 dark:text-orange-400";
-      default:
-        return "text-gray-600 dark:text-gray-400";
-    }
-  };
+  const { data, isLoading } = useGetMerchantsQuery({ page: 1, pageSize: 20 });
+
+  const merchants = data?.data ?? [];
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case "active":
+      case "ACTIVE":
         return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
-      case "inactive":
-        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
-      case "pending":
+      case "PENDING":
         return "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400";
+      case "SUSPENDED":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
     }
@@ -105,7 +32,7 @@ export default function UsersTable() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Users</h3>
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Merchants</h3>
         {/* <Button className="bg-blue-500 hover:bg-blue-600 text-white border-0">
           + Add User
         </Button> */}
@@ -125,25 +52,25 @@ export default function UsersTable() {
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  First Name
+                  Merchant
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  Last Name
+                  Contact Email
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  Email
+                  Contact Phone
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  Current Plan
+                  Owner (invite)
                 </TableCell>
                 <TableCell
                   isHeader
@@ -155,13 +82,7 @@ export default function UsersTable() {
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  Join Date
-                </TableCell>
-                <TableCell
-                  isHeader
-                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
-                >
-                  Transactions
+                  Created
                 </TableCell>
                 <TableCell
                   isHeader
@@ -172,59 +93,65 @@ export default function UsersTable() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {mockUsers.length === 0 ? (
+              {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
-                    No users found
+                  <TableCell colSpan={8} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                    Loading merchants...
+                  </TableCell>
+                </TableRow>
+              ) : merchants.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                    No merchants found
                   </TableCell>
                 </TableRow>
               ) : (
-                mockUsers.map((user) => (
+                merchants.map((merchant) => {
+                  const owner = merchant.users.find((u) => u.role === "MERCHANT_OWNER");
+                  return (
                   <TableRow
-                    key={user.id}
+                    key={merchant.id}
                     className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors border-b border-gray-200 dark:border-gray-700/50"
                   >
                     <TableCell className="px-5 py-4">
                       <span className="font-mono text-sm text-gray-700 dark:text-gray-300">
-                        {user.id}
+                        {merchant.id}
                       </span>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                      {user.firstName}
+                      {merchant.name}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                      {user.lastName}
+                      {merchant.contactEmail ?? "-"}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                      {user.email}
+                      {merchant.contactPhone ?? "-"}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                      {user.currentPlan}
+                      {owner?.email ?? owner?.name ?? "-"}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(user.status)}`}>
-                        {user.status}
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(merchant.status)}`}>
+                        {merchant.status}
                       </span>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400 text-sm">
-                      {new Date(user.joinDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300 font-medium">
-                      {user.totalTransactions}
+                      {new Date(merchant.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <Link href={`/users/${user.id}`}>
+                      <Link href={`/users/${merchant.id}`}>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/20"
+                          className="text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/20"
                         >
-                          View
+                          View detail
                         </Button>
                       </Link>
                     </TableCell>
                   </TableRow>
-                ))
+                );
+                })
               )}
             </TableBody>
           </Table>

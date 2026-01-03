@@ -14,6 +14,21 @@ export interface TransactionRecord {
   createdAt?: string;
   errorMessage?: string | null;
   verificationPayload?: unknown;
+  merchant?: {
+    id: string;
+    name: string;
+  } | null;
+  verifiedBy?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+    user?: {
+      id: string;
+      email: string;
+      name: string;
+    } | null;
+  } | null;
 }
 
 export interface TransactionListResponse {
@@ -45,7 +60,21 @@ export const transactionsServiceApi = createApi({
         };
       },
     }),
+
+    listVerifiedByUser: builder.query<
+      TransactionListResponse,
+      { merchantUserId: string; page?: number; pageSize?: number }
+    >({
+      query: ({ merchantUserId, page, pageSize }) => {
+        const query = new URLSearchParams();
+        query.set('page', String(page ?? 1));
+        query.set('pageSize', String(pageSize ?? 20));
+        return {
+          url: `/transactions/verified-by/${merchantUserId}?${query.toString()}`,
+        };
+      },
+    }),
   }),
 });
 
-export const { useListTransactionsQuery } = transactionsServiceApi;
+export const { useListTransactionsQuery, useListVerifiedByUserQuery } = transactionsServiceApi;

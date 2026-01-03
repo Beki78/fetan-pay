@@ -53,7 +53,9 @@ function parseAmount(raw?: string | null): number | undefined {
 function parseDate(raw?: string | null): Date | undefined {
   if (!raw) return undefined;
   const trimmed = raw.trim();
-  const match = trimmed.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  const match = trimmed.match(
+    /(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/,
+  );
   if (!match) return undefined;
   const [, day, month, yearRaw, hourRaw = '0', minuteRaw = '0'] = match;
   let year = parseInt(yearRaw, 10);
@@ -177,8 +179,8 @@ export async function verifyAbyssiniaSmart(
       extractField($, ['transaction reference', 'reference']) ?? slipId;
     const narrative = extractField($, ['narrative', 'description', 'reason']);
 
-  const amount = parseAmount(amountText);
-  const date = parseDate(dateText);
+    const amount = parseAmount(amountText);
+    const date = parseDate(dateText);
 
     if (!receiver || amount === undefined) {
       logger.warn('⚠️ Unable to extract required fields from Abyssinia slip');

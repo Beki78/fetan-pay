@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { betterAuth } from 'better-auth';
 import { emailOTP } from 'better-auth/plugins/email-otp';
+import { admin } from 'better-auth/plugins/admin';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -93,12 +94,52 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: false,
-    requireEmailVerification: true,
+    // NOTE: In development we disable email verification so admin-created employees
+    // can immediately sign in without needing OTP flows.
+    // For production, set REQUIRE_EMAIL_VERIFICATION=true (or NODE_ENV=production).
+    requireEmailVerification:
+      (process.env.REQUIRE_EMAIL_VERIFICATION ?? process.env.NODE_ENV) ===
+      'production',
     minPasswordLength: 8,
     maxPasswordLength: 20,
     autoSignIn: true,
   },
   plugins: [
+    admin({
+      defaultRole: 'EMPLOYEE',
+      roles: {
+        SUPERADMIN: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        ADMIN: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        MERCHANT_OWNER: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        EMPLOYEE: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        ACCOUNTANT: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        SALES: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        WAITER: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+      },
+      // SUPERADMIN should be able to access all admin plugin endpoints.
+      adminRoles: ['SUPERADMIN', 'ADMIN', 'MERCHANT_OWNER'],
+    }),
     emailOTP({
       overrideDefaultEmailVerification: true,
       otpLength: 6,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   CheckCircle2,
   FileDigit,
@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { formatNumberWithCommas, type BankId } from "@/lib/validation";
 import { createScanSchema } from "@/lib/schemas";
 import { useVerifyFromQrMutation } from "@/lib/services/transactionsServiceApi";
+import { useSession } from "@/hooks/useSession";
+import { useRouter } from "next/navigation";
 
 type FormData = {
   amount: string;
@@ -37,6 +39,8 @@ type FormData = {
 };
 
 export default function ScanPage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: isSessionLoading } = useSession();
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [showTip, setShowTip] = useState<boolean>(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -83,15 +87,15 @@ export default function ScanPage() {
 
   const handleBankSelect = (bankId: string) => {
     setSelectedBank(bankId);
-    // Default to reference-based verification for clarity
-    setVerificationMethod("transaction");
-    setValue("verificationMethod", "transaction");
+    // Do not auto-select verification method; let the user choose.
+    setVerificationMethod(null);
+    setValue("verificationMethod", null);
     setValue("transactionId", "");
     reset({
       amount,
       transactionId: "",
       tipAmount: tipAmount || "",
-      verificationMethod: "transaction",
+      verificationMethod: null,
       accountSuffix: "",
     });
   };
@@ -151,12 +155,17 @@ export default function ScanPage() {
     };
 
     const buildQrUrl = (input: string) => {
-      if (input && (input.startsWith("http://") || input.startsWith("https://"))) {
-        return input;
-      }
-
       if (!input) {
         throw new Error("Transaction reference or URL is required");
+      }
+
+      // For Telebirr, verification often relies on a QR/URL payload.
+      // For other banks, users commonly enter a plain transaction reference.
+      // In that case, we STILL send a valid URL to the backend for parsing,
+      // but we also pass the reference explicitly so the backend doesn't depend
+      // on query parsing.
+      if (input.startsWith("http://") || input.startsWith("https://")) {
+        return input;
       }
 
       const paramKey = selectedBank === "cbe" ? "id" : "ref";
@@ -167,13 +176,20 @@ export default function ScanPage() {
       setVerificationResult(null);
 
       const provider = providerMap[selectedBank as BankId];
-      const qrUrl = buildQrUrl(data.transactionId || "");
+  const qrUrl = buildQrUrl(data.transactionId || "");
       const accountSuffix = selectedBank === "cbe" ? data.accountSuffix : undefined;
 
       const response = await verifyFromQr({
         qrUrl,
         provider,
-        reference: data.transactionId || undefined,
+        // If user typed a URL, let server extract the reference.
+        // If user typed a plain reference, pass it explicitly.
+        reference:
+          data.transactionId &&
+          (data.transactionId.startsWith("http://") ||
+            data.transactionId.startsWith("https://"))
+            ? undefined
+            : data.transactionId || undefined,
         accountSuffix,
       }).unwrap();
 
@@ -212,6 +228,26 @@ export default function ScanPage() {
   const selectedBankData = selectedBank
     ? BANKS.find((bank) => bank.id === selectedBank)
     : null;
+
+  // Route protection: unauthenticated users must sign in.
+  useEffect(() => {
+    if (!isSessionLoading && !isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [isAuthenticated, isSessionLoading, router]);
+
+  if (isSessionLoading) {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center">
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    // Redirect will happen in the effect; avoid rendering protected UI.
+    return null;
+  }
 
   return (
   <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background">
@@ -374,6 +410,7 @@ export default function ScanPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
+                            setVerificationMethod(null);
                             setValue("verificationMethod", null);
                             setValue("transactionId", "");
                           }}

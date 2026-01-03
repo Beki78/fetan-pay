@@ -3,7 +3,9 @@ import { TransactionProvider, TransactionStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { VerificationService } from '../verifier/services/verification.service';
 import { ListTransactionsQueryDto } from './dto/list-transactions.dto';
+import { ListVerifiedByUserQueryDto } from './dto/list-verified-by-user.dto';
 import { VerifyFromQrDto } from './dto/verify-from-qr.dto';
+import type { Request } from 'express';
 
 @Injectable()
 export class TransactionsService {
@@ -12,7 +14,7 @@ export class TransactionsService {
     private readonly verificationService: VerificationService,
   ) {}
 
-  async verifyFromQr(body: VerifyFromQrDto) {
+  async verifyFromQr(body: VerifyFromQrDto, req?: Request) {
     const parsedUrl = this.parseUrl(body.qrUrl);
     const provider = this.inferProvider(parsedUrl, body.provider);
     const reference = this.extractReference(parsedUrl, body.reference);
@@ -29,12 +31,12 @@ export class TransactionsService {
       );
     }
 
-  let verificationPayload: Prisma.InputJsonValue | null = null;
+    let verificationPayload: Prisma.InputJsonValue | null = null;
     let status: TransactionStatus = TransactionStatus.PENDING;
     let errorMessage: string | undefined;
 
     try {
-        verificationPayload = await this.runVerification(
+      verificationPayload = await this.runVerification(
         provider,
         reference,
         body.accountSuffix,
@@ -42,8 +44,11 @@ export class TransactionsService {
       status = this.computeStatus(verificationPayload);
     } catch (error) {
       status = TransactionStatus.FAILED;
-      errorMessage = error instanceof Error ? error.message : 'Verification failed';
+      errorMessage =
+        error instanceof Error ? error.message : 'Verification failed';
     }
+
+    const verifiedById = await this.resolveVerifiedById(req);
 
     const transaction = await this.prisma.transaction.upsert({
       where: {
@@ -53,7 +58,8 @@ export class TransactionsService {
         qrUrl: body.qrUrl,
         status,
         verifiedAt: status === TransactionStatus.VERIFIED ? new Date() : null,
-  verificationPayload: verificationPayload ?? Prisma.JsonNull,
+        verifiedById: status === TransactionStatus.VERIFIED ? verifiedById : null,
+        verificationPayload: verificationPayload ?? Prisma.JsonNull,
         errorMessage,
       },
       create: {
@@ -62,7 +68,8 @@ export class TransactionsService {
         qrUrl: body.qrUrl,
         status,
         verifiedAt: status === TransactionStatus.VERIFIED ? new Date() : null,
-  verificationPayload: verificationPayload ?? Prisma.JsonNull,
+        verifiedById: status === TransactionStatus.VERIFIED ? verifiedById : null,
+        verificationPayload: verificationPayload ?? Prisma.JsonNull,
         errorMessage,
       },
     });
@@ -72,7 +79,7 @@ export class TransactionsService {
       reference,
       status,
       transaction,
-  verification: verificationPayload,
+      verification: verificationPayload,
       error: errorMessage,
     };
   }
@@ -98,6 +105,90 @@ export class TransactionsService {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          verifiedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          merchant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  async listVerifiedByUser(
+    merchantUserId: string,
+    query: ListVerifiedByUserQueryDto,
+  ) {
+    const page = Number(query.page ?? 1);
+    const pageSize = Number(query.pageSize ?? 20);
+
+    if (!Number.isInteger(page) || page < 1) {
+      throw new BadRequestException('page must be a positive integer');
+    }
+    if (!Number.isInteger(pageSize) || pageSize < 1) {
+      throw new BadRequestException('pageSize must be a positive integer');
+    }
+
+    const where = {
+      verifiedById: merchantUserId,
+      // NOTE: Transaction in this schema isn't directly scoped to a merchant.
+      // If/when Transaction.merchantId is present, we can re-add merchant scoping here.
+    } satisfies Prisma.TransactionWhereInput;
+
+    const [data, total] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where,
+        orderBy: [{ verifiedAt: 'desc' }, { createdAt: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          verifiedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          merchant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       }),
       this.prisma.transaction.count({ where }),
     ]);
@@ -124,7 +215,8 @@ export class TransactionsService {
   ): TransactionProvider | undefined {
     if (providerHint) return providerHint;
 
-    const haystack = `${url.hostname}${url.pathname}${url.search}`.toLowerCase();
+    const haystack =
+      `${url.hostname}${url.pathname}${url.search}`.toLowerCase();
 
     if (haystack.includes('telebirr')) return TransactionProvider.TELEBIRR;
     if (haystack.includes('dashen')) return TransactionProvider.DASHEN;
@@ -158,17 +250,24 @@ export class TransactionsService {
     ];
 
     for (const key of candidates) {
-      const value = url.searchParams.get(key) ?? url.searchParams.get(key.toLowerCase());
+      const value =
+        url.searchParams.get(key) ?? url.searchParams.get(key.toLowerCase());
       if (value) return value.trim();
     }
 
     return undefined;
   }
 
-  private computeStatus(payload: Prisma.InputJsonValue | null): TransactionStatus {
+  private computeStatus(
+    payload: Prisma.InputJsonValue | null,
+  ): TransactionStatus {
     if (!payload) return TransactionStatus.FAILED;
     const maybeObject = payload as Record<string, unknown> | undefined;
-    if (maybeObject && typeof maybeObject === 'object' && 'success' in maybeObject) {
+    if (
+      maybeObject &&
+      typeof maybeObject === 'object' &&
+      'success' in maybeObject
+    ) {
       return (maybeObject as { success?: boolean }).success === false
         ? TransactionStatus.FAILED
         : TransactionStatus.VERIFIED;
@@ -184,7 +283,9 @@ export class TransactionsService {
     switch (provider) {
       case TransactionProvider.CBE: {
         if (!accountSuffix) {
-          throw new BadRequestException('accountSuffix is required for CBE verification');
+          throw new BadRequestException(
+            'accountSuffix is required for CBE verification',
+          );
         }
         return this.serializePayload(
           await this.verificationService.verifyCbe(reference, accountSuffix),
@@ -213,5 +314,29 @@ export class TransactionsService {
 
   private serializePayload(input: unknown): Prisma.InputJsonValue {
     return JSON.parse(JSON.stringify(input)) as Prisma.InputJsonValue;
+  }
+
+  /**
+   * Best-effort mapping from Better Auth session user -> MerchantUser.id
+   *
+   * We store the relation as MerchantUser.userId (auth user id) and want to
+   * write Transaction.verifiedById = MerchantUser.id.
+   */
+  private async resolveVerifiedById(req?: Request): Promise<string | null> {
+    try {
+      const authUser = (req as any)?.user;
+      const authUserId: string | undefined = authUser?.id;
+      if (!authUserId) return null;
+
+      const membership = await (this.prisma as any).merchantUser.findFirst({
+        where: { userId: authUserId },
+        select: { id: true },
+      });
+
+      return membership?.id ?? null;
+    } catch {
+      // Never fail verification because attribution failed.
+      return null;
+    }
   }
 }
