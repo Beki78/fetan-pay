@@ -12,6 +12,36 @@ datasource db {
   provider = "postgresql"
 }
 
+enum TransactionProvider {
+  CBE
+  TELEBIRR
+  AWASH
+  BOA
+  DASHEN
+}
+
+enum TransactionStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+model Transaction {
+  id                  String              @id @default(uuid())
+  provider            TransactionProvider
+  reference           String
+  qrUrl               String
+  status              TransactionStatus   @default(PENDING)
+  verifiedAt          DateTime?
+  verificationPayload Json?
+  errorMessage        String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@unique([provider, reference], name: "transaction_provider_reference_key")
+  @@map("transaction")
+}
+
 model User {
   id            String    @id
   name          String

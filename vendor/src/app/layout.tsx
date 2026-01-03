@@ -28,8 +28,13 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: APP_CONFIG.name,
+  title: `${APP_CONFIG.name} - Vendor Portal`,
   description: APP_CONFIG.description,
+  icons: {
+    icon: "/images/logo/fetan-logo.png",
+    shortcut: "/images/logo/fetan-logo.png",
+    apple: "/images/logo/fetan-logo.png",
+  },
 };
 
 export default function RootLayout({

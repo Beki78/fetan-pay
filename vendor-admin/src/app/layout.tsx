@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
   title: 'FetanPay - Payment Management',
@@ -23,7 +24,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans dark:bg-gray-900">
         <ThemeProvider>
-          <SidebarProvider>{children}</SidebarProvider>
+          <SidebarProvider>
+            <Providers>{children}</Providers>
+          </SidebarProvider>
         </ThemeProvider>
       </body>
     </html>

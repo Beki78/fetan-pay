@@ -6,5 +6,6 @@ import { VerificationService } from './services/verification.service';
   imports: [],
   controllers: [VerifyController],
   providers: [VerificationService],
+  exports: [VerificationService],
 })
 export class VerifierModule {}

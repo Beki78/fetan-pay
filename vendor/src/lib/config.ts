@@ -4,7 +4,7 @@
  */
 
 export const APP_CONFIG = {
-  name: "Kifiya Pay",
+  name: "Fetan Pay",
   description: "Instant payment verification system",
 } as const;
 

@@ -26,30 +26,33 @@ import { APP_CONFIG, BANKS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { formatNumberWithCommas, type BankId } from "@/lib/validation";
 import { createScanSchema } from "@/lib/schemas";
+import { useVerifyFromQrMutation } from "@/lib/services/transactionsServiceApi";
 
 type FormData = {
   amount: string;
   transactionId?: string;
   tipAmount?: string;
   verificationMethod: "transaction" | "camera" | null;
+  accountSuffix?: string;
 };
 
 export default function ScanPage() {
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [showTip, setShowTip] = useState<boolean>(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [showHistorySidebar, setShowHistorySidebar] = useState(false);
   const [verificationMethod, setVerificationMethod] = useState<
     "transaction" | "camera" | null
   >(null);
   const [verificationResult, setVerificationResult] = useState<{
     success: boolean;
-    amount: string;
-    payerName: string;
-    reason: string;
-    transactionId: string;
+    status: string;
+    reference: string;
+    provider: string;
+    details?: unknown;
+    message?: string;
   } | null>(null);
+  const [verifyFromQr, { isLoading: isVerifying }] = useVerifyFromQrMutation();
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const schema = createScanSchema(
@@ -71,6 +74,7 @@ export default function ScanPage() {
       transactionId: "",
       tipAmount: "",
       verificationMethod: null,
+      accountSuffix: "",
     },
   });
 
@@ -79,10 +83,17 @@ export default function ScanPage() {
 
   const handleBankSelect = (bankId: string) => {
     setSelectedBank(bankId);
-    setVerificationMethod(null);
-    setValue("verificationMethod", null);
+    // Default to reference-based verification for clarity
+    setVerificationMethod("transaction");
+    setValue("verificationMethod", "transaction");
     setValue("transactionId", "");
-    reset();
+    reset({
+      amount,
+      transactionId: "",
+      tipAmount: tipAmount || "",
+      verificationMethod: "transaction",
+      accountSuffix: "",
+    });
   };
 
   const handleCameraScan = async (scannedUrl: string) => {
@@ -132,36 +143,70 @@ export default function ScanPage() {
       return;
     }
 
-    setIsVerifying(true);
-    setVerificationResult(null); // Clear previous results
+    const providerMap: Record<BankId, "CBE" | "BOA" | "AWASH" | "TELEBIRR"> = {
+      cbe: "CBE",
+      boa: "BOA",
+      awash: "AWASH",
+      telebirr: "TELEBIRR",
+    };
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsVerifying(false);
+    const buildQrUrl = (input: string) => {
+      if (input && (input.startsWith("http://") || input.startsWith("https://"))) {
+        return input;
+      }
 
-      // Dummy verification result data
-      const result = {
-        success: true,
-        amount: data.amount,
-        payerName: "John Doe", // Dummy data
-        reason: "Payment for services", // Dummy data
-        transactionId: data.transactionId || "N/A",
-      };
+      if (!input) {
+        throw new Error("Transaction reference or URL is required");
+      }
 
-      setVerificationResult(result);
+      const paramKey = selectedBank === "cbe" ? "id" : "ref";
+      return `https://scan.kifiya.local/qr?${paramKey}=${encodeURIComponent(input)}`;
+    };
 
-      toast.success("Payment verified successfully!", {
-        description: `Amount: ${data.amount} ETB verified`,
+    try {
+      setVerificationResult(null);
+
+      const provider = providerMap[selectedBank as BankId];
+      const qrUrl = buildQrUrl(data.transactionId || "");
+      const accountSuffix = selectedBank === "cbe" ? data.accountSuffix : undefined;
+
+      const response = await verifyFromQr({
+        qrUrl,
+        provider,
+        reference: data.transactionId || undefined,
+        accountSuffix,
+      }).unwrap();
+
+      const success = response.status === "VERIFIED";
+
+      setVerificationResult({
+        success,
+        status: response.status,
+        reference: response.reference,
+        provider: response.provider,
+        details: response.verification,
+        message: response.error,
       });
 
-      // Scroll to results
+      toast[success ? "success" : "error"](
+        success ? "Payment verified" : "Verification failed",
+        {
+          description: success
+            ? `Reference ${response.reference} verified`
+            : response.error ?? "Could not verify the transaction",
+        }
+      );
+
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({
           behavior: "smooth",
           block: "start",
         });
       }, 100);
-    }, 2000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Verification failed";
+      toast.error("Verification error", { description: message });
+    }
   };
 
   const selectedBankData = selectedBank
@@ -169,13 +214,28 @@ export default function ScanPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
+  <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background">
       <div className="container mx-auto px-3 py-8 max-w-2xl">
         {/* Header with Theme Toggle and History */}
         <div className="flex items-center justify-between mb-8 gap-4">
-          <h1 className="text-3xl md:text-4xl font-bold font-poppins tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-            {APP_CONFIG.name}
-          </h1>
+          <div className="flex items-center gap-3">
+            <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl border border-blue-100 bg-white shadow-sm dark:border-slate-800 dark:bg-background">
+              <Image
+                src="/images/logo/fetan-logo.png"
+                alt={APP_CONFIG.name}
+                fill
+                sizes="56px"
+                className="object-contain p-2"
+                priority
+              />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold font-poppins tracking-tight text-blue-700 dark:text-white">
+                {APP_CONFIG.name}
+              </h1>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Scan & verify payments</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2 sm:gap-5">
             <Button
               variant="outline"
@@ -279,7 +339,7 @@ export default function ScanPage() {
                         >
                           <FileDigit className="h-5 w-5 text-primary" />
                           <span className="font-medium text-base">
-                            Transaction ID
+                            Transaction Reference
                           </span>
                         </button>
                         <button
@@ -307,7 +367,7 @@ export default function ScanPage() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <label className="text-sm font-medium text-foreground">
-                          Transaction ID / URL
+                          Transaction Reference / URL
                         </label>
                         <Button
                           type="button"
@@ -325,7 +385,7 @@ export default function ScanPage() {
                       </div>
                       <Input
                         type="text"
-                        placeholder="Enter transaction reference/url"
+                        placeholder="Enter transaction reference or URL"
                         {...register("transactionId")}
                         className={cn(
                           "h-12 focus-visible:ring-1",
@@ -376,6 +436,31 @@ export default function ScanPage() {
                           Rescan
                         </Button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Account suffix for CBE */}
+                  {selectedBank === "cbe" && (
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium text-foreground">
+                        CBE Account Suffix (5 digits)
+                      </label>
+                      <Input
+                        type="text"
+                        placeholder="Enter account suffix"
+                        inputMode="numeric"
+                        maxLength={5}
+                        {...register("accountSuffix")}
+                        className={cn(
+                          "h-12 focus-visible:ring-1",
+                          errors.accountSuffix && "border-destructive"
+                        )}
+                      />
+                      {errors.accountSuffix && (
+                        <p className="text-sm text-destructive">
+                          {errors.accountSuffix.message}
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -468,28 +553,38 @@ export default function ScanPage() {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-muted-foreground">
-                            Amount:
+                            Status:
                           </span>
                           <span className="text-base font-semibold text-foreground">
-                            {verificationResult.amount} ETB
+                            {verificationResult.status}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-muted-foreground">
-                            Payer Name:
+                            Reference:
                           </span>
                           <span className="text-base font-semibold text-foreground">
-                            {verificationResult.payerName}
+                            {verificationResult.reference}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-muted-foreground">
-                            Reason:
+                            Provider:
                           </span>
                           <span className="text-base font-semibold text-foreground">
-                            {verificationResult.reason}
+                            {verificationResult.provider}
                           </span>
                         </div>
+                        {verificationResult.message && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-muted-foreground">
+                              Message:
+                            </span>
+                            <span className="text-sm text-foreground">
+                              {verificationResult.message}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
