@@ -4,6 +4,7 @@ import { AccountStatusPill } from "@/components/common/AccountStatus";
 import NotificationDropdown from "@/components/header/NotificationDropdown";
 import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
@@ -12,9 +13,7 @@ const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
-
-  // TODO: Replace this with real account status from API / context
-  const accountStatus: "pending" | "active" = "pending";
+  const { status: accountStatus } = useAccountStatus();
 
   const handleToggle = () => {
     if (window.innerWidth >= 1024) {

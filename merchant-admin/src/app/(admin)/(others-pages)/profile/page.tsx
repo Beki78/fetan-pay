@@ -1,41 +1,49 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Image from "next/image";
 import Badge from "@/components/ui/badge/Badge";
+import { useSession } from "@/hooks/useSession";
+import { findMerchantByEmail, getMerchantProfile, MerchantProfile } from "@/lib/services/profileService";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
+import AlertBanner from "@/components/ui/alert/AlertBanner";
 
-// Mock data
-const mockUserData = {
-  name: "ephrem debebe",
-  email: "ephremdebebe7@gmail.com",
-  profilePhoto: null, // null means using Google profile
-  googleLinked: true,
-  passwordSet: false,
-};
-
-const mockBusinessData = {
-  businessName: "ephrem debebe's Business",
-  businessEmail: "ephremdebebe7@gmail.com",
-  businessPhone: "",
-};
-
-const mockPaymentAccounts = [
-  {
-    id: "1",
-    bankName: "Commercial Bank of Ethiopia",
-    bankIcon: "/images/banks/CBE.png",
-    accountHolder: "EPHREM DEBEBE",
-    accountNumber: "****55415444",
-    status: "Disabled",
-  },
-];
+// TODO: Wire payment accounts when API is available
+const mockPaymentAccounts: Array<{
+  id: string;
+  bankName: string;
+  bankIcon: string;
+  accountHolder: string;
+  accountNumber: string;
+  status: string;
+}> = [];
 
 export default function Settings() {
   const router = useRouter();
-  const [formData, setFormData] = useState(mockBusinessData);
+  const { user, isLoading: isSessionLoading } = useSession();
+  const { status: accountStatus } = useAccountStatus();
+
+  const deriveMerchantId = (u: any): string | null => {
+    const meta = u?.metadata;
+    return (
+      meta?.merchantId ||
+      meta?.merchant?.id ||
+      u?.merchantId ||
+      u?.merchant?.id ||
+      null
+    );
+  };
+
+  const [merchantId, setMerchantId] = useState<string | null>(() => deriveMerchantId(user));
+
+  const [formData, setFormData] = useState({
+    businessName: "",
+    businessEmail: "",
+    businessPhone: "",
+  });
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSettingPassword, setIsSettingPassword] = useState(false);
@@ -43,6 +51,79 @@ export default function Settings() {
     password: "",
     confirmPassword: "",
   });
+  const [merchantProfile, setMerchantProfile] = useState<MerchantProfile | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const userDisplayName = user?.name || user?.email || "";
+  const userInitial = userDisplayName?.charAt(0).toUpperCase() || "?";
+  const isGoogleLinked = Boolean((user as any)?.providers?.includes?.("google") || (user as any)?.metadata?.googleLinked);
+  const passwordSet = Boolean((user as any)?.metadata?.passwordSet);
+
+  // keep merchantId in sync with user updates and optional local storage fallback
+  useEffect(() => {
+    const nextIdFromUser = deriveMerchantId(user);
+    if (nextIdFromUser && nextIdFromUser !== merchantId) {
+      setMerchantId(nextIdFromUser);
+      return;
+    }
+
+    // fallback to locally stored merchantId if user payload lacks it
+    if (!merchantId && typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("merchantId");
+      if (stored) {
+        setMerchantId(stored);
+      }
+    }
+  }, [user, merchantId]);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!merchantId && !user?.email) return;
+
+      setIsProfileLoading(true);
+      setError(null);
+      try {
+        let effectiveMerchantId = merchantId;
+
+        // If no merchantId, try lookup by user email
+        if (!effectiveMerchantId && user?.email) {
+          const found = await findMerchantByEmail(user.email);
+          if (found) {
+            effectiveMerchantId = found.id;
+            setMerchantId(found.id);
+          }
+        }
+
+        if (!effectiveMerchantId) {
+          setError("Merchant ID not available in session or via lookup.");
+          return;
+        }
+
+        const profile = await getMerchantProfile(effectiveMerchantId);
+        // cache for later visits if session payload lacks merchantId
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("merchantId", profile.id);
+          if (profile.status) {
+            window.localStorage.setItem("merchantStatus", profile.status.toLowerCase());
+          }
+        }
+        setMerchantProfile(profile);
+        setFormData({
+          businessName: profile.name || "",
+          businessEmail: profile.contactEmail || "",
+          businessPhone: profile.contactPhone || "",
+        });
+      } catch (err) {
+        console.error("Failed to load merchant profile", err);
+        setError((err as Error)?.message || "Unable to load profile");
+      } finally {
+        setIsProfileLoading(false);
+      }
+    };
+
+    load();
+  }, [merchantId, user]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -60,12 +141,9 @@ export default function Settings() {
   };
 
   const handleSaveChanges = async () => {
-    setIsSaving(true);
-    // Mock API call
-    setTimeout(() => {
-      setIsSaving(false);
-      console.log("Business info saved", formData);
-    }, 1000);
+    // API endpoint for updating merchant details is not available yet.
+    // Keep UI responsive and avoid silent failure.
+    console.info("Save requested", formData);
   };
 
   const handleSetPassword = async () => {
@@ -73,12 +151,9 @@ export default function Settings() {
       return;
     }
     setIsSettingPassword(true);
-    // Mock API call
-    setTimeout(() => {
-      setIsSettingPassword(false);
-      setPasswordData({ password: "", confirmPassword: "" });
-      console.log("Password set successfully");
-    }, 1000);
+    // TODO: add password set API once available
+    setIsSettingPassword(false);
+    setPasswordData({ password: "", confirmPassword: "" });
   };
 
   const handleUnlinkGoogle = () => {
@@ -96,11 +171,30 @@ export default function Settings() {
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Manage your merchant account settings
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Badge color={accountStatus === "active" ? "success" : "warning"} size="sm">
+            {accountStatus === "active" ? "Active" : "Pending approval"}
+          </Badge>
+          {isProfileLoading && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">Loading profile…</span>
+          )}
+          {!merchantId && !isSessionLoading && (
+            <span className="text-xs text-red-500">Merchant ID missing from session</span>
+          )}
+        </div>
       </div>
+
+      {error && (
+        <AlertBanner
+          variant="error"
+          title="Unable to load profile"
+          message={error}
+        />
+      )}
 
       <div className="space-y-6">
         {/* Profile Photo Section */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+  <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
             Profile Photo
           </h3>
@@ -121,11 +215,11 @@ export default function Settings() {
                   />
                 ) : (
                   <span className="text-3xl font-semibold text-white">
-                    {mockUserData.name.charAt(0).toUpperCase()}
+                    {userInitial}
                   </span>
                 )}
               </div>
-              {mockUserData.googleLinked && !profilePhoto && (
+              {isGoogleLinked && !profilePhoto && (
                 <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-1">
                   <svg
                     className="w-4 h-4 text-gray-600 dark:text-gray-400"
@@ -160,7 +254,7 @@ export default function Settings() {
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 PNG, JPG or WebP. Max 2MB.
               </p>
-              {mockUserData.googleLinked && !profilePhoto && (
+              {isGoogleLinked && !profilePhoto && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Using your Google profile photo. Upload a new one to override.
                 </p>
@@ -170,7 +264,7 @@ export default function Settings() {
         </div>
 
         {/* Business Information Section */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+  <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
           <div className="flex items-start justify-between mb-6">
             <div>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
@@ -183,10 +277,10 @@ export default function Settings() {
             <Button
               size="sm"
               onClick={handleSaveChanges}
-              disabled={isSaving}
+              disabled={isSaving || isProfileLoading}
               className="bg-purple-500 hover:bg-purple-600 text-white border-0"
             >
-              {isSaving ? "Saving..." : "Save Changes"}
+              {isProfileLoading ? "Loading..." : isSaving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
 
@@ -203,7 +297,7 @@ export default function Settings() {
                   </Label>
                   <Input
                     type="text"
-                    value={mockUserData.name}
+                    value={user?.name ?? user?.email ?? ""}
                     disabled
                     className="bg-gray-50 dark:bg-gray-800"
                   />
@@ -257,7 +351,7 @@ export default function Settings() {
         </div>
 
         {/* Sign-in Methods Section */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+  <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
             Sign-in Methods
           </h3>
@@ -289,19 +383,16 @@ export default function Settings() {
                     <span className="text-sm font-medium text-gray-800 dark:text-white/90">
                       Email & Password
                     </span>
-                    <Badge
-                      color={mockUserData.passwordSet ? "success" : "light"}
-                      size="sm"
-                    >
-                      {mockUserData.passwordSet ? "Set" : "Not Set"}
+                    <Badge color={passwordSet ? "success" : "light"} size="sm">
+                      {passwordSet ? "Set" : "Not Set"}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {mockUserData.email}
+                    {user?.email || "Email not available"}
                   </p>
                 </div>
               </div>
-              {!mockUserData.passwordSet && (
+              {!passwordSet && (
                 <Button
                   size="sm"
                   onClick={() => setIsSettingPassword(true)}
@@ -317,7 +408,7 @@ export default function Settings() {
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                   <span className="text-lg font-semibold text-gray-600 dark:text-gray-400">
-                    {mockUserData.name.charAt(0).toUpperCase()}
+                    {userInitial}
                   </span>
                 </div>
                 <div>
@@ -325,8 +416,8 @@ export default function Settings() {
                     <span className="text-sm font-medium text-gray-800 dark:text-white/90">
                       Google
                     </span>
-                    <Badge color="success" size="sm">
-                      Linked
+                    <Badge color={isGoogleLinked ? "success" : "light"} size="sm">
+                      {isGoogleLinked ? "Linked" : "Not Linked"}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -338,14 +429,14 @@ export default function Settings() {
                 size="sm"
                 variant="outline"
                 onClick={handleUnlinkGoogle}
-                disabled={!mockUserData.passwordSet}
+                disabled={!passwordSet || !isGoogleLinked}
               >
-                Unlink
+                {isGoogleLinked ? "Unlink" : "Link not available"}
               </Button>
             </div>
 
             {/* Warning */}
-            {!mockUserData.passwordSet && (
+            {!passwordSet && (
               <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                 <svg
                   className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0"
@@ -369,7 +460,7 @@ export default function Settings() {
         </div>
 
         {/* Payment Account Section */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
             Payment Account
           </h3>
@@ -378,6 +469,11 @@ export default function Settings() {
           </p>
 
           <div className="space-y-4">
+            {mockPaymentAccounts.length === 0 && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                No payment accounts connected yet. Add accounts in your payouts/settings page once the API is available.
+              </p>
+            )}
             {mockPaymentAccounts.map((account) => (
               <div
                 key={account.id}

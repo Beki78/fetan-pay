@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState,useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 import { useSidebar } from "../context/SidebarContext";
 import { PendingApprovalBanner } from "@/components/common/AccountStatus";
 import {
@@ -216,8 +217,7 @@ const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
 
-  // TODO: Replace this with real account status from API / context
-  const accountStatus: "pending" | "active" = "active";
+  const { status: accountStatus } = useAccountStatus();
 
   const renderMenuItems = (
     navItems: NavItem[],

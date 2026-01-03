@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { betterAuth } from 'better-auth';
 import { emailOTP } from 'better-auth/plugins/email-otp';
+import { admin } from 'better-auth/plugins/admin';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -99,6 +100,36 @@ export const auth = betterAuth({
     autoSignIn: true,
   },
   plugins: [
+    admin({
+      defaultRole: 'EMPLOYEE',
+      roles: {
+        ADMIN: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        MERCHANT_OWNER: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        EMPLOYEE: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        ACCOUNTANT: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        SALES: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+        WAITER: {
+          authorize: () => ({ success: true }),
+          statements: {},
+        },
+      },
+      adminRoles: ['ADMIN', 'MERCHANT_OWNER'],
+    }),
     emailOTP({
       overrideDefaultEmailVerification: true,
       otpLength: 6,

@@ -8,6 +8,10 @@ import {
 import { MerchantQueryDto } from './dto/merchant-query.dto';
 import { ApproveMerchantDto } from './dto/approve-merchant.dto';
 import { RejectMerchantDto } from './dto/reject-merchant.dto';
+import { CreateMerchantUserDto } from './dto/create-merchant-user.dto';
+import { UpdateMerchantUserDto } from './dto/update-merchant-user.dto';
+import { SetMerchantUserStatusDto } from './dto/set-merchant-user-status.dto';
+import { auth } from '../../../auth';
 
 type MerchantStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED';
 type MerchantUserRole =
@@ -21,6 +25,61 @@ type MerchantUserStatus = 'INVITED' | 'ACTIVE' | 'SUSPENDED';
 @Injectable()
 export class MerchantsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getUser(merchantId: string, merchantUserId: string) {
+    const membership = await (this.prisma as any).merchantUser.findFirst({
+      where: { id: merchantUserId, merchantId },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Merchant user not found');
+    }
+    return membership;
+  }
+
+  async updateUser(
+    merchantId: string,
+    merchantUserId: string,
+    dto: UpdateMerchantUserDto,
+  ) {
+    // Ensure membership exists + belongs to merchant
+    await this.getUser(merchantId, merchantUserId);
+
+    const updated = await (this.prisma as any).merchantUser.update({
+      where: { id: merchantUserId },
+      data: {
+        name: dto.name,
+        phone: dto.phone,
+        role: dto.role as any,
+      },
+    });
+
+    return updated;
+  }
+
+  async deactivateUser(
+    merchantId: string,
+    merchantUserId: string,
+    _dto: SetMerchantUserStatusDto,
+  ) {
+    await this.getUser(merchantId, merchantUserId);
+    return (this.prisma as any).merchantUser.update({
+      where: { id: merchantUserId },
+      data: { status: 'SUSPENDED' as MerchantUserStatus },
+    });
+  }
+
+  async activateUser(
+    merchantId: string,
+    merchantUserId: string,
+    _dto: SetMerchantUserStatusDto,
+  ) {
+    await this.getUser(merchantId, merchantUserId);
+    return (this.prisma as any).merchantUser.update({
+      where: { id: merchantUserId },
+      data: { status: 'ACTIVE' as MerchantUserStatus },
+    });
+  }
 
   async selfRegister(dto: SelfRegisterMerchantDto) {
     const existingUser = await this.findAuthUserByEmail(dto.ownerEmail);
@@ -185,5 +244,103 @@ export class MerchantsService {
     });
 
     return updated;
+  }
+
+  async createEmployee(
+    merchantId: string,
+    dto: CreateMerchantUserDto,
+    requestHeaders?: Record<string, any>,
+  ) {
+    const merchant = await (this.prisma as any).merchant.findUnique({ where: { id: merchantId } });
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    // Create Better Auth user via Admin plugin endpoint.
+    // NOTE: better-auth exposes server-callable endpoints under `auth.api.*`.
+    // The admin plugin does NOT attach an `auth.admin` object.
+    let authUserId: string;
+    try {
+      const api = (auth as any)?.api;
+      if (!api?.createUser) {
+        throw new Error('Admin user creation not available');
+      }
+
+      // Admin endpoints require an authenticated admin session.
+      // We don't have that in this backend-to-backend flow, so we create
+      // the user through the admin endpoint by providing a server context.
+      // In better-auth, endpoints accept a context object with `body` and `headers`.
+      const created = await api.createUser({
+        body: {
+          email: dto.email,
+          password: dto.password,
+          name: dto.name,
+          role: (dto.role as string) || 'EMPLOYEE',
+        },
+        // Forward caller auth (Cookie / Authorization) so better-auth sees an authenticated admin session.
+        // If no caller auth is present, better-auth will correctly respond 401.
+        headers: {
+          ...(requestHeaders || {}),
+          // Ensure IP is always present for rate-limit / auditing middleware.
+          'x-forwarded-for':
+            (requestHeaders as any)?.['x-forwarded-for'] ||
+            (requestHeaders as any)?.['X-Forwarded-For'] ||
+            '127.0.0.1',
+        },
+      });
+
+      authUserId =
+        created?.user?.id ||
+        created?.data?.user?.id ||
+        created?.data?.id ||
+        created?.id;
+
+      if (!authUserId) {
+        throw new Error('Failed to create auth user for merchant employee');
+      }
+    } catch (error) {
+      // Surface Better Auth errors (often include status/statusCode) so debugging is possible.
+      const e = error as any;
+      console.error('[createEmployee] better-auth createUser failed', {
+        message: e?.message,
+        status: e?.status,
+        statusCode: e?.statusCode,
+        body: e?.body,
+      });
+
+      const details =
+        e?.body?.message ||
+        e?.message ||
+        'Failed to create auth user for merchant employee';
+      throw new Error(details);
+    }
+
+    const membership = await (this.prisma as any).merchantUser.create({
+      data: {
+        merchantId,
+        userId: authUserId,
+        role: (dto.role as MerchantUserRole) || 'EMPLOYEE',
+        status: 'ACTIVE' as MerchantUserStatus,
+        email: dto.email,
+        phone: dto.phone,
+        name: dto.name,
+      },
+    });
+
+    return membership;
+  }
+
+  async listUsers(merchantId: string) {
+    const merchant = await (this.prisma as any).merchant.findUnique({ where: { id: merchantId } });
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    const users = await (this.prisma as any).merchantUser.findMany({
+      where: { merchantId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return users;
   }
 }

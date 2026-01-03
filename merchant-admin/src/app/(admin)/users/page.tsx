@@ -1,5 +1,4 @@
 "use client";
-"use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import ComponentCard from "@/components/common/ComponentCard";
@@ -9,39 +8,18 @@ import UserModal from "@/components/users/UserModal";
 import Button from "@/components/ui/button/Button";
 import { PlusIcon } from "@/icons";
 import { Modal } from "@/components/ui/modal";
+import { useSession } from "@/hooks/useSession";
+import { MerchantUser, useGetMerchantUsersQuery } from "@/lib/services/merchantUsersServiceApi";
 
-interface User {
-  id?: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: string;
-  department: string;
-  status: "Active" | "Inactive" | "Pending";
-  paymentVerified: boolean;
-}
+type User = MerchantUser;
 
 export default function UsersPage() {
   const router = useRouter();
+  const { user } = useSession();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   const handleAdd = () => {
-    setSelectedUser(null);
     setIsAddModalOpen(true);
-  };
-
-  const handleEdit = (user: User) => {
-    setSelectedUser(user);
-    setIsEditModalOpen(true);
-  };
-
-  const handleDelete = (userId: string) => {
-    setUserToDelete(userId);
-    setIsDeleteModalOpen(true);
   };
 
   const handleView = (user: User) => {
@@ -49,23 +27,27 @@ export default function UsersPage() {
     router.push(`/users/${user.id}`);
   };
 
-  const handleSave = (user: User) => {
-    if (selectedUser && selectedUser.id) {
-      // Edit mode
-      console.log("Updating user:", user);
-    } else {
-      // Add mode
-      console.log("Adding user:", user);
+  const merchantId = (() => {
+    const meta = (user as any)?.metadata;
+    if (meta?.merchantId) return meta.merchantId as string;
+    if (meta?.merchant?.id) return meta.merchant.id as string;
+    if ((user as any)?.merchantId) return (user as any).merchantId as string;
+    if ((user as any)?.merchant?.id) return (user as any).merchant.id as string;
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("merchantId");
+      if (stored) return stored;
     }
+    return null;
+  })();
+
+  const { data: users = [], isFetching: isUsersLoading, refetch } = useGetMerchantUsersQuery(merchantId ?? "", {
+    skip: !merchantId,
+  });
+
+  const handleSave = (_user?: User) => {
+    refetch();
   };
 
-  const handleConfirmDelete = () => {
-    if (userToDelete) {
-      console.log("Deleting user:", userToDelete);
-      setIsDeleteModalOpen(false);
-      setUserToDelete(null);
-    }
-  };
 
   return (
     <div>
@@ -92,6 +74,7 @@ export default function UsersPage() {
                 startIcon={
                   <PlusIcon className="w-4 h-4" />
                 }
+                disabled={!merchantId}
               >
                 Add User
               </Button>
@@ -99,8 +82,8 @@ export default function UsersPage() {
 
             {/* User Table */}
             <UserTable
-              onEdit={handleEdit}
-              onDelete={handleDelete}
+              users={users}
+              isLoading={isUsersLoading}
               onView={handleView}
             />
           </div>
@@ -112,59 +95,11 @@ export default function UsersPage() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSave}
+        merchantId={merchantId}
         mode="add"
       />
 
-      {/* Edit User Modal */}
-      <UserModal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setSelectedUser(null);
-        }}
-        onSave={handleSave}
-        user={selectedUser}
-        mode="edit"
-      />
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setUserToDelete(null);
-        }}
-        className="max-w-[400px] m-4"
-      >
-        <div className="p-6">
-          <h4 className="mb-2 text-xl font-semibold text-gray-800 dark:text-white/90">
-            Confirm Deletion
-          </h4>
-          <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-            Are you sure you want to delete this user? This action cannot be
-            undone.
-          </p>
-          <div className="flex items-center gap-3 justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setIsDeleteModalOpen(false);
-                setUserToDelete(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleConfirmDelete}
-              className="bg-error-500 hover:bg-error-600"
-            >
-              Delete
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {/* Edit + Deactivate now live in the user detail page */}
     </div>
   );
 }

@@ -1,46 +1,41 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import Select from "../form/Select";
+import {
+  MerchantUser,
+  useCreateMerchantUserMutation,
+  useUpdateMerchantUserMutation,
+} from "@/lib/services/merchantUsersServiceApi";
 
-interface User {
+interface UserForm {
   id?: string;
   name: string;
   email: string;
   phone: string;
   role: string;
-  department: string;
-  status: "Active" | "Inactive" | "Pending";
-  paymentVerified: boolean;
+  password?: string;
 }
 
 interface UserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (user: User) => void;
-  user?: User | null;
+  onSave: (user?: MerchantUser) => void;
+  user?: MerchantUser | null;
   mode: "add" | "edit";
+  merchantId: string | null;
 }
 
 const roles = [
-  "Sales Representative",
-  "Waiter",
-  "Cashier",
-  "Manager",
-  "Supervisor",
-  "Employee",
-];
-
-const departments = [
-  "Sales",
-  "Service",
-  "Finance",
-  "Operations",
-  "Management",
-  "Support",
+  { value: "ADMIN", label: "Admin" },
+  { value: "ACCOUNTANT", label: "Accountant" },
+  { value: "SALES", label: "Sales" },
+  { value: "WAITER", label: "Waiter" },
+  { value: "MERCHANT_OWNER", label: "Owner" },
+  { value: "EMPLOYEE", label: "Employee" },
 ];
 
 export default function UserModal({
@@ -49,60 +44,54 @@ export default function UserModal({
   onSave,
   user,
   mode,
+  merchantId,
 }: UserModalProps) {
-  const [formData, setFormData] = useState<User>({
+  const [formData, setFormData] = useState<UserForm>({
     name: "",
     email: "",
     phone: "",
-    role: roles[0],
-    department: departments[0],
-    status: "Pending",
-    paymentVerified: false,
+    role: roles[0].value,
+    password: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const [createUser] = useCreateMerchantUserMutation();
+  const [updateUser] = useUpdateMerchantUserMutation();
 
   useEffect(() => {
     if (user && mode === "edit") {
-      setFormData(user);
+      setFormData({
+        id: user.id,
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        role: user.role || roles[0].value,
+        password: "",
+      });
     } else {
       setFormData({
         name: "",
         email: "",
         phone: "",
-        role: roles[0],
-        department: departments[0],
-        status: "Pending",
-        paymentVerified: false,
+        role: roles[0].value,
+        password: "",
       });
     }
     setErrors({});
+    setSubmitError(null);
   }, [user, mode, isOpen]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Invalid email format";
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone is required";
-    }
-
-    if (!formData.role) {
-      newErrors.role = "Role is required";
-    }
-
-    if (!formData.department) {
-      newErrors.department = "Department is required";
-    }
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email format";
+    if (!formData.phone.trim()) newErrors.phone = "Phone is required";
+    if (mode === "add" && (!formData.password || formData.password.length < 8)) newErrors.password = "Password must be at least 8 characters";
+    if (!formData.role) newErrors.role = "Role is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -110,14 +99,45 @@ export default function UserModal({
 
   const handleSave = async () => {
     if (!validateForm()) return;
+    if (!merchantId) {
+      setSubmitError("Merchant ID unavailable. Reload and try again.");
+      return;
+    }
 
     setIsSaving(true);
-    // Mock API call
-    setTimeout(() => {
-      setIsSaving(false);
-      onSave(formData);
+    setSubmitError(null);
+    try {
+      if (mode === "edit") {
+        if (!formData.id) {
+          throw new Error("User id is missing");
+        }
+
+        const updated = await updateUser({
+          merchantId,
+          id: formData.id,
+          name: formData.name,
+          phone: formData.phone,
+          role: formData.role,
+        }).unwrap();
+        onSave(updated);
+      } else {
+        const created = await createUser({
+          merchantId,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password || "",
+          role: formData.role,
+        }).unwrap();
+        onSave(created);
+      }
       onClose();
-    }, 1000);
+    } catch (err) {
+      console.error("Failed to create user", err);
+      setSubmitError((err as Error)?.message || "Failed to create user");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -133,6 +153,9 @@ export default function UserModal({
               : "Update the user information below."}
           </p>
         </div>
+        {submitError && (
+          <p className="px-2 text-sm text-error-500 mb-3">{submitError}</p>
+        )}
         <form className="flex flex-col">
           <div className="custom-scrollbar max-h-[500px] overflow-y-auto px-2 pb-3">
             <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
@@ -143,9 +166,7 @@ export default function UserModal({
                 <Input
                   type="text"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Enter user name"
                   error={!!errors.name}
                   hint={errors.name}
@@ -159,9 +180,7 @@ export default function UserModal({
                 <Input
                   type="email"
                   value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="user@example.com"
                   error={!!errors.email}
                   hint={errors.email}
@@ -175,14 +194,28 @@ export default function UserModal({
                 <Input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+251 911 234 567"
                   error={!!errors.phone}
                   hint={errors.phone}
                 />
               </div>
+
+              {mode === "add" && (
+                <div>
+                  <Label>
+                    Password <span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="password"
+                    value={formData.password || ""}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Minimum 8 characters"
+                    error={!!errors.password}
+                    hint={errors.password}
+                  />
+                </div>
+              )}
 
               <div>
                 <Label>
@@ -190,78 +223,11 @@ export default function UserModal({
                 </Label>
                 <Select
                   value={formData.role}
-                  onChange={(value) =>
-                    setFormData({ ...formData, role: value })
-                  }
-                  options={roles.map((role) => ({
-                    value: role,
-                    label: role,
-                  }))}
+                  onChange={(value) => setFormData({ ...formData, role: value })}
+                  options={roles.map((role) => ({ value: role.value, label: role.label }))}
                   error={!!errors.role}
                 />
               </div>
-
-              <div>
-                <Label>
-                  Department <span className="text-error-500">*</span>
-                </Label>
-                <Select
-                  value={formData.department}
-                  onChange={(value) =>
-                    setFormData({ ...formData, department: value })
-                  }
-                  options={departments.map((dept) => ({
-                    value: dept,
-                    label: dept,
-                  }))}
-                  error={!!errors.department}
-                />
-              </div>
-
-              <div>
-                <Label>
-                  Status <span className="text-error-500">*</span>
-                </Label>
-                <Select
-                  value={formData.status}
-                  onChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      status: value as "Active" | "Inactive" | "Pending",
-                    })
-                  }
-                  options={[
-                    { value: "Active", label: "Active" },
-                    { value: "Inactive", label: "Inactive" },
-                    { value: "Pending", label: "Pending" },
-                  ]}
-                />
-              </div>
-
-              {mode === "edit" && (
-                <div className="lg:col-span-2">
-                  <div className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                    <input
-                      type="checkbox"
-                      id="paymentVerified"
-                      checked={formData.paymentVerified}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          paymentVerified: e.target.checked,
-                        })
-                      }
-                      className="w-4 h-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                    />
-                    <Label htmlFor="paymentVerified" className="mb-0 cursor-pointer">
-                      Payment Verified
-                    </Label>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      Check this if the user has verified their payment access
-                    </span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
@@ -269,11 +235,7 @@ export default function UserModal({
               Cancel
             </Button>
             <Button size="sm" onClick={handleSave} disabled={isSaving}>
-              {isSaving
-                ? "Saving..."
-                : mode === "add"
-                ? "Add User"
-                : "Save Changes"}
+              {isSaving ? "Saving..." : mode === "add" ? "Add User" : "Save Changes"}
             </Button>
           </div>
         </form>
@@ -281,4 +243,3 @@ export default function UserModal({
     </Modal>
   );
 }
-

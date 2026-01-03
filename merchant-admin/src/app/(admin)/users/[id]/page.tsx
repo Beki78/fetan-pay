@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
@@ -16,91 +16,83 @@ import {
   CheckCircleIcon,
   CloseIcon,
 } from "@/icons";
+import { useSession } from "@/hooks/useSession";
+import {
+  type MerchantUser,
+  useActivateMerchantUserMutation,
+  useDeactivateMerchantUserMutation,
+  useGetMerchantUserQuery,
+  useUpdateMerchantUserMutation,
+} from "@/lib/services/merchantUsersServiceApi";
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: string;
-  department: string;
-  status: "Active" | "Inactive" | "Pending";
-  paymentVerified: boolean;
-  lastActive: string;
-  transactions: number;
-  avatar?: string;
-  createdAt: string;
-  lastLogin?: string;
-}
-
-// Mock data - In production, fetch from API
-const mockUser: User = {
-  id: "1",
-  name: "John Doe",
-  email: "john.doe@example.com",
-  phone: "+251 911 234 567",
-  role: "Sales Representative",
-  department: "Sales",
-  status: "Active",
-  paymentVerified: true,
-  lastActive: "2024-01-15T10:30:00Z",
-  transactions: 245,
-  avatar: "/images/user/user-01.png",
-  createdAt: "2023-06-15T08:00:00Z",
-  lastLogin: "2024-01-15T10:30:00Z",
-};
+type User = MerchantUser;
 
 export default function UserDetailPage() {
   const router = useRouter();
   const params = useParams();
   const userId = params?.id as string;
+  const { user: sessionUser } = useSession();
 
-  const [user, setUser] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
   const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setUser(mockUser);
-      setIsLoading(false);
-    }, 500);
-  }, [userId]);
+  const merchantId = (() => {
+    const meta = (sessionUser as any)?.metadata;
+    if (meta?.merchantId) return meta.merchantId as string;
+    if (meta?.merchant?.id) return meta.merchant.id as string;
+    if ((sessionUser as any)?.merchantId) return (sessionUser as any).merchantId as string;
+    if ((sessionUser as any)?.merchant?.id) return (sessionUser as any).merchant.id as string;
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("merchantId");
+      if (stored) return stored;
+    }
+    return null;
+  })();
+
+  const {
+    data: user,
+    isFetching: isLoading,
+    isError,
+    refetch,
+  } = useGetMerchantUserQuery(
+    { merchantId: merchantId ?? "", id: userId },
+    { skip: !merchantId || !userId },
+  );
+
+  const [updateUser, { isLoading: isUpdating }] = useUpdateMerchantUserMutation();
+  const [deactivateUser] = useDeactivateMerchantUserMutation();
+  const [activateUser] = useActivateMerchantUserMutation();
 
   const handleEdit = () => {
     setIsEditModalOpen(true);
   };
 
-  type EditableUser =
-    Partial<Pick<User, "id">> &
-    Omit<User, "transactions" | "createdAt" | "lastActive" | "id">;
-
-  const handleSave = (updatedUser: EditableUser) => {
-    // Update user data
-    setUser({ ...user!, ...updatedUser });
-    setIsEditModalOpen(false);
-    // In production, make API call here
-    console.log("Updating user:", updatedUser);
+  const handleSave = (updatedUser?: MerchantUser) => {
+    if (!updatedUser) return;
+    refetch();
   };
 
-  const handleDeactivate = () => {
-    if (user) {
-      setUser({ ...user, status: "Inactive" });
-      setIsDeactivateModalOpen(false);
-      // In production, make API call here
-      console.log("Deactivating user:", user.id);
-    }
+  const handleDeactivate = async () => {
+    if (!user || !merchantId) return;
+    await deactivateUser({
+      merchantId,
+      id: user.id,
+      actionBy: sessionUser?.email ?? "unknown",
+    }).unwrap();
+    setIsDeactivateModalOpen(false);
+    refetch();
   };
 
-  const handleActivate = () => {
-    if (user) {
-      setUser({ ...user, status: "Active" });
-      setIsActivateModalOpen(false);
-      // In production, make API call here
-      console.log("Activating user:", user.id);
-    }
+  const handleActivate = async () => {
+    if (!user || !merchantId) return;
+    await activateUser({
+      merchantId,
+      id: user.id,
+      actionBy: sessionUser?.email ?? "unknown",
+    }).unwrap();
+    setIsActivateModalOpen(false);
+    refetch();
   };
 
   const formatDate = (dateString: string) => {
@@ -135,7 +127,7 @@ export default function UserDetailPage() {
     );
   }
 
-  if (!user) {
+  if (isError || !user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
         <p className="text-gray-500 dark:text-gray-400 mb-4">User not found</p>
@@ -160,7 +152,7 @@ export default function UserDetailPage() {
             Back
           </Button>
           <div className="flex items-center gap-3">
-            {user.status === "Active" ? (
+            {user.status === "ACTIVE" ? (
               <Button
                 variant="outline"
                 onClick={() => setIsDeactivateModalOpen(true)}
@@ -191,17 +183,7 @@ export default function UserDetailPage() {
             {/* Profile Header */}
             <div className="flex items-start gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
               <div className="w-20 h-20 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
-                {user.avatar ? (
-                  <Image
-                    width={80}
-                    height={80}
-                    src={user.avatar}
-                    alt={user.name}
-                    className="object-cover"
-                  />
-                ) : (
-                  <UserCircleIcon className="w-12 h-12 text-gray-400" />
-                )}
+                <UserCircleIcon className="w-12 h-12 text-gray-400" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
@@ -211,21 +193,15 @@ export default function UserDetailPage() {
                   <Badge
                     size="sm"
                     color={
-                      user.status === "Active"
+                      user.status === "ACTIVE"
                         ? "success"
-                        : user.status === "Pending"
+                        : user.status === "INVITED"
                         ? "warning"
                         : "error"
                     }
                   >
                     {user.status}
                   </Badge>
-                  {user.paymentVerified && (
-                    <Badge size="sm" color="success">
-                      <CheckCircleIcon className="w-3 h-3 mr-1" />
-                      Payment Verified
-                    </Badge>
-                  )}
                 </div>
                 <p className="text-gray-500 dark:text-gray-400">{user.email}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -252,25 +228,9 @@ export default function UserDetailPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Department
+                  Status
                 </label>
-                <p className="text-gray-800 dark:text-white/90">{user.department}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Payment Status
-                </label>
-                {user.paymentVerified ? (
-                  <div className="flex items-center gap-2">
-                    <CheckCircleIcon className="w-4 h-4 text-success-500" />
-                    <span className="text-success-500 font-medium">Verified</span>
-                  </div>
-                ) : (
-                  <Badge size="sm" color="warning">
-                    Not Verified
-                  </Badge>
-                )}
+                <p className="text-gray-800 dark:text-white/90">{user.status}</p>
               </div>
 
               <div>
@@ -278,36 +238,18 @@ export default function UserDetailPage() {
                   Account Created
                 </label>
                 <p className="text-gray-800 dark:text-white/90">
-                  {formatDate(user.createdAt)}
+                  {formatDate((user.createdAt ?? new Date().toISOString()) as string)}
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Last Active
+                  Last Updated
                 </label>
                 <p className="text-gray-800 dark:text-white/90">
-                  {formatLastActive(user.lastActive)}
-                </p>
-              </div>
-
-              {user.lastLogin && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Last Login
-                  </label>
-                  <p className="text-gray-800 dark:text-white/90">
-                    {formatDate(user.lastLogin)}
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Total Transactions
-                </label>
-                <p className="text-gray-800 dark:text-white/90 font-semibold">
-                  {user.transactions}
+                  {formatDate(
+                    (user.updatedAt ?? user.createdAt ?? new Date().toISOString()) as string,
+                  )}
                 </p>
               </div>
             </div>
@@ -319,10 +261,10 @@ export default function UserDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                Total Transactions
+                Member ID
               </p>
               <p className="text-2xl font-semibold text-gray-800 dark:text-white/90">
-                {user.transactions}
+                {user.id}
               </p>
             </div>
             <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50">
@@ -330,9 +272,9 @@ export default function UserDetailPage() {
               <Badge
                 size="sm"
                 color={
-                  user.status === "Active"
+                  user.status === "ACTIVE"
                     ? "success"
-                    : user.status === "Pending"
+                    : user.status === "INVITED"
                     ? "warning"
                     : "error"
                 }
@@ -342,16 +284,9 @@ export default function UserDetailPage() {
             </div>
             <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                Payment Verified
+                Role
               </p>
-              {user.paymentVerified ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="w-5 h-5 text-success-500" />
-                  <span className="text-success-500 font-medium">Yes</span>
-                </div>
-              ) : (
-                <span className="text-warning-500 font-medium">No</span>
-              )}
+              <span className="text-gray-800 dark:text-white/90 font-medium">{user.role}</span>
             </div>
           </div>
         </ComponentCard>
@@ -367,6 +302,7 @@ export default function UserDetailPage() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         onSave={handleSave}
+        merchantId={merchantId}
         user={user}
         mode="edit"
       />

@@ -3,6 +3,7 @@ import { TransactionProvider, TransactionStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { VerificationService } from '../verifier/services/verification.service';
 import { ListTransactionsQueryDto } from './dto/list-transactions.dto';
+import { ListVerifiedByUserQueryDto } from './dto/list-verified-by-user.dto';
 import { VerifyFromQrDto } from './dto/verify-from-qr.dto';
 
 @Injectable()
@@ -97,6 +98,44 @@ export class TransactionsService {
       this.prisma.transaction.findMany({
         where,
         orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  async listVerifiedByUser(
+    merchantUserId: string,
+    query: ListVerifiedByUserQueryDto,
+  ) {
+    const page = Number(query.page ?? 1);
+    const pageSize = Number(query.pageSize ?? 20);
+
+    if (!Number.isInteger(page) || page < 1) {
+      throw new BadRequestException('page must be a positive integer');
+    }
+    if (!Number.isInteger(pageSize) || pageSize < 1) {
+      throw new BadRequestException('pageSize must be a positive integer');
+    }
+
+    const where = {
+      verifiedById: merchantUserId,
+      // NOTE: Transaction in this schema isn't directly scoped to a merchant.
+      // If/when Transaction.merchantId is present, we can re-add merchant scoping here.
+    } satisfies Prisma.TransactionWhereInput;
+
+    const [data, total] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where,
+        orderBy: [{ verifiedAt: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

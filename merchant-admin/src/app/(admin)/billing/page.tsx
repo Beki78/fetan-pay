@@ -12,18 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 
-// Mock data - In production, this would come from API/context
-// Change this to "pending" to test pending status, or "active" for active status
-type AccountStatus = "pending" | "active";
-function getAccountStatus(): AccountStatus {
-  return "active"; // Change to "pending" to test pending status
-}
-const accountStatus = getAccountStatus();
-const hasActiveSubscription = true; // false | true
-
-// Helper function to check if account is pending (avoids TypeScript narrowing issues)
-const isAccountPending = (): boolean => accountStatus === "pending";
+// TODO: Replace mock subscription + history with API data
 
 // Mock subscription data
 const currentSubscription = {
@@ -154,6 +145,13 @@ export default function BillingPage() {
   const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showUpgradePlans, setShowUpgradePlans] = useState(false);
+  const { status: accountStatus, isPending } = useAccountStatus();
+
+  // TODO: Replace with subscription status from API/context
+  const hasActiveSubscription = accountStatus === "active";
+
+  // Helper function to check if account is pending (avoids TypeScript narrowing issues)
+  const isAccountPending = (): boolean => isPending;
 
   const handleGetStarted = (plan: typeof plans[0]) => {
     if (isAccountPending()) {
@@ -530,7 +528,7 @@ export default function BillingPage() {
       ) : (
         /* No Active Subscription - Show Plans */
         <>
-          {accountStatus === "active" && (
+          {!isAccountPending() && (
             <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6 text-center">
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
