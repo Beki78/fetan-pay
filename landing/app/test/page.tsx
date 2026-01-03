@@ -38,6 +38,8 @@ export default function TestPage() {
   const [phoneNumber, setPhoneNumber] = useState("251911000000");
   const [hasAttempted, setHasAttempted] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [extractedReference, setExtractedReference] = useState<string | null>(null);
+  const [detectedProvider, setDetectedProvider] = useState<Provider | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const suppressRefReset = useRef(false);
@@ -121,9 +123,11 @@ export default function TestPage() {
     if (!file) return;
     setUploadError(null);
     setUploadInfo(null);
-    reset();
-    resetImage();
+  reset();
+  resetImage();
     setHasAttempted(false);
+  setExtractedReference(null);
+  setDetectedProvider(null);
 
     try {
       const resp = await verifyReceiptImage({ file }).unwrap();
@@ -135,19 +139,40 @@ export default function TestPage() {
 
       const messageParts: string[] = [];
 
-      if (resp.type === "telebirr") {
+      const typeToProvider: Record<string, Provider> = {
+        telebirr: "Telebirr",
+        cbe: "CBE",
+        awash: "Awash",
+        boa: "Abyssinia",
+        dashen: "Dashen",
+      };
+
+      const detectedProvider = resp.type ? typeToProvider[resp.type] : undefined;
+      if (detectedProvider) {
         suppressRefReset.current = true;
-        setActiveTab("Telebirr");
-        messageParts.push("We detected a Telebirr receipt. We'll use the Telebirr checker.");
-      } else if (resp.type === "cbe") {
-        suppressRefReset.current = true;
-        setActiveTab("CBE");
-        messageParts.push("We detected a CBE receipt. We'll use the CBE checker.");
+        setActiveTab(detectedProvider);
+        setDetectedProvider(detectedProvider);
+        const friendly =
+          detectedProvider === "CBE"
+            ? "We detected a CBE receipt. We'll use the CBE checker."
+            : detectedProvider === "Telebirr"
+              ? "We detected a Telebirr receipt. We'll use the Telebirr checker."
+              : detectedProvider === "Awash"
+                ? "We detected an Awash receipt. We'll use the Awash checker."
+                : detectedProvider === "Abyssinia"
+                  ? "We detected a Bank of Abyssinia receipt. We'll use the Abyssinia checker."
+                  : detectedProvider === "Dashen"
+                    ? "We detected a Dashen receipt. We'll use the Dashen checker."
+                    : null;
+        if (friendly) messageParts.push(friendly);
+      } else {
+        setDetectedProvider(null);
       }
 
       if (resp.reference) {
         suppressRefReset.current = true;
         setReference(resp.reference);
+        setExtractedReference(resp.reference);
         messageParts.push(`Reference: ${resp.reference}`);
       }
 
@@ -204,6 +229,7 @@ export default function TestPage() {
                       setUploadError(null);
                       setUploadInfo(null);
                       setForwardUrl("");
+                      setExtractedReference(null);
                       suppressRefReset.current = false;
                       reset();
                       resetImage();
@@ -276,6 +302,9 @@ export default function TestPage() {
                         {activeTab}
                       </span>
                     </div>
+                    {extractedReference && (
+                      <p className="text-[11px] text-emerald-700">Extracted from upload: {extractedReference}</p>
+                    )}
                     {activeTab === "CBE Birr" && (
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-muted-foreground" htmlFor="phone">
@@ -410,6 +439,27 @@ export default function TestPage() {
                       {(imageError as any)?.data?.error || "We couldn’t read that receipt. Please try another file."}
                     </div>
                   )}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-muted-foreground" htmlFor="upload-reference">
+                      Reference (confirm or edit)
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="upload-reference"
+                        type="text"
+                        value={reference}
+                        onChange={(event) => setReference(event.target.value)}
+                        placeholder="Reference detected from receipt"
+                        className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-border px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                        {detectedProvider ?? "Pending"}
+                      </span>
+                    </div>
+                    {extractedReference && (
+                      <p className="text-[11px] text-emerald-700">Extracted from upload: {extractedReference}</p>
+                    )}
+                  </div>
                   {forwardUrl && (
                     <div className="rounded-xl border border-border bg-background/70 px-3 py-2 text-xs text-foreground">
                       <div className="flex items-center justify-between gap-2">
@@ -442,6 +492,8 @@ export default function TestPage() {
                         resetImage();
                         setUploadInfo(null);
                         setForwardUrl("");
+                        setDetectedProvider(null);
+                        setExtractedReference(null);
                       }}
                       className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-background"
                     >

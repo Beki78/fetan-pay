@@ -349,21 +349,31 @@ export class VerifyController {
     }
 
     const prompt = `
-You are a payment receipt analyzer. Based on the uploaded image, determine:
-- If the receipt was issued by Telebirr or the Commercial Bank of Ethiopia (CBE).
-- If it's a CBE receipt, extract the transaction ID (usually starts with 'FT').
-- If it's a Telebirr receipt, extract the transaction number (usually starts with 'CE').
+You are a payment receipt analyzer. Based on the uploaded image, determine which provider issued the receipt and extract its reference/transaction number.
 
-Rules:
-- CBE receipts usually include a purple header with the title "Commercial Bank of Ethiopia" and a structured table.
-- Telebirr receipts are typically green with a large minus sign before the amount.
-- CBE receipts may mention Telebirr (as the receiver) but are still CBE receipts.
+Providers to recognize:
+- Commercial Bank of Ethiopia (CBE)
+- Telebirr
+- Awash Bank
+- Bank of Abyssinia (BOA)
+- Dashen Bank
+
+Visual cues (guidelines, not absolute):
+- CBE: Purple header with "Commercial Bank of Ethiopia", structured table, references often start with "FT".
+- Telebirr: Typically green, can show a minus sign before the amount, transaction numbers can start with "CE".
+- Awash: Orange/amber branding, Awash logo/stamp, header often says "AwashBank" or Awash Birr; may show "Transfer successful" and a numeric Transaction ID field.
+- BOA (Bank of Abyssinia): Yellow/gold tones and Abyssinia logo; may show "Abyssinia" in the header/body.
+- Dashen: Blue-themed UI with Dashen branding/logo; may say "Dashen Bank"; look for fields like "Transaction Ref" or "FT Ref" (e.g., values like LTWS... or 659L... as seen on Dashen receipts).
+
+Extraction hints:
+- Always return a single canonical reference string when visible (e.g., FT..., CE..., numeric transaction id from the receipt, or the most specific transaction reference shown).
+- If multiple IDs appear, prefer the FT reference when present (e.g., fields labeled "FT Ref" or values starting with FT/659L...). When both "Transaction Ref" and "FT Ref" are shown (as on Dashen receipts), return the FT Ref value, not the Transaction Ref.
+- Do not invent a reference; leave it out if truly missing.
 
 Return this JSON format exactly:
 {
-  "type": "telebirr" | "cbe",
-  "transaction_id"?: "FTxxxx" (if CBE),
-  "transaction_number"?: "CExxxx" (if Telebirr)
+  "type": "cbe" | "telebirr" | "awash" | "boa" | "dashen",
+  "reference"?: "string"
 }
     `.trim();
 
@@ -393,56 +403,80 @@ Return this JSON format exactly:
       const result = JSON.parse(messageContent);
       const autoVerifyFlag = query.autoVerify === 'true';
 
-      if (result.type === 'telebirr' && result.transaction_number) {
-        if (autoVerifyFlag) {
-          const data = await this.verificationService.verifyTelebirr(
-            result.transaction_number,
-          );
-          return {
-            verified: true,
-            type: 'telebirr',
-            reference: result.transaction_number,
-            details: data,
-          };
-        }
+      const bank = result.type as
+        | 'cbe'
+        | 'telebirr'
+        | 'awash'
+        | 'boa'
+        | 'dashen'
+        | undefined;
+      const reference: string | undefined =
+        result.reference || result.transaction_id || result.transaction_number;
 
+      if (!bank) {
+        return { error: 'Unknown or unrecognized receipt type' };
+      }
+
+      const forwardMap: Record<
+        string,
+        { forward: string; needsSuffix?: boolean; verifier: (ref: string, suffix?: string) => Promise<any> }
+      > = {
+        telebirr: {
+          forward: '/verify-telebirr',
+          verifier: (ref) => this.verificationService.verifyTelebirr(ref),
+        },
+        cbe: {
+          forward: '/verify-cbe',
+          needsSuffix: true,
+          verifier: (ref, suffix) =>
+            this.verificationService.verifyCbe(ref, suffix ?? ''),
+        },
+        awash: {
+          forward: '/verify-awash-smart',
+          verifier: (ref) => this.verificationService.verifyAwashSmart(ref),
+        },
+        boa: {
+          forward: '/verify-abyssinia-smart',
+          verifier: (ref) => this.verificationService.verifyAbyssiniaSmart(ref),
+        },
+        dashen: {
+          forward: '/verify-dashen',
+          verifier: (ref) => this.verificationService.verifyDashen(ref),
+        },
+      };
+
+      const mapping = forwardMap[bank];
+      if (!mapping) {
+        return { error: 'Unsupported receipt type' };
+      }
+
+      if (!reference) {
+        return { error: 'Reference not found in the receipt' };
+      }
+
+      if (!autoVerifyFlag) {
         return {
-          type: 'telebirr',
-          reference: result.transaction_number,
-          forward_to: '/verify-telebirr',
+          type: bank,
+          reference,
+          forward_to: mapping.forward,
+          accountSuffix: mapping.needsSuffix ? 'required_from_user' : undefined,
         };
       }
 
-      if (result.type === 'cbe' && result.transaction_id) {
-        if (!autoVerifyFlag) {
-          return {
-            type: 'cbe',
-            reference: result.transaction_id,
-            forward_to: '/verify-cbe',
-            accountSuffix: 'required_from_user',
-          };
-        }
-
-        if (!accountSuffix) {
-          return {
-            error:
-              'Account suffix is required for CBE verification in autoVerify mode',
-          };
-        }
-
-        const data = await this.verificationService.verifyCbe(
-          result.transaction_id,
-          accountSuffix,
-        );
+      if (mapping.needsSuffix && !accountSuffix) {
         return {
-          verified: true,
-          type: 'cbe',
-          reference: result.transaction_id,
-          details: data,
+          error:
+            'Account suffix is required for this bank in autoVerify mode',
         };
       }
 
-      return { error: 'Unknown or unrecognized receipt type' };
+      const details = await mapping.verifier(reference, accountSuffix);
+      return {
+        verified: true,
+        type: bank,
+        reference,
+        details,
+      };
     } catch (error) {
       return {
         error:
