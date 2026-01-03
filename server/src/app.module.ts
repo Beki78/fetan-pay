@@ -9,6 +9,7 @@ import { EmailService } from './modules/email/email.service';
 import { VerifierModule } from './modules/verifier/verifier.module';
 import { PrismaModule } from '../database/prisma.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
+import { MerchantsModule } from './modules/merchants/merchants.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module';
     VerifierModule,
     PrismaModule,
     TransactionsModule,
+    MerchantsModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],

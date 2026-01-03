@@ -1,5 +1,5 @@
 {
-  "name": "vendor-admin",
+  "name": "admin",
   "targets": {
     "serve": {
       "executor": "nx:run-commands",

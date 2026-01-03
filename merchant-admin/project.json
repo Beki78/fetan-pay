@@ -1,5 +1,5 @@
 {
-  "name": "vendor",
+  "name": "merchant-admin",
   "targets": {
     "serve": {
       "executor": "nx:run-commands",

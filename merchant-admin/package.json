@@ -1,5 +1,5 @@
 {
-  "name": "fetanpay-vendor-admin",
+  "name": "fetanpay-merchant-admin",
   "version": "2.2.1",
   "private": true,
   "scripts": {
@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "start:vendor-admin": "next dev --port 3001"
+  "start:merchant-admin": "next dev --port 3001"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",

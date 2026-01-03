@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "dev": "next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "start:vendor": "next dev --port 3000"
+    "start:merchant": "next dev --port 3000"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
