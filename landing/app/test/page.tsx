@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { useVerifyReceiptMutation } from "@/lib/api";
+import { useVerifyReceiptImageMutation, useVerifyReceiptMutation } from "@/lib/api";
 import type { VerifyRequest } from "@/lib/api";
 
-const tabs: Provider[] = ["Telebirr", "CBE", "Dashen", "Abyssinia", "Awash", "CBE Birr"];
+const providerTabs: Provider[] = ["Telebirr", "CBE", "Dashen", "Abyssinia", "Awash", "CBE Birr"];
+const modeTabs = ["Add by Reference Number", "Upload Receipt"] as const;
+type Mode = (typeof modeTabs)[number];
+
+const providerLogos: Partial<Record<Provider, string>> = {
+  Telebirr: "/banks/Telebirr.png",
+  CBE: "/banks/CBE.png",
+  "CBE Birr": "/banks/CBE.png",
+  Awash: "/banks/Awash.png",
+  Abyssinia: "/banks/BOA.png",
+};
 
 type Provider = VerifyRequest["provider"];
 
@@ -18,23 +28,46 @@ const defaultReferences: Record<Provider, string> = {
   Awash: "-2H1RJ8MA49-35BMW3",
   "CBE Birr": "1234567890",
 };
+
 const combine = (...classes: (string | undefined)[]) => classes.filter(Boolean).join(" ");
 
 export default function TestPage() {
-  const [activeTab, setActiveTab] = useState<Provider>(tabs[0]);
-  const [reference, setReference] = useState(defaultReferences[tabs[0]]);
+  const [mode, setMode] = useState<Mode>("Add by Reference Number");
+  const [activeTab, setActiveTab] = useState<Provider>(providerTabs[0]);
+  const [reference, setReference] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("251911000000");
   const [hasAttempted, setHasAttempted] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const suppressRefReset = useRef(false);
   const [verifyReceipt, { data, error, isLoading, reset }] = useVerifyReceiptMutation();
+  const [verifyReceiptImage, { data: imageData, error: imageError, isLoading: isImageLoading, reset: resetImage }] = useVerifyReceiptImageMutation();
+  const [uploadInfo, setUploadInfo] = useState<string | null>(null);
+  const [forwardUrl, setForwardUrl] = useState<string>("");
 
   useEffect(() => {
-    const nextRef = defaultReferences[activeTab] ?? "";
+    if (mode !== "Add by Reference Number") {
+      setHasAttempted(false);
+      return;
+    }
+
+    if (suppressRefReset.current) {
+      suppressRefReset.current = false;
+      if (activeTab === "CBE Birr") {
+        setPhoneNumber("251911000000");
+      }
+      setHasAttempted(false);
+      return;
+    }
+
+    const nextRef = defaultReferences[activeTab as Provider] ?? "";
     setReference(nextRef);
     if (activeTab === "CBE Birr") {
       setPhoneNumber("251911000000");
     }
     setHasAttempted(false);
-  }, [activeTab]);
+  }, [activeTab, mode]);
 
   const referenceLabel =
     activeTab === "Telebirr"
@@ -69,10 +102,75 @@ export default function TestPage() {
   const hasLiveResult = Boolean(resultPayload);
   const normalizedEntries = hasLiveResult ? Object.entries(resultPayload as Record<string, unknown>) : [];
 
-  const handleVerify = async () => {
-    if (!reference) return;
+  const handleVerify = async (source: "reference" | "upload") => {
+    setUploadError(null);
+    setUploadInfo(null);
+
+    if (!reference) {
+      if (source === "upload") {
+        setUploadError("Upload a receipt so we can read the details, then click Verify.");
+      }
+      return;
+    }
+
     setHasAttempted(true);
     await verifyReceipt({ provider: activeTab, reference, phoneNumber });
+  };
+
+  const handleFileUpload = async (file: File | null) => {
+    if (!file) return;
+    setUploadError(null);
+    setUploadInfo(null);
+    reset();
+    resetImage();
+    setHasAttempted(false);
+
+    try {
+      const resp = await verifyReceiptImage({ file }).unwrap();
+
+      if (resp.error) {
+        setUploadError(resp.error);
+        return;
+      }
+
+      const messageParts: string[] = [];
+
+      if (resp.type === "telebirr") {
+        suppressRefReset.current = true;
+        setActiveTab("Telebirr");
+        messageParts.push("We detected a Telebirr receipt. We'll use the Telebirr checker.");
+      } else if (resp.type === "cbe") {
+        suppressRefReset.current = true;
+        setActiveTab("CBE");
+        messageParts.push("We detected a CBE receipt. We'll use the CBE checker.");
+      }
+
+      if (resp.reference) {
+        suppressRefReset.current = true;
+        setReference(resp.reference);
+        messageParts.push(`Reference: ${resp.reference}`);
+      }
+
+      if (resp.forward_to) {
+        const base = process.env.NEXT_PUBLIC_VERIFIER_API?.replace(/\/verify-image$/, "") ?? "";
+        const url = `${base}${resp.forward_to}`;
+        setForwardUrl(url);
+        messageParts.push("We’ll route this to the right bank checker for you.");
+      } else {
+        setForwardUrl("");
+      }
+
+      if (resp.accountSuffix === "required_from_user") {
+        messageParts.push("For CBE receipts, please enter the account suffix to finish.");
+      }
+
+      if (messageParts.length) {
+        setUploadInfo(messageParts.join(" | "));
+      }
+    } catch (err: any) {
+      const apiError = err?.data?.error || err?.error || "Upload failed. Please try again.";
+      setUploadError(apiError);
+    }
   };
 
   return (
@@ -88,22 +186,38 @@ export default function TestPage() {
             </p>
             <h1 className="text-3xl font-bold text-foreground sm:text-4xl">Test Receipt Verification</h1>
             <p className="mt-3 text-base text-muted-foreground sm:text-lg">
-              Select a provider, paste a reference, and verify against the live sandbox. Results stay hidden until you click Verify.
+              Choose how you want to test: add by reference number with a provider, or upload a receipt and let us read it.
             </p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-3xl border border-border bg-card/80 p-8 shadow-[0_20px_80px_rgba(2,6,23,0.55)] backdrop-blur">
               <div className="flex flex-wrap gap-3" role="tablist">
-                {tabs.map((tab) => (
+                {modeTabs.map((tab) => (
                   <button
                     key={tab}
                     role="tab"
-                    aria-selected={activeTab === tab}
-                    onClick={() => setActiveTab(tab as Provider)}
+                    aria-selected={mode === tab}
+                    onClick={() => {
+                      setMode(tab);
+                      setHasAttempted(false);
+                      setUploadError(null);
+                      setUploadInfo(null);
+                      setForwardUrl("");
+                      suppressRefReset.current = false;
+                      reset();
+                      resetImage();
+                      if (tab === "Add by Reference Number" && !reference) {
+                        const nextRef = defaultReferences[activeTab as Provider];
+                        setReference(nextRef ?? "");
+                      }
+                      if (tab === "Upload Receipt") {
+                        setReference("");
+                      }
+                    }}
                     className={combine(
                       "rounded-full px-4 py-2 text-sm font-semibold transition",
-                      activeTab === tab
+                      mode === tab
                         ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
                         : "border border-border bg-background/70 text-muted-foreground hover:text-foreground"
                     )}
@@ -113,63 +227,229 @@ export default function TestPage() {
                 ))}
               </div>
 
-              <div className="mt-8 space-y-3">
-                <label className="text-xs font-semibold text-muted-foreground" htmlFor="reference">
-                  {referenceLabel}
-                </label>
-                <div className="relative">
-                  <input
-                    id="reference"
-                    type="text"
-                    value={reference}
-                    onChange={(event) => setReference(event.target.value)}
-                    placeholder={referencePlaceholder}
-                    className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                  />
-                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-border px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                    {activeTab}
-                  </span>
-                </div>
-                {activeTab === "CBE Birr" && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-muted-foreground" htmlFor="phone">
-                      Phone Number (E.164)
-                    </label>
-                    <input
-                      id="phone"
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(event) => setPhoneNumber(event.target.value)}
-                      placeholder="e.g. 2519XXXXXXXX"
-                      className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
+              {mode === "Add by Reference Number" && (
+                <div className="mt-8 space-y-4">
+                  <div className="flex flex-wrap gap-3" role="tablist">
+                    {providerTabs.map((tab) => (
+                      <button
+                        key={tab}
+                        role="tab"
+                        aria-selected={activeTab === tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={combine(
+                          "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+                          activeTab === tab
+                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+                            : "border border-border bg-background/70 text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {providerLogos[tab] ? (
+                          <img
+                            src={providerLogos[tab] as string}
+                            alt={`${tab} logo`}
+                            className="h-5 w-5 rounded-full border border-border bg-white object-contain"
+                          />
+                        ) : (
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background/70 text-[10px] font-bold uppercase">
+                            {tab.slice(0, 2)}
+                          </span>
+                        )}
+                        <span>{tab}</span>
+                      </button>
+                    ))}
                   </div>
-                )}
-                <p className="text-xs text-muted-foreground">{helperText}</p>
-              </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={handleVerify}
-                  disabled={isLoading || !reference}
-                  className="rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-60"
-                >
-                  {isLoading ? "Verifying..." : "Verify"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReference(defaultReferences[activeTab]);
-                    setHasAttempted(false);
-                    setPhoneNumber(activeTab === "CBE Birr" ? "251911000000" : phoneNumber);
-                    reset();
-                  }}
-                  className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-background"
-                >
-                  Clear
-                </button>
-              </div>
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold text-muted-foreground" htmlFor="reference">
+                      {referenceLabel}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="reference"
+                        type="text"
+                        value={reference}
+                        onChange={(event) => setReference(event.target.value)}
+                        placeholder={referencePlaceholder}
+                        className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-border px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                        {activeTab}
+                      </span>
+                    </div>
+                    {activeTab === "CBE Birr" && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-muted-foreground" htmlFor="phone">
+                          Phone Number (E.164)
+                        </label>
+                        <input
+                          id="phone"
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(event) => setPhoneNumber(event.target.value)}
+                          placeholder="e.g. 2519XXXXXXXX"
+                          className="w-full rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">{helperText}</p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => handleVerify("reference")}
+                      disabled={isLoading || !reference}
+                      className="rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {isLoading ? "Verifying..." : "Verify"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextRef = defaultReferences[activeTab as Provider];
+                        setReference(nextRef ?? "");
+                        setHasAttempted(false);
+                        setPhoneNumber(activeTab === "CBE Birr" ? "251911000000" : phoneNumber);
+                        setUploadError(null);
+                        suppressRefReset.current = false;
+                        reset();
+                        resetImage();
+                        setUploadInfo(null);
+                        setForwardUrl("");
+                      }}
+                      className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-background"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {mode === "Upload Receipt" && (
+                <div className="mt-8 space-y-4">
+                  <div className="space-y-3">
+                    <div
+                      className={combine(
+                        "group relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-6 text-center transition",
+                        isDragging ? "border-primary bg-primary/5" : "border-border bg-background/50 hover:border-primary/70"
+                      )}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragging(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                        const droppedFile = e.dataTransfer.files?.[0];
+                        void handleFileUpload(droppedFile ?? null);
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          fileInputRef.current?.click();
+                        }
+                      }}
+                    >
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-6 w-6"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 16V8m0 0-3 3m3-3 3 3M4 16.5V15a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v1.5M6 19h12"
+                          />
+                        </svg>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">Drag & drop your receipt</p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG, HEIC, WebP, or PDF. Max one file.</p>
+                      </div>
+                      <div className="text-xs font-semibold text-primary">Click to browse</div>
+                      <input
+                        ref={fileInputRef}
+                        id="receipt-file"
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.heif"
+                        className="sr-only"
+                        onChange={(event) => handleFileUpload(event.target.files?.[0] ?? null)}
+                      />
+                    </div>
+                  </div>
+
+                  {isImageLoading && (
+                    <div className="flex items-center gap-2 text-xs text-foreground">
+                      <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
+                      <span>Reading your receipt…</span>
+                    </div>
+                  )}
+                  {uploadInfo && (
+                    <div className="rounded-lg border border-emerald-300/60 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-900">
+                      <span className="font-semibold">Good news:</span> {uploadInfo}
+                    </div>
+                  )}
+                  {uploadError && (
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      {uploadError}
+                    </div>
+                  )}
+                  {imageError && !uploadError && (
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                      {(imageError as any)?.data?.error || "We couldn’t read that receipt. Please try another file."}
+                    </div>
+                  )}
+                  {forwardUrl && (
+                    <div className="rounded-xl border border-border bg-background/70 px-3 py-2 text-xs text-foreground">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold">We’ll check this link for you</span>
+                      </div>
+                      <input
+                        readOnly
+                        value={forwardUrl}
+                        className="mt-2 w-full rounded-lg border border-border bg-background/80 px-2 py-1 text-[11px] text-foreground"
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <button
+                      type="button"
+                      onClick={() => handleVerify("upload")}
+                      disabled={isLoading || !reference}
+                      className="rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {isLoading ? "Verifying..." : "Verify detected receipt"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReference("");
+                        setHasAttempted(false);
+                        setUploadError(null);
+                        suppressRefReset.current = false;
+                        reset();
+                        resetImage();
+                        setUploadInfo(null);
+                        setForwardUrl("");
+                      }}
+                      className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-background"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {(hasAttempted || isLoading || data || error) && (

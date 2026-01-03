@@ -18,6 +18,22 @@ export interface VerifyRequest {
   phoneNumber?: string
 }
 
+export interface VerifyImageRequest {
+  file: File
+  autoVerify?: boolean
+  suffix?: string
+}
+
+export interface VerifyImageResponse {
+  type?: 'telebirr' | 'cbe'
+  reference?: string
+  forward_to?: string
+  verified?: boolean
+  details?: unknown
+  error?: string
+  accountSuffix?: string
+}
+
 export interface VerifyResponse {
   success?: boolean
   error?: string
@@ -66,7 +82,22 @@ export const verifierApi = createApi({
         }
       },
     }),
+    verifyReceiptImage: builder.mutation<VerifyImageResponse, VerifyImageRequest>({
+      query: ({ file, autoVerify, suffix }) => {
+        const formData = new FormData()
+        formData.append('file', file)
+        if (suffix) formData.append('suffix', suffix)
+
+        const url = autoVerify === true ? '/verify-image?autoVerify=true' : '/verify-image'
+
+        return {
+          url,
+          method: 'POST',
+          body: formData,
+        }
+      },
+    }),
   }),
 })
 
-export const { useVerifyReceiptMutation } = verifierApi
+export const { useVerifyReceiptMutation, useVerifyReceiptImageMutation } = verifierApi

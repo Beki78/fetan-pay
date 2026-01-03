@@ -336,7 +336,11 @@ export class VerifyController {
       return { error: 'No file uploaded' };
     }
 
-    const buffer = fs.readFileSync(file.path);
+    const buffer = file.buffer ?? (file.path ? fs.readFileSync(file.path) : null);
+    if (!buffer) {
+      return { error: 'Failed to read uploaded file' };
+    }
+
     const base64Image = buffer.toString('base64');
 
     const mistral = await this.getMistralClient();
