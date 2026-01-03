@@ -83,15 +83,15 @@ export default function ScanPage() {
 
   const handleBankSelect = (bankId: string) => {
     setSelectedBank(bankId);
-    // Default to reference-based verification for clarity
-    setVerificationMethod("transaction");
-    setValue("verificationMethod", "transaction");
+    // Do not auto-select verification method; let the user choose.
+    setVerificationMethod(null);
+    setValue("verificationMethod", null);
     setValue("transactionId", "");
     reset({
       amount,
       transactionId: "",
       tipAmount: tipAmount || "",
-      verificationMethod: "transaction",
+      verificationMethod: null,
       accountSuffix: "",
     });
   };
@@ -374,6 +374,7 @@ export default function ScanPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
+                            setVerificationMethod(null);
                             setValue("verificationMethod", null);
                             setValue("transactionId", "");
                           }}

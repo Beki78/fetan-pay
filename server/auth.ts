@@ -94,7 +94,12 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: false,
-    requireEmailVerification: true,
+    // NOTE: In development we disable email verification so admin-created employees
+    // can immediately sign in without needing OTP flows.
+    // For production, set REQUIRE_EMAIL_VERIFICATION=true (or NODE_ENV=production).
+    requireEmailVerification:
+      (process.env.REQUIRE_EMAIL_VERIFICATION ?? process.env.NODE_ENV) ===
+      'production',
     minPasswordLength: 8,
     maxPasswordLength: 20,
     autoSignIn: true,

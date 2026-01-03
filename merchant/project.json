@@ -5,7 +5,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "npm run dev",
-        "cwd": "."
+        "cwd": "merchant"
       }
     }
   }
