@@ -112,6 +112,7 @@ const mockVendorTips: VendorTip[] = [
 export default function TipsByVendor() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [openMenuVendorId, setOpenMenuVendorId] = useState<string | null>(null);
 
   const filteredVendorTips = useMemo(() => {
     return mockVendorTips.filter((vendorTip) => {
@@ -222,18 +223,36 @@ export default function TipsByVendor() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Dropdown
-                      trigger={
-                        <button className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                      }
-                    >
-                      <DropdownItem>
-                        <EyeIcon className="size-4" />
-                        View Details
-                      </DropdownItem>
-                    </Dropdown>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                        onClick={() =>
+                          setOpenMenuVendorId((prev) =>
+                            prev === vendorTip.vendor.id
+                              ? null
+                              : vendorTip.vendor.id
+                          )
+                        }
+                        aria-haspopup="menu"
+                        aria-expanded={openMenuVendorId === vendorTip.vendor.id}
+                      >
+                        <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
+                      </button>
+                      <Dropdown
+                        isOpen={openMenuVendorId === vendorTip.vendor.id}
+                        onClose={() => setOpenMenuVendorId(null)}
+                      >
+                        <DropdownItem
+                          onClick={() => {
+                            setOpenMenuVendorId(null);
+                          }}
+                        >
+                          <EyeIcon className="size-4" />
+                          View Details
+                        </DropdownItem>
+                      </Dropdown>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

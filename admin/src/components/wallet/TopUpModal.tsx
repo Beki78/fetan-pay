@@ -60,9 +60,9 @@ export default function TopUpModal({
             </label>
             <Input
               type="number"
-              step="0.01"
-              min={minAmount}
-              max={maxAmount}
+              step={0.01}
+              min={String(minAmount)}
+              max={String(maxAmount)}
               value={amount}
               onChange={handleAmountChange}
               className="w-full"
