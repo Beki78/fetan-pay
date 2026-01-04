@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Clock, FileDigit, Scan, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { BANKS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  type TransactionProvider,
+  useListVerificationHistoryQuery,
+} from "@/lib/services/paymentsServiceApi";
 import {
   Sheet,
   SheetContent,
@@ -20,9 +24,10 @@ import {
 interface VerificationHistoryItem {
   id: string;
   amount: string;
-  transactionId: string;
-  bankId: string;
-  method: "transaction" | "camera";
+  reference: string;
+  provider: TransactionProvider;
+  status: "PENDING" | "VERIFIED" | "UNVERIFIED";
+  mismatchReason?: string | null;
   tipAmount?: string;
   timestamp: Date;
 }
@@ -32,63 +37,88 @@ interface VerificationHistorySidebarProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Mock history data - replace with actual API call
-const mockHistory: VerificationHistoryItem[] = Array.from(
-  { length: 20 },
-  (_, i) => ({
-    id: `ver_${i + 1}`,
-    amount: `${(Math.random() * 10000 + 100)
-      .toFixed(0)
-      .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`,
-    transactionId: `TXN${Date.now() - i * 3600000}`,
-    bankId: ["cbe", "boa", "awash", "telebirr"][Math.floor(Math.random() * 4)],
-    method: Math.random() > 0.5 ? "transaction" : "camera",
-    tipAmount:
-      Math.random() > 0.7
-        ? `${(Math.random() * 500 + 50)
-            .toFixed(0)
-            .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`
-        : undefined,
-    timestamp: new Date(Date.now() - i * 3600000),
-  })
-);
-
 export function VerificationHistorySidebar({
   open,
   onOpenChange,
 }: VerificationHistorySidebarProps) {
-  const [history, setHistory] = useState<VerificationHistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [displayCount, setDisplayCount] = useState(7);
+  const [historyItems, setHistoryItems] = useState<VerificationHistoryItem[]>([]);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const loadHistory = useCallback(async () => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setHistory(mockHistory);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+  const {
+    data,
+    isFetching,
+    isError,
+    refetch,
+  } = useListVerificationHistoryQuery(
+    open ? { page, pageSize } : undefined,
+    { skip: !open }
+  );
 
+  // Reset on open
   useEffect(() => {
     if (open) {
-      // Reset display count when sidebar opens
-      setDisplayCount(7);
-      loadHistory();
+      setHistoryItems([]);
+      setPage(1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const loadMore = async () => {
-    setIsLoadingMore(true);
-    // Simulate API call
-    setTimeout(() => {
-      setDisplayCount((prev) => prev + 5);
-      setIsLoadingMore(false);
-    }, 500);
-  };
+  // Merge new page data
+  useEffect(() => {
+    if (!data) return;
+
+    const mapped: VerificationHistoryItem[] = data.data.map((p) => {
+      const providerToBankId: Record<string, string> = {
+        CBE: "cbe",
+        BOA: "boa",
+        AWASH: "awash",
+        TELEBIRR: "telebirr",
+        DASHEN: "dashen",
+      };
+
+      const bankId = providerToBankId[p.provider] ?? "cbe";
+      const amount = (p.claimedAmount ?? "")
+        .toString()
+        .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      const tipAmount = p.tipAmount
+        ? p.tipAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+        : undefined;
+
+      const timestampStr = p.verifiedAt ?? p.updatedAt ?? p.createdAt;
+      const timestamp = new Date(timestampStr);
+
+      return {
+        id: p.id,
+        amount,
+        reference: p.reference,
+        provider: p.provider,
+        status: p.status,
+        mismatchReason: p.mismatchReason,
+        tipAmount,
+        timestamp,
+        // keep for bank logo lookup
+        bankId,
+      } as any;
+    });
+
+    setHistoryItems((prev) => {
+      const existing = new Set(prev.map((x) => x.id));
+      const merged = [...prev];
+      for (const item of mapped) {
+        if (!existing.has(item.id)) merged.push(item);
+      }
+      // keep newest first
+      merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      return merged;
+    });
+  }, [data]);
+
+  useEffect(() => {
+    if (open && isError) {
+      toast.error("Failed to load verification history");
+    }
+  }, [open, isError]);
 
   const formatTime = (date: Date) => {
     const now = new Date();
@@ -124,8 +154,12 @@ export function VerificationHistorySidebar({
     }
   };
 
-  const displayedHistory = history.slice(0, displayCount);
-  const hasMore = history.length > displayCount;
+  const hasMore = useMemo(() => {
+    if (!data) return false;
+    return historyItems.length < data.total;
+  }, [data, historyItems.length]);
+
+  const displayedHistory = historyItems;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -140,7 +174,7 @@ export function VerificationHistorySidebar({
           </SheetDescription>
         </SheetHeader>
         <div className="overflow-y-auto h-[calc(100vh-120px)]">
-          {isLoading ? (
+          {isFetching && displayedHistory.length === 0 ? (
             <div className="flex items-center justify-center py-12">
               <Spinner size="lg" />
             </div>
@@ -150,11 +184,25 @@ export function VerificationHistorySidebar({
               <p className="text-muted-foreground">
                 No verification history yet
               </p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => refetch()}
+              >
+                Refresh
+              </Button>
             </div>
           ) : (
             <div className="space-y-1 p-2">
               {displayedHistory.map((item) => {
-                const bank = BANKS.find((b) => b.id === item.bankId);
+                const bank = BANKS.find((b) => (b as any).id === (item as any).bankId);
+
+                const statusVariant =
+                  item.status === "VERIFIED"
+                    ? "secondary"
+                    : item.status === "PENDING"
+                      ? "outline"
+                      : "destructive";
                 return (
                   <div
                     key={item.id}
@@ -184,6 +232,16 @@ export function VerificationHistorySidebar({
                             <span className="font-semibold text-foreground">
                               {item.amount} ETB
                             </span>
+                            <Badge
+                              variant={statusVariant as any}
+                              className={cn(
+                                "border",
+                                item.status === "VERIFIED" &&
+                                  "bg-accent/10 text-primary border-accent/20",
+                              )}
+                            >
+                              {item.status}
+                            </Badge>
                             {item.tipAmount && (
                               <Badge
                                 variant="secondary"
@@ -194,22 +252,21 @@ export function VerificationHistorySidebar({
                             )}
                           </div>
 
+                          {item.mismatchReason && item.status !== "VERIFIED" && (
+                            <div className="text-xs text-muted-foreground">
+                              Reason: {item.mismatchReason}
+                            </div>
+                          )}
+
                           <button
                             onClick={() =>
-                              handleCopyTransactionId(
-                                item.transactionId,
-                                item.id
-                              )
+                              handleCopyTransactionId(item.reference, item.id)
                             }
                             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group cursor-pointer"
                           >
-                            {item.method === "transaction" ? (
-                              <FileDigit className="h-3.5 w-3.5" />
-                            ) : (
-                              <Scan className="h-3.5 w-3.5" />
-                            )}
+                            <FileDigit className="h-3.5 w-3.5" />
                             <span className="truncate font-mono">
-                              {item.transactionId}
+                              {item.reference}
                             </span>
                             <div
                               className={cn(
@@ -249,10 +306,10 @@ export function VerificationHistorySidebar({
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={loadMore}
-                    disabled={isLoadingMore}
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={isFetching}
                   >
-                    {isLoadingMore ? (
+                    {isFetching ? (
                       <>
                         <Spinner size="sm" className="mr-2" />
                         Loading...

@@ -7,6 +7,9 @@ import {
   Scan,
   RefreshCcw,
   ClipboardClock,
+  User,
+  Building,
+  XCircle,
 } from "lucide-react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
@@ -26,7 +29,7 @@ import { APP_CONFIG, BANKS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { formatNumberWithCommas, type BankId } from "@/lib/validation";
 import { createScanSchema } from "@/lib/schemas";
-import { useVerifyFromQrMutation } from "@/lib/services/transactionsServiceApi";
+import { useVerifyMerchantPaymentMutation } from "@/lib/services/paymentsServiceApi";
 import { useSession } from "@/hooks/useSession";
 import { useRouter } from "next/navigation";
 
@@ -35,7 +38,6 @@ type FormData = {
   transactionId?: string;
   tipAmount?: string;
   verificationMethod: "transaction" | "camera" | null;
-  accountSuffix?: string;
 };
 
 export default function ScanPage() {
@@ -53,10 +55,15 @@ export default function ScanPage() {
     status: string;
     reference: string;
     provider: string;
+    senderName?: string | null;
+    receiverAccount?: string | null;
+    receiverName?: string | null;
+    amount?: number | null;
     details?: unknown;
     message?: string;
   } | null>(null);
-  const [verifyFromQr, { isLoading: isVerifying }] = useVerifyFromQrMutation();
+  const [verifyMerchantPayment, { isLoading: isVerifying }] =
+    useVerifyMerchantPaymentMutation();
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const schema = createScanSchema(
@@ -78,7 +85,6 @@ export default function ScanPage() {
       transactionId: "",
       tipAmount: "",
       verificationMethod: null,
-      accountSuffix: "",
     },
   });
 
@@ -96,7 +102,6 @@ export default function ScanPage() {
       transactionId: "",
       tipAmount: tipAmount || "",
       verificationMethod: null,
-      accountSuffix: "",
     });
   };
 
@@ -154,62 +159,76 @@ export default function ScanPage() {
       telebirr: "TELEBIRR",
     };
 
-    const buildQrUrl = (input: string) => {
-      if (!input) {
-        throw new Error("Transaction reference or URL is required");
-      }
-
-      // For Telebirr, verification often relies on a QR/URL payload.
-      // For other banks, users commonly enter a plain transaction reference.
-      // In that case, we STILL send a valid URL to the backend for parsing,
-      // but we also pass the reference explicitly so the backend doesn't depend
-      // on query parsing.
-      if (input.startsWith("http://") || input.startsWith("https://")) {
-        return input;
-      }
-
-      const paramKey = selectedBank === "cbe" ? "id" : "ref";
-      return `https://scan.kifiya.local/qr?${paramKey}=${encodeURIComponent(input)}`;
-    };
-
     try {
       setVerificationResult(null);
 
       const provider = providerMap[selectedBank as BankId];
-  const qrUrl = buildQrUrl(data.transactionId || "");
-      const accountSuffix = selectedBank === "cbe" ? data.accountSuffix : undefined;
+      const reference = (data.transactionId || "").trim();
+      if (!reference) {
+        throw new Error("Transaction reference is required");
+      }
 
-      const response = await verifyFromQr({
-        qrUrl,
+      const claimedAmount = parseFloat((data.amount || "0").replace(/,/g, ""));
+      if (Number.isNaN(claimedAmount) || claimedAmount <= 0) {
+        throw new Error("Please enter a valid amount");
+      }
+
+      const response = await verifyMerchantPayment({
         provider,
-        // If user typed a URL, let server extract the reference.
-        // If user typed a plain reference, pass it explicitly.
-        reference:
-          data.transactionId &&
-          (data.transactionId.startsWith("http://") ||
-            data.transactionId.startsWith("https://"))
-            ? undefined
-            : data.transactionId || undefined,
-        accountSuffix,
+        reference,
+        claimedAmount,
       }).unwrap();
 
       const success = response.status === "VERIFIED";
 
+      const failureMessage = (() => {
+        if (response.mismatchReason === "REFERENCE_NOT_FOUND") {
+          return "Reference not found or transaction not successful";
+        }
+        if (response.mismatchReason === "RECEIVER_MISMATCH") {
+          return "Paid to a different receiver account (not your configured account)";
+        }
+        if (response.mismatchReason === "AMOUNT_MISMATCH") {
+          return "Amount doesn't match the entered value";
+        }
+        if (!response.checks?.referenceFound) {
+          return "Reference not found or transaction not successful";
+        }
+        if (response.checks?.referenceFound && !response.checks?.receiverMatches) {
+          return "Paid to a different receiver account (not your configured account)";
+        }
+        if (response.checks?.referenceFound && !response.checks?.amountMatches) {
+          return "Amount doesn't match the entered value";
+        }
+        return "Transaction isn't verified";
+      })();
+
       setVerificationResult({
         success,
         status: response.status,
-        reference: response.reference,
-        provider: response.provider,
-        details: response.verification,
-        message: response.error,
+        reference: response.transaction?.reference ?? reference,
+        provider,
+        senderName: response.transaction?.senderName,
+        receiverAccount: response.transaction?.receiverAccount,
+        receiverName: response.transaction?.receiverName,
+        amount: response.transaction?.amount ?? claimedAmount,
+        details: {
+          checks: response.checks,
+          mismatchReason: response.mismatchReason ?? null,
+          receiverAccount: response.transaction?.receiverAccount ?? null,
+          amount: response.transaction?.amount ?? null,
+        },
+        message: success ? undefined : failureMessage,
       });
 
-      toast[success ? "success" : "error"](
-        success ? "Payment verified" : "Verification failed",
+      // UNVERIFIED is an expected outcome (it means we fetched the receipt but checks didn't pass).
+      // Only use an error toast for network/server errors (caught in catch below).
+      toast[success ? "success" : "warning"](
+        success ? "Payment verified" : "Not verified",
         {
           description: success
-            ? `Reference ${response.reference} verified`
-            : response.error ?? "Could not verify the transaction",
+            ? `Reference ${response.transaction?.reference ?? reference} verified`
+            : failureMessage,
         }
       );
 
@@ -219,8 +238,10 @@ export default function ScanPage() {
           block: "start",
         });
       }, 100);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Verification failed";
+    } catch (error: any) {
+      const message =
+        error?.data?.message ||
+        (error instanceof Error ? error.message : "Verification failed");
       toast.error("Verification error", { description: message });
     }
   };
@@ -477,29 +498,7 @@ export default function ScanPage() {
                   )}
 
                   {/* Account suffix for CBE */}
-                  {selectedBank === "cbe" && (
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium text-foreground">
-                        CBE Account Suffix (5 digits)
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Enter account suffix"
-                        inputMode="numeric"
-                        maxLength={5}
-                        {...register("accountSuffix")}
-                        className={cn(
-                          "h-12 focus-visible:ring-1",
-                          errors.accountSuffix && "border-destructive"
-                        )}
-                      />
-                      {errors.accountSuffix && (
-                        <p className="text-sm text-destructive">
-                          {errors.accountSuffix.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
+
 
                   {/* Tip Input with Switch */}
                   <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
@@ -579,49 +578,110 @@ export default function ScanPage() {
                   {verificationResult && (
                     <div
                       ref={resultsRef}
-                      className="mt-6 p-6 bg-muted/50 rounded-lg border border-border space-y-4"
+                      className={cn(
+                        "mt-6 p-1 rounded-xl border shadow-sm animate-in fade-in slide-in-from-bottom-4",
+                        verificationResult.success
+                          ? "bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800"
+                          : "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800"
+                      )}
                     >
-                      <div className="flex items-center gap-2 mb-4">
-                        <CheckCircle2 className="h-5 w-5 text-secondary" />
-                        <h3 className="text-lg font-semibold text-foreground">
-                          Verification Result
-                        </h3>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Status:
-                          </span>
-                          <span className="text-base font-semibold text-foreground">
-                            {verificationResult.status}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Reference:
-                          </span>
-                          <span className="text-base font-semibold text-foreground">
-                            {verificationResult.reference}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Provider:
-                          </span>
-                          <span className="text-base font-semibold text-foreground">
-                            {verificationResult.provider}
-                          </span>
-                        </div>
-                        {verificationResult.message && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              Message:
-                            </span>
-                            <span className="text-sm text-foreground">
-                              {verificationResult.message}
-                            </span>
+                      <div className="p-6 space-y-6">
+                        {/* Header Status */}
+                        <div className="text-center space-y-2">
+                          <div className="flex justify-center">
+                            {verificationResult.success ? (
+                              <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center dark:bg-green-900/20">
+                                <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+                              </div>
+                            ) : (
+                              <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center dark:bg-red-900/20">
+                                <XCircle className="h-10 w-10 text-red-600 dark:text-red-400" />
+                              </div>
+                            )}
                           </div>
-                        )}
+                          <h3
+                            className={cn(
+                              "text-xl font-bold tracking-tight",
+                              verificationResult.success
+                                ? "text-green-700 dark:text-green-400"
+                                : "text-red-700 dark:text-red-400"
+                            )}
+                          >
+                            {verificationResult.success ? "Payment Verified" : "Verification Failed"}
+                          </h3>
+                          {verificationResult.message && (
+                            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                              {verificationResult.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Amount */}
+                          <div className="bg-background/50 rounded-lg p-4 text-center border border-border/50">
+                            <p className="text-sm font-medium text-muted-foreground mb-1">
+                              Amount Paid
+                            </p>
+                            <div className="text-3xl font-extrabold text-foreground tracking-tight">
+                              {formatNumberWithCommas(
+                                (verificationResult.amount ?? 0).toString()
+                              )}{" "}
+                              <span className="text-lg text-muted-foreground font-semibold">ETB</span>
+                            </div>
+                          </div>
+
+                          {/* Flow Details */}
+                          <div className="bg-background/50 rounded-lg border border-border/50 divide-y divide-border/50">
+                            {/* Sent To */}
+                            <div className="p-3 flex items-start gap-3">
+                              <div className="mt-1 h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+                                <Building className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  Sent To (Merchant)
+                                </p>
+                                <p className="font-semibold text-foreground truncate">
+                                  {verificationResult.receiverName || "Unknown Merchant"}
+                                </p>
+                                <p className="text-xs text-muted-foreground font-mono truncate">
+                                  {verificationResult.receiverAccount}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Sent From */}
+                            {verificationResult.senderName && (
+                              <div className="p-3 flex items-start gap-3">
+                                <div className="mt-1 h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
+                                  <User className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    Sent From (Payer)
+                                  </p>
+                                  <p className="font-semibold text-foreground truncate capitalize">
+                                    {verificationResult.senderName}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Tech Details */}
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="bg-muted p-3 rounded-lg border border-border/50">
+                              <p className="text-xs text-muted-foreground mb-1">Provider</p>
+                              <p className="font-medium font-mono">{verificationResult.provider}</p>
+                            </div>
+                            <div className="bg-muted p-3 rounded-lg border border-border/50">
+                              <p className="text-xs text-muted-foreground mb-1">Reference</p>
+                              <p className="font-medium font-mono truncate" title={verificationResult.reference}>
+                                {verificationResult.reference}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}

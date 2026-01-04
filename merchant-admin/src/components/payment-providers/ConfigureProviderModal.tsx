@@ -16,6 +16,12 @@ interface ConfigureProviderModalProps {
     isEnabled?: boolean;
   };
   onSave?: (providerId: string, action: "enable" | "disable" | "save") => void;
+  onSubmit?: (input: {
+    providerId: string;
+    accountNumber: string;
+    accountHolderName: string;
+    isEnabled: boolean;
+  }) => Promise<void>;
 }
 
 const providerInfo: { [key: string]: { name: string; imagePath: string } } = {
@@ -32,6 +38,7 @@ export default function ConfigureProviderModal({
   providerId,
   initialData,
   onSave,
+  onSubmit,
 }: ConfigureProviderModalProps) {
   const [accountNumber, setAccountNumber] = useState(
     initialData?.accountNumber || ""
@@ -44,6 +51,8 @@ export default function ConfigureProviderModal({
     accountNumber?: string;
     accountHolderName?: string;
   }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const provider = providerInfo[providerId] || {
     name: "Provider",
@@ -73,7 +82,7 @@ export default function ConfigureProviderModal({
     }
   }, [isOpen, initialData]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const newErrors: { accountNumber?: string; accountHolderName?: string } = {};
 
     if (!accountNumber.trim()) {
@@ -88,18 +97,38 @@ export default function ConfigureProviderModal({
       return;
     }
 
-    // Save configuration
-    console.log("Saving configuration:", {
-      providerId,
-      accountNumber,
-      accountHolderName,
-      isEnabled,
-    });
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    try {
+      if (onSubmit) {
+        await onSubmit({
+          providerId,
+          accountNumber: accountNumber.trim(),
+          accountHolderName: accountHolderName.trim(),
+          isEnabled,
+        });
+      } else {
+        // Fallback for dev/testing
+        console.log("Saving configuration:", {
+          providerId,
+          accountNumber,
+          accountHolderName,
+          isEnabled,
+        });
+      }
+    } catch (e: any) {
+      setSubmitError(e?.message ?? "Failed to save configuration");
+      setIsSubmitting(false);
+      return;
+    }
 
     // Call onSave callback
     if (onSave) {
       onSave(providerId, "save");
     }
+
+    setIsSubmitting(false);
 
     // Reset form and close
     setAccountNumber("");
@@ -114,6 +143,7 @@ export default function ConfigureProviderModal({
     setAccountHolderName("");
     setIsEnabled(false);
     setErrors({});
+    setSubmitError(null);
     onClose();
   };
 
@@ -147,6 +177,12 @@ export default function ConfigureProviderModal({
         </div>
 
         <div className="space-y-6">
+          {submitError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-200">
+              {submitError}
+            </div>
+          )}
+
           {/* Account Number */}
           <div>
             <label className="block text-sm font-medium text-gray-800 dark:text-white mb-2">
@@ -218,6 +254,7 @@ export default function ConfigureProviderModal({
               type="button"
               size="sm"
               onClick={handleClose}
+              disabled={isSubmitting}
               className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-0"
             >
               Cancel
@@ -226,9 +263,10 @@ export default function ConfigureProviderModal({
               type="button"
               size="sm"
               onClick={handleSave}
+              disabled={isSubmitting}
               className="flex-1 bg-purple-500 hover:bg-purple-600 text-white border-0"
             >
-              Save Configuration
+              {isSubmitting ? "Saving…" : "Save Configuration"}
             </Button>
           </div>
         </div>

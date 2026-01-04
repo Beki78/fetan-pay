@@ -16,7 +16,9 @@ import { useSession } from "@/hooks/useSession";
 
 export function ProfileDropdown() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, signOut } = useSession();
+  const { user, membership, isAuthenticated, isLoading, signOut } = useSession();
+
+  const businessName = (membership as any)?.membership?.merchant?.name ?? null;
 
   const handleLogout = async () => {
     try {
@@ -49,7 +51,9 @@ export function ProfileDropdown() {
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">Signed in as</p>
+              <p className="text-sm font-medium leading-none">
+                {businessName ? businessName : "Signed in as"}
+              </p>
               <p className="text-xs leading-none text-muted-foreground">
                 {user?.email ?? ""}
               </p>

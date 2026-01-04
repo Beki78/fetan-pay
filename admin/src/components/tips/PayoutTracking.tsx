@@ -100,6 +100,7 @@ const mockPayouts: Payout[] = [
 export default function PayoutTracking() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [openMenuPayoutId, setOpenMenuPayoutId] = useState<string | null>(null);
 
   const filteredPayouts = useMemo(() => {
     return mockPayouts.filter((payout) => {
@@ -123,7 +124,7 @@ export default function PayoutTracking() {
       case "Failed":
         return "error";
       default:
-        return "default";
+        return "light";
     }
   };
 
@@ -224,24 +225,45 @@ export default function PayoutTracking() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Dropdown
-                      trigger={
-                        <button className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                      }
-                    >
-                      <DropdownItem>
-                        <EyeIcon className="size-4" />
-                        View Details
-                      </DropdownItem>
-                      {payout.status === "Completed" && (
-                        <DropdownItem>
-                          <DownloadIcon className="size-4" />
-                          Download Receipt
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                        onClick={() =>
+                          setOpenMenuPayoutId((prev) =>
+                            prev === payout.id ? null : payout.id
+                          )
+                        }
+                        aria-haspopup="menu"
+                        aria-expanded={openMenuPayoutId === payout.id}
+                      >
+                        <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
+                      </button>
+
+                      <Dropdown
+                        isOpen={openMenuPayoutId === payout.id}
+                        onClose={() => setOpenMenuPayoutId(null)}
+                      >
+                        <DropdownItem
+                          onClick={() => {
+                            setOpenMenuPayoutId(null);
+                          }}
+                        >
+                          <EyeIcon className="size-4" />
+                          View Details
                         </DropdownItem>
-                      )}
-                    </Dropdown>
+                        {payout.status === "Completed" && (
+                          <DropdownItem
+                            onClick={() => {
+                              setOpenMenuPayoutId(null);
+                            }}
+                          >
+                            <DownloadIcon className="size-4" />
+                            Download Receipt
+                          </DropdownItem>
+                        )}
+                      </Dropdown>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

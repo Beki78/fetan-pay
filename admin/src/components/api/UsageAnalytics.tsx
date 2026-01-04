@@ -3,6 +3,7 @@ import React from "react";
 import Badge from "../ui/badge/Badge";
 import { ArrowUpIcon, BoltIcon, CheckCircleIcon, AlertIcon, TimeIcon } from "@/icons";
 import dynamic from "next/dynamic";
+import type { ApexOptions } from "apexcharts";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -26,7 +27,7 @@ const usageTrendData = {
   ],
   options: {
     chart: {
-      type: "line",
+      type: "line" as const,
       toolbar: { show: false },
       height: 350,
     },
@@ -46,14 +47,14 @@ const usageTrendData = {
         opacityTo: 0.3,
       },
     },
-  },
+  } satisfies ApexOptions,
 };
 
 const endpointDistributionData = {
   series: [45, 30, 15, 10],
   options: {
     chart: {
-      type: "donut",
+      type: "donut" as const,
       height: 350,
     },
     labels: ["/verify", "/list", "/status", "Other"],
@@ -61,7 +62,7 @@ const endpointDistributionData = {
     legend: {
       position: "bottom",
     },
-  },
+  } satisfies ApexOptions,
 };
 
 export default function UsageAnalytics() {

@@ -27,9 +27,7 @@ export default function ConfirmationChart() {
       fontFamily: "Outfit, sans-serif",
       fontSize: "12px",
       markers: {
-        width: 8,
-        height: 8,
-        radius: 4,
+        size: 8,
       },
       formatter: function(seriesName: string, opts: any) {
         return seriesName + " " + opts.w.globals.series[opts.seriesIndex];

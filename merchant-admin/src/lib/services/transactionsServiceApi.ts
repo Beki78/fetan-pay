@@ -44,6 +44,9 @@ export const transactionsServiceApi = createApi({
     baseUrl: API_BASE_URL,
     credentials: 'include',
   }),
+  // These endpoints back "live" verification tables; prefer fresh data over cache reuse.
+  refetchOnFocus: true,
+  refetchOnReconnect: true,
   endpoints: (builder) => ({
     listTransactions: builder.query<
       TransactionListResponse,

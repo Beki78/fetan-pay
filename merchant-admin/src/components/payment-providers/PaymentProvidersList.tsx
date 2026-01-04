@@ -4,6 +4,8 @@ import Image from "next/image";
 import Button from "../ui/button/Button";
 import Badge from "../ui/badge/Badge";
 import { InfoIcon } from "@/icons";
+import { useGetPaymentProvidersQuery } from "@/lib/services/paymentProvidersServiceApi";
+import { useGetActiveReceiverAccountsQuery } from "@/lib/services/paymentsServiceApi";
 
 interface PaymentProvider {
   id: string;
@@ -14,46 +16,6 @@ interface PaymentProvider {
   accountNumber?: string;
   accountHolderName?: string;
 }
-
-const mockProviders: PaymentProvider[] = [
-  {
-    id: "cbe",
-    name: "Commercial Bank of Ethiopia",
-    type: "Bank account",
-    imagePath: "/images/banks/CBE.png",
-    status: "disabled",
-    accountNumber: "1000155415444",
-    accountHolderName: "EPHREM DEBEBE",
-  },
-  {
-    id: "telebirr",
-    name: "Telebirr",
-    type: "Phone-based wallet",
-    imagePath: "/images/banks/Telebirr.png",
-    status: "coming-soon",
-  },
-  {
-    id: "cbe-birr",
-    name: "CBE Birr",
-    type: "Phone-based wallet",
-    imagePath: "/images/banks/CBE.png",
-    status: "coming-soon",
-  },
-  {
-    id: "awash",
-    name: "Awash Bank",
-    type: "Bank account",
-    imagePath: "/images/banks/Awash.png",
-    status: "coming-soon",
-  },
-  {
-    id: "boa",
-    name: "Bank of Abyssinia",
-    type: "Bank account",
-    imagePath: "/images/banks/BOA.png",
-    status: "not-configured",
-  },
-];
 
 interface PaymentProvidersListProps {
   onConfigure: (providerId: string, provider?: PaymentProvider) => void;
@@ -66,6 +28,52 @@ export default function PaymentProvidersList({
   onEnable,
   onDisable,
 }: PaymentProvidersListProps) {
+  const { data, isLoading } = useGetPaymentProvidersQuery();
+  const { data: receiverAccountsData, isLoading: isLoadingReceivers } =
+    useGetActiveReceiverAccountsQuery();
+
+  const receiverAccounts = receiverAccountsData?.data ?? [];
+
+  const getReceiverStatus = (providerCode: string): 'ACTIVE' | 'INACTIVE' | null => {
+    const code = providerCode.toUpperCase();
+    const active = receiverAccounts.find((x) => x.provider === code && x.status === 'ACTIVE');
+    if (active) return 'ACTIVE';
+    const inactive = receiverAccounts.find((x) => x.provider === code && x.status === 'INACTIVE');
+    if (inactive) return 'INACTIVE';
+    return null;
+  };
+
+  const providers: PaymentProvider[] = (data?.providers ?? []).map((p) => {
+    const receiverStatus = getReceiverStatus(p.code);
+
+    const status:
+      | "disabled"
+      | "enabled"
+      | "coming-soon"
+      | "not-configured" =
+      p.status === "COMING_SOON"
+        ? "coming-soon"
+        : p.status === "DISABLED"
+        ? "disabled"
+        : receiverStatus === 'ACTIVE'
+        ? "enabled"
+        : receiverStatus === 'INACTIVE'
+        ? "disabled"
+        : "not-configured"; // ACTIVE but not yet configured at merchant level
+
+    // Logo is a local file under /public/images/banks
+    const logoKey = (p.logoUrl ?? "").trim();
+    const imagePath = logoKey ? `/images/banks/${logoKey}` : "/images/banks/CBE.png";
+
+    return {
+      id: p.code.toLowerCase(),
+      name: p.name,
+      type: "Payment provider",
+      imagePath,
+      status,
+    };
+  });
+
   const getStatusBadge = (status: PaymentProvider["status"]) => {
     switch (status) {
       case "disabled":
@@ -121,11 +129,16 @@ export default function PaymentProvidersList({
 
         {/* Providers List */}
         <div className="bg-white dark:bg-gray-800/50 rounded-lg overflow-hidden border-0">
-          {mockProviders.map((provider, index) => (
+          {isLoading || isLoadingReceivers ? (
+            <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
+              Loading providers…
+            </div>
+          ) : providers.length ? (
+            providers.map((provider, index) => (
             <div
               key={provider.id}
               className={`px-4 py-4 ${
-                index !== mockProviders.length - 1
+                index !== providers.length - 1
                   ? "border-b border-gray-200 dark:border-gray-700"
                   : ""
               }`}
@@ -209,7 +222,12 @@ export default function PaymentProvidersList({
                 </div>
               </div>
             </div>
-          ))}
+            ))
+          ) : (
+            <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
+              No providers configured yet.
+            </div>
+          )}
         </div>
       </div>
 

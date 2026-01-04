@@ -2,15 +2,20 @@ import { configureStore } from "@reduxjs/toolkit";
 import themeReducer from "./slices/themeSlice";
 import authReducer from "./slices/authSlice";
 import { transactionsServiceApi } from "./services/transactionsServiceApi";
+import { paymentsServiceApi } from "./services/paymentsServiceApi";
 
 export const store = configureStore({
   reducer: {
     theme: themeReducer,
     auth: authReducer,
     [transactionsServiceApi.reducerPath]: transactionsServiceApi.reducer,
+    [paymentsServiceApi.reducerPath]: paymentsServiceApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(transactionsServiceApi.middleware),
+    getDefaultMiddleware().concat(
+      transactionsServiceApi.middleware,
+      paymentsServiceApi.middleware,
+    ),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

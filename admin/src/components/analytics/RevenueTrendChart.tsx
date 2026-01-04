@@ -16,9 +16,7 @@ export default function RevenueTrendChart() {
       horizontalAlign: "left",
       fontFamily: "Outfit, sans-serif",
       markers: {
-        width: 8,
-        height: 8,
-        radius: 4,
+        size: 8,
       },
     },
     colors: ["#9333EA", "#10B981", "#F59E0B", "#EF4444"], // Purple (Total), Green (Verified), Orange (Pending), Red (Failed)

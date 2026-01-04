@@ -57,6 +57,8 @@ const mockProviders: PaymentProvider[] = [
 
 interface PaymentProvidersListProps {
   onConfigure: (providerId: string, provider?: PaymentProvider) => void;
+  onEnable?: (providerId: string) => void;
+  onDisable?: (providerId: string) => void;
 }
 
 export default function PaymentProvidersList({

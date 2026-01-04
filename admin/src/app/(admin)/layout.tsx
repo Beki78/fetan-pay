@@ -4,6 +4,7 @@ import { useSidebar } from "@/context/SidebarContext";
 import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
+import AdminRoleGuard from "@/components/auth/AdminRoleGuard";
 import React from "react";
 
 export default function AdminLayout({
@@ -21,19 +22,21 @@ export default function AdminLayout({
     : "lg:ml-[90px]";
 
   return (
-    <div className="min-h-screen flex">
-      {/* Sidebar and Backdrop */}
-      <AppSidebar />
-      <Backdrop />
-      {/* Main Content Area */}
-      <div
-        className={`flex-1 min-w-0 transition-all duration-300 ease-in-out ${mainContentMargin}`}
-      >
-        {/* Header */}
-        <AppHeader />
-        {/* Page Content */}
-        <div className="p-4 w-full md:p-6 overflow-x-hidden">{children}</div>
+    <AdminRoleGuard>
+      <div className="min-h-screen flex">
+        {/* Sidebar and Backdrop */}
+        <AppSidebar />
+        <Backdrop />
+        {/* Main Content Area */}
+        <div
+          className={`flex-1 min-w-0 transition-all duration-300 ease-in-out ${mainContentMargin}`}
+        >
+          {/* Header */}
+          <AppHeader />
+          {/* Page Content */}
+          <div className="p-4 w-full md:p-6 overflow-x-hidden">{children}</div>
+        </div>
       </div>
-    </div>
+    </AdminRoleGuard>
   );
 }
