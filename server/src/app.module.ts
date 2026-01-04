@@ -11,6 +11,8 @@ import { PrismaModule } from '../database/prisma.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { MerchantsModule } from './modules/merchants/merchants.module';
 import { MerchantUsersModule } from './modules/merchant-users/merchant-users.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { PaymentProvidersModule } from './modules/payment-providers/payment-providers.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { MerchantUsersModule } from './modules/merchant-users/merchant-users.mod
     TransactionsModule,
     MerchantsModule,
     MerchantUsersModule,
+    PaymentsModule,
+    PaymentProvidersModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],

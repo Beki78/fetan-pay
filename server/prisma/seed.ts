@@ -103,6 +103,43 @@ async function main() {
     email,
     role: "SUPERADMIN",
   });
+
+  // Seed default payment providers (catalog shown in merchant-admin)
+  const defaultProviders: Array<{
+    code: 'CBE' | 'TELEBIRR' | 'AWASH' | 'BOA' | 'DASHEN';
+    name: string;
+    logoUrl?: string;
+    status: 'ACTIVE' | 'COMING_SOON' | 'DISABLED';
+  }> = [
+    { code: 'CBE', name: 'Commercial Bank of Ethiopia', logoUrl: 'CBE.png', status: 'ACTIVE' },
+    { code: 'TELEBIRR', name: 'Telebirr', logoUrl: 'Telebirr.png', status: 'ACTIVE' },
+    { code: 'AWASH', name: 'Awash Bank', logoUrl: 'Awash.png', status: 'ACTIVE' },
+    { code: 'BOA', name: 'Bank of Abyssinia', logoUrl: 'BOA.png', status: 'ACTIVE' },
+    { code: 'DASHEN', name: 'Dashen Bank', status: 'COMING_SOON' },
+  ];
+
+  for (const p of defaultProviders) {
+    await (prisma as any).paymentProvider.upsert({
+      where: { code: p.code },
+      update: {
+        name: p.name,
+        logoUrl: p.logoUrl,
+        status: p.status,
+      },
+      create: {
+        // Keep ids deterministic for seed (use code)
+        id: `seed_provider_${p.code}`,
+        code: p.code,
+        name: p.name,
+        logoUrl: p.logoUrl,
+        status: p.status,
+      },
+    });
+  }
+
+  console.info('✅ Seeded payment provider catalog', {
+    count: defaultProviders.length,
+  });
 }
 
 main()

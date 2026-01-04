@@ -152,6 +152,11 @@ const mainItems: NavItem[] = [
     path: "/payments",
   },
   {
+    icon: <BankIcon />,
+    name: "Payment Providers",
+    path: "/payment-providers",
+  },
+  {
     icon: <PieChartIcon />,
     name: "Analytics",
     path: "/analytics",
