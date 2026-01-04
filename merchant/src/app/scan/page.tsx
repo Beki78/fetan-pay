@@ -7,6 +7,9 @@ import {
   Scan,
   RefreshCcw,
   ClipboardClock,
+  User,
+  Building,
+  XCircle,
 } from "lucide-react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
@@ -52,6 +55,10 @@ export default function ScanPage() {
     status: string;
     reference: string;
     provider: string;
+    senderName?: string | null;
+    receiverAccount?: string | null;
+    receiverName?: string | null;
+    amount?: number | null;
     details?: unknown;
     message?: string;
   } | null>(null);
@@ -201,6 +208,10 @@ export default function ScanPage() {
         status: response.status,
         reference: response.transaction?.reference ?? reference,
         provider,
+        senderName: response.transaction?.senderName,
+        receiverAccount: response.transaction?.receiverAccount,
+        receiverName: response.transaction?.receiverName,
+        amount: response.transaction?.amount ?? claimedAmount,
         details: {
           checks: response.checks,
           mismatchReason: response.mismatchReason ?? null,
@@ -565,49 +576,110 @@ export default function ScanPage() {
                   {verificationResult && (
                     <div
                       ref={resultsRef}
-                      className="mt-6 p-6 bg-muted/50 rounded-lg border border-border space-y-4"
+                      className={cn(
+                        "mt-6 p-1 rounded-xl border shadow-sm animate-in fade-in slide-in-from-bottom-4",
+                        verificationResult.success
+                          ? "bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800"
+                          : "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800"
+                      )}
                     >
-                      <div className="flex items-center gap-2 mb-4">
-                        <CheckCircle2 className="h-5 w-5 text-secondary" />
-                        <h3 className="text-lg font-semibold text-foreground">
-                          Verification Result
-                        </h3>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Status:
-                          </span>
-                          <span className="text-base font-semibold text-foreground">
-                            {verificationResult.status}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Reference:
-                          </span>
-                          <span className="text-base font-semibold text-foreground">
-                            {verificationResult.reference}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Provider:
-                          </span>
-                          <span className="text-base font-semibold text-foreground">
-                            {verificationResult.provider}
-                          </span>
-                        </div>
-                        {verificationResult.message && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              Message:
-                            </span>
-                            <span className="text-sm text-foreground">
-                              {verificationResult.message}
-                            </span>
+                      <div className="p-6 space-y-6">
+                        {/* Header Status */}
+                        <div className="text-center space-y-2">
+                          <div className="flex justify-center">
+                            {verificationResult.success ? (
+                              <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center dark:bg-green-900/20">
+                                <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+                              </div>
+                            ) : (
+                              <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center dark:bg-red-900/20">
+                                <XCircle className="h-10 w-10 text-red-600 dark:text-red-400" />
+                              </div>
+                            )}
                           </div>
-                        )}
+                          <h3
+                            className={cn(
+                              "text-xl font-bold tracking-tight",
+                              verificationResult.success
+                                ? "text-green-700 dark:text-green-400"
+                                : "text-red-700 dark:text-red-400"
+                            )}
+                          >
+                            {verificationResult.success ? "Payment Verified" : "Verification Failed"}
+                          </h3>
+                          {verificationResult.message && (
+                            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                              {verificationResult.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Amount */}
+                          <div className="bg-background/50 rounded-lg p-4 text-center border border-border/50">
+                            <p className="text-sm font-medium text-muted-foreground mb-1">
+                              Amount Paid
+                            </p>
+                            <div className="text-3xl font-extrabold text-foreground tracking-tight">
+                              {formatNumberWithCommas(
+                                (verificationResult.amount ?? 0).toString()
+                              )}{" "}
+                              <span className="text-lg text-muted-foreground font-semibold">ETB</span>
+                            </div>
+                          </div>
+
+                          {/* Flow Details */}
+                          <div className="bg-background/50 rounded-lg border border-border/50 divide-y divide-border/50">
+                            {/* Sent To */}
+                            <div className="p-3 flex items-start gap-3">
+                              <div className="mt-1 h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+                                <Building className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  Sent To (Merchant)
+                                </p>
+                                <p className="font-semibold text-foreground truncate">
+                                  {verificationResult.receiverName || "Unknown Merchant"}
+                                </p>
+                                <p className="text-xs text-muted-foreground font-mono truncate">
+                                  {verificationResult.receiverAccount}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Sent From */}
+                            {verificationResult.senderName && (
+                              <div className="p-3 flex items-start gap-3">
+                                <div className="mt-1 h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
+                                  <User className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    Sent From (Payer)
+                                  </p>
+                                  <p className="font-semibold text-foreground truncate capitalize">
+                                    {verificationResult.senderName}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Tech Details */}
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="bg-muted p-3 rounded-lg border border-border/50">
+                              <p className="text-xs text-muted-foreground mb-1">Provider</p>
+                              <p className="font-medium font-mono">{verificationResult.provider}</p>
+                            </div>
+                            <div className="bg-muted p-3 rounded-lg border border-border/50">
+                              <p className="text-xs text-muted-foreground mb-1">Reference</p>
+                              <p className="font-medium font-mono truncate" title={verificationResult.reference}>
+                                {verificationResult.reference}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}

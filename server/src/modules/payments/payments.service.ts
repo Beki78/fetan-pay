@@ -72,6 +72,13 @@ export class PaymentsService {
     return undefined;
   }
 
+  private extractVerifierSenderName(payload: any): string | undefined {
+    // Common fields for sender/payer name across providers
+    const s = payload?.sender || payload?.senderName || payload?.payer || payload?.payerName;
+    if (typeof s === 'string' && s.trim()) return s.trim();
+    return undefined;
+  }
+
   private normalizeName(raw?: string | null): string {
     return (raw ?? '')
       .toString()
@@ -220,6 +227,7 @@ export class PaymentsService {
       normalizedPayload,
       body.reference,
     );
+    const txSenderName = this.extractVerifierSenderName(normalizedPayload);
 
     const amountMatches =
       txAmount !== undefined &&
@@ -272,10 +280,7 @@ export class PaymentsService {
         receiverAccount: { connect: { id: activeReceiver.id } },
         verificationPayload: normalizedPayload as any,
         verifiedAt: status === PaymentStatus.VERIFIED ? new Date() : null,
-        verifiedBy:
-          status === PaymentStatus.VERIFIED
-            ? { connect: { id: membership.merchantUserId } }
-            : { disconnect: true },
+        verifiedBy: { connect: { id: membership.merchantUserId } },
       },
       create: {
         merchant: { connect: { id: membership.merchantId } },
@@ -288,9 +293,7 @@ export class PaymentsService {
         receiverAccount: { connect: { id: activeReceiver.id } },
         verificationPayload: normalizedPayload as any,
         verifiedAt: status === PaymentStatus.VERIFIED ? new Date() : null,
-        ...(status === PaymentStatus.VERIFIED
-          ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
-          : {}),
+        verifiedBy: { connect: { id: membership.merchantUserId } },
       },
       include: {
         receiverAccount: true,
@@ -323,7 +326,10 @@ export class PaymentsService {
       transaction: {
         reference: effectiveReference,
         receiverAccount: txReceiverAccount ?? null,
+        receiverName: txReceiverName ?? null,
         amount: txAmount ?? null,
+
+        senderName: txSenderName ?? null,
         raw: normalizedPayload,
       },
     };
@@ -344,6 +350,12 @@ export class PaymentsService {
       ...(query.status ? { status: query.status as PaymentVerificationStatus } : {}),
       ...(query.reference ? { reference: query.reference } : {}),
     };
+
+    // Security: Waiter/Sales can only see their own verification history.
+    const restrictedRoles = ['WAITER', 'SALES'];
+    if (restrictedRoles.includes(membership.role)) {
+      where.verifiedById = membership.merchantUserId;
+    }
 
     // Date range applies to verifiedAt if present, otherwise fall back to updatedAt.
     const from = query.from ? new Date(query.from) : undefined;
@@ -722,7 +734,18 @@ export class PaymentsService {
         },
       },
     });
+
     if (!payment) throw new NotFoundException('Payment not found');
+
+    // Security: Waiter/Sales can only view payments they verified.
+    const restrictedRoles = ['WAITER', 'SALES'];
+    if (
+      restrictedRoles.includes(membership.role) &&
+      payment.verifiedById !== membership.merchantUserId
+    ) {
+      throw new ForbiddenException('You are not authorized to view this payment');
+    }
+
     return { payment };
   }
 
@@ -770,12 +793,13 @@ export class PaymentsService {
     const membership = await this.merchantUsersService.me(req);
     const merchantId = membership?.membership?.merchant?.id as string | undefined;
     const merchantUserId = membership?.membership?.id as string | undefined;
+    const role = membership?.membership?.role as string | undefined;
 
-    if (!merchantId || !merchantUserId) {
+    if (!merchantId || !merchantUserId || !role) {
       throw new ForbiddenException('Merchant membership required');
     }
 
-    return { merchantId, merchantUserId, userId };
+    return { merchantId, merchantUserId, userId, role };
   }
 
   private toDecimal(value: number, field: string) {
