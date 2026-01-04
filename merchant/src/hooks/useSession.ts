@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { API_BASE_URL } from "@/lib/constants";
 
 type User = NonNullable<
   ReturnType<typeof authClient.getSession>["data"]
@@ -14,6 +15,7 @@ type Session = NonNullable<
 export function useSession() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [membership, setMembership] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,17 +29,35 @@ export function useSession() {
       if (res.data?.user && res.data?.session) {
         setUser(res.data.user);
         setSession(res.data.session);
+
+        // Best-effort: fetch merchant membership info so the UI can show business name.
+        // This is optional and should not break auth/session if the API isn't reachable.
+        try {
+          const r = await fetch(`${API_BASE_URL}/merchant-users/me`, {
+            credentials: "include",
+          });
+          if (r.ok) {
+            const data = await r.json();
+            setMembership(data);
+          } else {
+            setMembership(null);
+          }
+        } catch {
+          setMembership(null);
+        }
         return true;
       }
 
       setUser(null);
       setSession(null);
+      setMembership(null);
       return false;
     } catch (e) {
       console.error("[merchant] getSession failed", e);
       setError("Failed to check session");
       setUser(null);
       setSession(null);
+      setMembership(null);
       return false;
     }
   }, []);
@@ -58,11 +78,13 @@ export function useSession() {
           onSuccess: () => {
             setUser(null);
             setSession(null);
+            setMembership(null);
             setError(null);
           },
           onError: () => {
             setUser(null);
             setSession(null);
+            setMembership(null);
             setError(null);
           },
         },
@@ -72,6 +94,7 @@ export function useSession() {
       console.error("[merchant] signOut failed", e);
       setUser(null);
       setSession(null);
+      setMembership(null);
       setError(null);
       return false;
     }
@@ -89,6 +112,7 @@ export function useSession() {
   return {
     user,
     session,
+    membership,
     isLoading,
     isAuthenticated,
     error,

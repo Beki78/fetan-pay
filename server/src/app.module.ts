@@ -10,6 +10,7 @@ import { VerifierModule } from './modules/verifier/verifier.module';
 import { PrismaModule } from '../database/prisma.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { MerchantsModule } from './modules/merchants/merchants.module';
+import { MerchantUsersModule } from './modules/merchant-users/merchant-users.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { MerchantsModule } from './modules/merchants/merchants.module';
     PrismaModule,
     TransactionsModule,
     MerchantsModule,
+    MerchantUsersModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],
