@@ -138,7 +138,7 @@ export const auth = betterAuth({
         },
       },
       // SUPERADMIN should be able to access all admin plugin endpoints.
-      adminRoles: ['SUPERADMIN', 'ADMIN', 'MERCHANT_OWNER'],
+      adminRoles: ['SUPERADMIN', 'ADMIN'],
     }),
     emailOTP({
       overrideDefaultEmailVerification: true,

@@ -8,15 +8,53 @@ import Link from "next/link";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { authClient } from "@/lib/auth-client";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const isDev = process.env.NODE_ENV !== "production";
+  const [email, setEmail] = useState(
+    isDev ? "superadmin@fetanpay.com" : ""
+  );
+  const [password, setPassword] = useState(isDev ? "12345678" : "");
+  const [roleError, setRoleError] = useState<string | null>(null);
   const { signInWithGoogle, signInWithEmailAndPassword, isLoading, error } =
     useAuth();
   const router = useRouter();
+
+  const getNextUrl = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get("next");
+      return next && next.startsWith("/") ? next : "/";
+    } catch {
+      return "/";
+    }
+  };
+
+  React.useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const e = params.get("error");
+      if (e) setRoleError(e);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const enforceAdminRole = async (): Promise<boolean> => {
+    const sessionResponse = await authClient.getSession();
+    const role = (sessionResponse.data?.user as any)?.role as string | undefined;
+
+    if (role === "SUPERADMIN" || role === "ADMIN") {
+      return true;
+    }
+
+    await authClient.signOut();
+    setRoleError("You don't have access to the admin dashboard.");
+    return false;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +64,10 @@ export default function SignInForm() {
       isChecked
     );
     if (success) {
-      router.push("/");
+      const ok = await enforceAdminRole();
+      if (ok) {
+        router.push(getNextUrl());
+      }
     }
   };
 
@@ -72,7 +113,10 @@ export default function SignInForm() {
                 onClick={async () => {
                   const success = await signInWithGoogle();
                   if (success) {
-                    router.push("/");
+                    const ok = await enforceAdminRole();
+                    if (ok) {
+                      router.push(getNextUrl());
+                    }
                   }
                 }}
                 disabled={isLoading}
@@ -122,9 +166,9 @@ export default function SignInForm() {
                 X (Twitter)
               </button>
             </div>
-            {error && (
+            {(roleError || error) && (
               <div className="mb-4 text-sm text-error-600 dark:text-error-400">
-                {error}
+                {roleError ?? error}
               </div>
             )}
             <div className="relative py-3 sm:py-5">

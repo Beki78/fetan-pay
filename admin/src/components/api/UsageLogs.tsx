@@ -95,6 +95,7 @@ export default function UsageLogs() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [apiKeyFilter, setApiKeyFilter] = useState<string>("all");
   const [selectedLog, setSelectedLog] = useState<UsageLog | null>(null);
+  const [openMenuLogId, setOpenMenuLogId] = useState<string | null>(null);
   const { isOpen, openModal, closeModal } = useModal();
 
   const filteredLogs = useMemo(() => {
@@ -115,7 +116,7 @@ export default function UsageLogs() {
     if (statusCode >= 200 && statusCode < 300) return "success";
     if (statusCode >= 400 && statusCode < 500) return "error";
     if (statusCode >= 500) return "error";
-    return "default";
+    return "light";
   };
 
   const handleViewDetails = (log: UsageLog) => {
@@ -208,7 +209,13 @@ export default function UsageLogs() {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      color={log.method === "GET" ? "success" : log.method === "POST" ? "warning" : "default"}
+                      color={
+                        log.method === "GET"
+                          ? "success"
+                          : log.method === "POST"
+                          ? "warning"
+                          : "light"
+                      }
                     >
                       {log.method}
                     </Badge>
@@ -229,18 +236,35 @@ export default function UsageLogs() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Dropdown
-                      trigger={
-                        <button className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                      }
-                    >
-                      <DropdownItem onClick={() => handleViewDetails(log)}>
-                        <EyeIcon className="size-4" />
-                        View Details
-                      </DropdownItem>
-                    </Dropdown>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                        onClick={() =>
+                          setOpenMenuLogId((prev) =>
+                            prev === log.id ? null : log.id
+                          )
+                        }
+                        aria-haspopup="menu"
+                        aria-expanded={openMenuLogId === log.id}
+                      >
+                        <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
+                      </button>
+                      <Dropdown
+                        isOpen={openMenuLogId === log.id}
+                        onClose={() => setOpenMenuLogId(null)}
+                      >
+                        <DropdownItem
+                          onClick={() => {
+                            setOpenMenuLogId(null);
+                            handleViewDetails(log);
+                          }}
+                        >
+                          <EyeIcon className="size-4" />
+                          View Details
+                        </DropdownItem>
+                      </Dropdown>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
