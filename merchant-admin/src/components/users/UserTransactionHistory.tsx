@@ -10,10 +10,10 @@ import {
 import Badge from "../ui/badge/Badge";
 import Input from "../form/input/InputField";
 import {
-  TransactionRecord,
-  TransactionStatus,
-  useListVerifiedByUserQuery,
-} from "@/lib/services/transactionsServiceApi";
+  type PaymentRecord,
+  type PaymentVerificationStatus,
+  useListVerificationHistoryQuery,
+} from "@/lib/services/paymentsServiceApi";
 
 interface UserTransactionHistoryProps {
   userId: string;
@@ -30,16 +30,16 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const getStatusColor = (status: TransactionStatus) => {
+const getStatusColor = (status: PaymentVerificationStatus) => {
   switch (status) {
     case "VERIFIED":
       return "success";
-    case "PENDING":
+    case "UNVERIFIED":
       return "warning";
-    case "FAILED":
-      return "error";
+    case "PENDING":
+      return "info";
     default:
-      return "error";
+      return "info";
   }
 };
 
@@ -47,15 +47,18 @@ export default function UserTransactionHistory({
   userId,
 }: UserTransactionHistoryProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | TransactionStatus>("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | PaymentVerificationStatus>("All");
 
-  const { data, isFetching } = useListVerifiedByUserQuery({
-    merchantUserId: userId,
+  const { data, isFetching } = useListVerificationHistoryQuery({
     page: 1,
-    pageSize: 50,
+    pageSize: 100,
   });
 
-  const transactions = data?.data ?? [];
+  // Server returns merchant-scoped verifications; filter to rows verified by this user.
+  const transactions = useMemo(() => {
+    const items = data?.data ?? [];
+    return items.filter((x: PaymentRecord) => x.verifiedById === userId);
+  }, [data, userId]);
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
@@ -88,14 +91,14 @@ export default function UserTransactionHistory({
           <select
             value={statusFilter}
             onChange={(e) =>
-              setStatusFilter(e.target.value as "All" | TransactionStatus)
+              setStatusFilter(e.target.value as "All" | PaymentVerificationStatus)
             }
             className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
           >
             <option value="All">All Status</option>
             <option value="VERIFIED">Verified</option>
             <option value="PENDING">Pending</option>
-            <option value="FAILED">Failed</option>
+            <option value="UNVERIFIED">Unverified</option>
           </select>
         </div>
       </div>
@@ -131,6 +134,12 @@ export default function UserTransactionHistory({
                   >
                     Verified At
                   </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  >
+                    Mismatch
+                  </TableCell>
                 </TableRow>
               </TableHeader>
 
@@ -138,7 +147,7 @@ export default function UserTransactionHistory({
                 {isFetching ? (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       className="px-5 py-8 text-center text-gray-500 dark:text-gray-400"
                     >
                       Loading transactions...
@@ -147,7 +156,7 @@ export default function UserTransactionHistory({
                 ) : filteredTransactions.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       className="px-5 py-8 text-center text-gray-500 dark:text-gray-400"
                     >
                       No transactions found
@@ -170,11 +179,10 @@ export default function UserTransactionHistory({
                         </Badge>
                       </TableCell>
                       <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                        {transaction.verifiedAt
-                          ? formatDate(transaction.verifiedAt)
-                          : transaction.createdAt
-                          ? formatDate(transaction.createdAt)
-                          : "-"}
+                        {transaction.verifiedAt ? formatDate(transaction.verifiedAt) : "-"}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                        {transaction.mismatchReason ?? "-"}
                       </TableCell>
                     </TableRow>
                   ))

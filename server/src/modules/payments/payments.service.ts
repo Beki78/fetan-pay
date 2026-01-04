@@ -4,18 +4,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  PaymentVerificationStatus,
-  TransactionProvider,
-} from '@prisma/client';
+import * as PrismaClient from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import { PrismaService } from '../../../database/prisma.service';
 import { MerchantUsersService } from '../merchant-users/merchant-users.service';
+import { VerificationService } from '../verifier/services/verification.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
 import { SubmitPaymentClaimDto } from './dto/submit-payment-claim.dto';
+import { VerifyMerchantPaymentDto } from './dto/verify-merchant-payment.dto';
+import {
+  ListVerificationHistoryDto,
+  type PaymentVerificationStatus,
+} from './dto/list-verification-history.dto';
 
 type TipsRange = { from?: string; to?: string };
 
@@ -24,7 +27,387 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly merchantUsersService: MerchantUsersService,
+    private readonly verificationService: VerificationService,
   ) {}
+
+  private paymentStatusEnum() {
+    return (PrismaClient as any).PaymentVerificationStatus as
+      | { VERIFIED: 'VERIFIED'; UNVERIFIED: 'UNVERIFIED'; PENDING: 'PENDING' }
+      | undefined;
+  }
+
+  private normalizeAccount(raw?: string | null): string {
+    return (raw ?? '')
+      .toString()
+      .replace(/\s+/g, '')
+      .replace(/-/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  private normalizeAmountToCents(amount: number): number {
+    // Avoid float errors by rounding to cents.
+    return Math.round(amount * 100);
+  }
+
+  private extractVerifierAmount(payload: any): number | undefined {
+    const a = payload?.amount;
+    if (typeof a === 'number' && Number.isFinite(a)) return a;
+    if (typeof a === 'string') {
+      const parsed = parseFloat(a.replace(/[^\d.]/g, ''));
+      return Number.isNaN(parsed) ? undefined : parsed;
+    }
+    return undefined;
+  }
+
+  private extractVerifierReceiverAccount(payload: any): string | undefined {
+    const ra = payload?.receiverAccount;
+    if (typeof ra === 'string' && ra.trim()) return ra.trim();
+    return undefined;
+  }
+
+  private extractVerifierReceiverName(payload: any): string | undefined {
+    const r = payload?.receiver;
+    if (typeof r === 'string' && r.trim()) return r.trim();
+    return undefined;
+  }
+
+  private normalizeName(raw?: string | null): string {
+    return (raw ?? '')
+      .toString()
+      .toLowerCase()
+      .replace(/[^a-z\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private accountDigits(raw?: string | null): string {
+    return (raw ?? '').toString().replace(/\D/g, '');
+  }
+
+  private accountLooksMasked(raw?: string | null): boolean {
+    return /\*{2,}|x{2,}/i.test(raw ?? '');
+  }
+
+  /**
+   * Receiver matching rules:
+   * 1) Exact match after normalization (best).
+   * 2) If receipt is masked (e.g., 01320******3801), fall back to last N digits match.
+   * 3) If a receiverName is configured, also require name match when using the masked fallback.
+   */
+  private receiverAccountMatches(
+    txReceiverAccount: string | undefined,
+    configuredReceiverAccount: string,
+    txReceiverName?: string | undefined,
+    configuredReceiverName?: string | null,
+  ): boolean {
+    if (!txReceiverAccount) return false;
+
+    const exact =
+      this.normalizeAccount(txReceiverAccount) ===
+      this.normalizeAccount(configuredReceiverAccount);
+    if (exact) return true;
+
+    // Masked fallback
+    if (!this.accountLooksMasked(txReceiverAccount)) return false;
+
+    const txDigits = this.accountDigits(txReceiverAccount);
+    const cfgDigits = this.accountDigits(configuredReceiverAccount);
+    if (!txDigits || !cfgDigits) return false;
+
+    const last = 4; // common masking keeps last 4 digits visible
+    const txTail = txDigits.slice(-last);
+    const cfgTail = cfgDigits.slice(-last);
+    if (!txTail || txTail.length < last) return false;
+    if (txTail !== cfgTail) return false;
+
+    // If merchant has a receiverName configured, require it to match too for safety.
+    const cfgName = this.normalizeName(configuredReceiverName);
+    if (cfgName) {
+      const txName = this.normalizeName(txReceiverName);
+      if (!txName) return false;
+      // Use includes both ways to be resilient to middle names / spacing differences.
+      return txName.includes(cfgName) || cfgName.includes(txName);
+    }
+
+    return true;
+  }
+
+  private extractVerifierReference(payload: any, fallback: string): string {
+    const r = payload?.reference;
+    return typeof r === 'string' && r.trim() ? r.trim() : fallback;
+  }
+
+  private async runCoreVerifier(
+    provider: PrismaClient.TransactionProvider,
+    reference: string,
+  ) {
+    switch (provider) {
+      case PrismaClient.TransactionProvider.CBE:
+        // Smart-only, no suffix required
+        return this.verificationService.verifyCbeSmart(reference);
+      case PrismaClient.TransactionProvider.TELEBIRR:
+        return this.verificationService.verifyTelebirr(reference);
+      case PrismaClient.TransactionProvider.AWASH:
+        return this.verificationService.verifyAwashSmart(reference);
+      case PrismaClient.TransactionProvider.BOA:
+        return this.verificationService.verifyAbyssiniaSmart(reference);
+      case PrismaClient.TransactionProvider.DASHEN:
+        return this.verificationService.verifyDashen(reference);
+      default:
+        throw new BadRequestException('Unsupported provider');
+    }
+  }
+
+  async verifyMerchantPayment(body: VerifyMerchantPaymentDto, req: Request) {
+    const membership = await this.requireMembership(req);
+
+    const claimedAmount = this.toDecimal(body.claimedAmount, 'claimedAmount');
+
+    // Payment model currently requires an Order relation.
+    // For merchant direct-verification (no order flow), we'll create a lightweight OPEN order
+    // only if we need to create a new Payment record.
+    const existingPayment = await (this.prisma as any).payment.findUnique({
+      where: {
+        payment_merchant_provider_reference_unique: {
+          merchantId: membership.merchantId,
+          provider: body.provider,
+          reference: body.reference,
+        },
+      },
+      select: { id: true, orderId: true },
+    });
+
+    const order = existingPayment
+      ? null
+      : await (this.prisma as any).order.create({
+          data: {
+            merchantId: membership.merchantId,
+            expectedAmount: claimedAmount,
+            currency: 'ETB',
+            status: 'OPEN',
+          },
+        });
+
+    // Require ACTIVE receiver to verify (disabled means merchant intentionally paused).
+    const activeReceiver = await (this.prisma as any).merchantReceiverAccount.findFirst({
+      where: {
+        merchantId: membership.merchantId,
+        provider: body.provider,
+        status: 'ACTIVE',
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    if (!activeReceiver) {
+      throw new BadRequestException(
+        `No active receiver account configured for provider ${body.provider}`,
+      );
+    }
+
+    const verifierResult = await this.runCoreVerifier(body.provider, body.reference);
+    const normalizedPayload = JSON.parse(JSON.stringify(verifierResult ?? null));
+
+    const referenceFound =
+      !!normalizedPayload &&
+      typeof normalizedPayload === 'object' &&
+      (normalizedPayload as any).success !== false;
+
+    const txAmount = this.extractVerifierAmount(normalizedPayload);
+    const txReceiverAccount = this.extractVerifierReceiverAccount(normalizedPayload);
+    const txReceiverName = this.extractVerifierReceiverName(normalizedPayload);
+    const effectiveReference = this.extractVerifierReference(
+      normalizedPayload,
+      body.reference,
+    );
+
+    const amountMatches =
+      txAmount !== undefined &&
+      this.normalizeAmountToCents(txAmount) ===
+        this.normalizeAmountToCents(body.claimedAmount);
+
+    const receiverMatches = this.receiverAccountMatches(
+      txReceiverAccount,
+      activeReceiver.receiverAccount,
+      txReceiverName,
+      activeReceiver.receiverName,
+    );
+
+    const PaymentStatus = this.paymentStatusEnum();
+    if (!PaymentStatus) {
+      throw new BadRequestException(
+        'Server misconfiguration: PaymentVerificationStatus enum not available',
+      );
+    }
+
+    const status =
+      referenceFound && amountMatches && receiverMatches
+        ? PaymentStatus.VERIFIED
+        : PaymentStatus.UNVERIFIED;
+
+    const mismatchReason =
+      status === PaymentStatus.VERIFIED
+        ? null
+        : !referenceFound
+          ? 'REFERENCE_NOT_FOUND'
+          : !receiverMatches
+            ? 'RECEIVER_MISMATCH'
+            : !amountMatches
+              ? 'AMOUNT_MISMATCH'
+              : 'UNVERIFIED';
+
+    const payment = await (this.prisma as any).payment.upsert({
+      where: {
+        payment_merchant_provider_reference_unique: {
+          merchantId: membership.merchantId,
+          provider: body.provider,
+          reference: effectiveReference,
+        },
+      },
+      update: {
+        ...(order ? { order: { connect: { id: order.id } } } : {}),
+        claimedAmount,
+        status,
+        mismatchReason,
+        receiverAccount: { connect: { id: activeReceiver.id } },
+        verificationPayload: normalizedPayload as any,
+        verifiedAt: status === PaymentStatus.VERIFIED ? new Date() : null,
+        verifiedBy:
+          status === PaymentStatus.VERIFIED
+            ? { connect: { id: membership.merchantUserId } }
+            : { disconnect: true },
+      },
+      create: {
+        merchant: { connect: { id: membership.merchantId } },
+        order: { connect: { id: (order ?? existingPayment)?.orderId ?? order?.id } },
+        provider: body.provider,
+        reference: effectiveReference,
+        claimedAmount,
+        status,
+        mismatchReason,
+        receiverAccount: { connect: { id: activeReceiver.id } },
+        verificationPayload: normalizedPayload as any,
+        verifiedAt: status === PaymentStatus.VERIFIED ? new Date() : null,
+        ...(status === PaymentStatus.VERIFIED
+          ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
+          : {}),
+      },
+      include: {
+        receiverAccount: true,
+        verifiedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      status,
+      payment,
+      checks: {
+        referenceFound,
+        receiverMatches,
+        amountMatches,
+      },
+      transaction: {
+        reference: effectiveReference,
+        receiverAccount: txReceiverAccount ?? null,
+        amount: txAmount ?? null,
+        raw: normalizedPayload,
+      },
+    };
+  }
+
+  async listVerificationHistory(query: ListVerificationHistoryDto, req: Request) {
+    const membership = await this.requireMembership(req);
+
+    // Defensive parsing: depending on global validation/transform setup,
+    // query params may still arrive as strings.
+    const page = Math.max(1, Number(query.page ?? 1) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize ?? 20) || 20));
+    const skip = (page - 1) * pageSize;
+
+    const where: any = {
+      merchantId: membership.merchantId,
+      ...(query.provider ? { provider: query.provider } : {}),
+      ...(query.status ? { status: query.status as PaymentVerificationStatus } : {}),
+      ...(query.reference ? { reference: query.reference } : {}),
+    };
+
+    // Date range applies to verifiedAt if present, otherwise fall back to updatedAt.
+    const from = query.from ? new Date(query.from) : undefined;
+    const to = query.to ? new Date(query.to) : undefined;
+    if (query.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (query.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    if (from || to) {
+      where.OR = [
+        {
+          verifiedAt: {
+            ...(from ? { gte: from } : {}),
+            ...(to ? { lte: to } : {}),
+          },
+        },
+        {
+          verifiedAt: null,
+          updatedAt: {
+            ...(from ? { gte: from } : {}),
+            ...(to ? { lte: to } : {}),
+          },
+        },
+      ];
+    }
+
+    const [total, data] = await this.prisma.$transaction([
+      (this.prisma as any).payment.count({ where }),
+      (this.prisma as any).payment.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: pageSize,
+        include: {
+          receiverAccount: true,
+          verifiedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      page,
+      pageSize,
+      total,
+      data,
+    };
+  }
 
   /**
    * Contract:
@@ -81,12 +464,16 @@ export class PaymentsService {
   async getActiveReceiverAccount(provider: string | undefined, req: Request) {
     const membership = await this.requireMembership(req);
 
-    let providerEnum: TransactionProvider | undefined;
+    let providerEnum: PrismaClient.TransactionProvider | undefined;
     if (provider) {
-      if (!Object.values(TransactionProvider).includes(provider as TransactionProvider)) {
+      if (
+        !Object.values(PrismaClient.TransactionProvider).includes(
+          provider as any,
+        )
+      ) {
         throw new BadRequestException('Invalid provider');
       }
-      providerEnum = provider as TransactionProvider;
+      providerEnum = provider as any;
     }
 
     // NOTE: despite the name, this endpoint returns BOTH ACTIVE and INACTIVE receiver accounts
@@ -236,12 +623,19 @@ export class PaymentsService {
       receiverAccountFromPayload != null &&
       receiverAccountFromPayload === activeReceiver.receiverAccount;
 
+    const PaymentStatus = this.paymentStatusEnum();
+    if (!PaymentStatus) {
+      throw new BadRequestException(
+        'Server misconfiguration: PaymentVerificationStatus enum not available',
+      );
+    }
+
     const status = (amountMatches && receiverMatches)
-      ? PaymentVerificationStatus.VERIFIED
-      : PaymentVerificationStatus.UNVERIFIED;
+      ? PaymentStatus.VERIFIED
+      : PaymentStatus.UNVERIFIED;
 
     const mismatchReason =
-      status === PaymentVerificationStatus.VERIFIED
+      status === PaymentStatus.VERIFIED
         ? null
         : this.buildMismatchReason({
             amountMatches,
@@ -298,7 +692,7 @@ export class PaymentsService {
     });
 
     // If verified, mark order as PAID (simple version)
-    if (status === PaymentVerificationStatus.VERIFIED) {
+    if (status === PaymentStatus.VERIFIED) {
       await (this.prisma as any).order.update({
         where: { id: order.id },
         data: { status: 'PAID' },

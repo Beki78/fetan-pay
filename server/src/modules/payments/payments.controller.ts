@@ -14,6 +14,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
 import { SubmitPaymentClaimDto } from './dto/submit-payment-claim.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
+import { ListVerificationHistoryDto } from './dto/list-verification-history.dto';
+import { VerifyMerchantPaymentDto } from './dto/verify-merchant-payment.dto';
 import { PaymentsService } from './payments.service';
 
 @ApiTags('payments')
@@ -60,6 +62,27 @@ export class PaymentsController {
   })
   async submitClaim(@Body() body: SubmitPaymentClaimDto, @Req() req: Request) {
     return this.paymentsService.submitAndVerifyClaim(body, req);
+  }
+
+  @Post('verify')
+  @ApiOperation({
+    summary:
+      'Verify a payment by provider+reference+amount against the merchant configured receiver account',
+  })
+  async verifyMerchantPayment(
+    @Body() body: VerifyMerchantPaymentDto,
+    @Req() req: Request,
+  ) {
+    return this.paymentsService.verifyMerchantPayment(body, req);
+  }
+
+  @Get('verification-history')
+  @ApiOperation({ summary: 'List merchant payment verification history' })
+  async listVerificationHistory(
+    @Query() query: ListVerificationHistoryDto,
+    @Req() req: Request,
+  ) {
+    return this.paymentsService.listVerificationHistory(query, req);
   }
 
   @Get('claims/:paymentId')

@@ -26,7 +26,7 @@ import { APP_CONFIG, BANKS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { formatNumberWithCommas, type BankId } from "@/lib/validation";
 import { createScanSchema } from "@/lib/schemas";
-import { useVerifyFromQrMutation } from "@/lib/services/transactionsServiceApi";
+import { useVerifyMerchantPaymentMutation } from "@/lib/services/paymentsServiceApi";
 import { useSession } from "@/hooks/useSession";
 import { useRouter } from "next/navigation";
 
@@ -35,7 +35,6 @@ type FormData = {
   transactionId?: string;
   tipAmount?: string;
   verificationMethod: "transaction" | "camera" | null;
-  accountSuffix?: string;
 };
 
 export default function ScanPage() {
@@ -56,7 +55,8 @@ export default function ScanPage() {
     details?: unknown;
     message?: string;
   } | null>(null);
-  const [verifyFromQr, { isLoading: isVerifying }] = useVerifyFromQrMutation();
+  const [verifyMerchantPayment, { isLoading: isVerifying }] =
+    useVerifyMerchantPaymentMutation();
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const schema = createScanSchema(
@@ -78,7 +78,6 @@ export default function ScanPage() {
       transactionId: "",
       tipAmount: "",
       verificationMethod: null,
-      accountSuffix: "",
     },
   });
 
@@ -96,7 +95,6 @@ export default function ScanPage() {
       transactionId: "",
       tipAmount: tipAmount || "",
       verificationMethod: null,
-      accountSuffix: "",
     });
   };
 
@@ -154,62 +152,72 @@ export default function ScanPage() {
       telebirr: "TELEBIRR",
     };
 
-    const buildQrUrl = (input: string) => {
-      if (!input) {
-        throw new Error("Transaction reference or URL is required");
-      }
-
-      // For Telebirr, verification often relies on a QR/URL payload.
-      // For other banks, users commonly enter a plain transaction reference.
-      // In that case, we STILL send a valid URL to the backend for parsing,
-      // but we also pass the reference explicitly so the backend doesn't depend
-      // on query parsing.
-      if (input.startsWith("http://") || input.startsWith("https://")) {
-        return input;
-      }
-
-      const paramKey = selectedBank === "cbe" ? "id" : "ref";
-      return `https://scan.kifiya.local/qr?${paramKey}=${encodeURIComponent(input)}`;
-    };
-
     try {
       setVerificationResult(null);
 
       const provider = providerMap[selectedBank as BankId];
-  const qrUrl = buildQrUrl(data.transactionId || "");
-      const accountSuffix = selectedBank === "cbe" ? data.accountSuffix : undefined;
+      const reference = (data.transactionId || "").trim();
+      if (!reference) {
+        throw new Error("Transaction reference is required");
+      }
 
-      const response = await verifyFromQr({
-        qrUrl,
+      const claimedAmount = parseFloat((data.amount || "0").replace(/,/g, ""));
+      if (Number.isNaN(claimedAmount) || claimedAmount <= 0) {
+        throw new Error("Please enter a valid amount");
+      }
+
+      const response = await verifyMerchantPayment({
         provider,
-        // If user typed a URL, let server extract the reference.
-        // If user typed a plain reference, pass it explicitly.
-        reference:
-          data.transactionId &&
-          (data.transactionId.startsWith("http://") ||
-            data.transactionId.startsWith("https://"))
-            ? undefined
-            : data.transactionId || undefined,
-        accountSuffix,
+        reference,
+        claimedAmount,
       }).unwrap();
 
       const success = response.status === "VERIFIED";
 
+      const failureMessage = (() => {
+        if (response.mismatchReason === "REFERENCE_NOT_FOUND") {
+          return "Reference not found or transaction not successful";
+        }
+        if (response.mismatchReason === "RECEIVER_MISMATCH") {
+          return "Paid to a different receiver account (not your configured account)";
+        }
+        if (response.mismatchReason === "AMOUNT_MISMATCH") {
+          return "Amount doesn't match the entered value";
+        }
+        if (!response.checks?.referenceFound) {
+          return "Reference not found or transaction not successful";
+        }
+        if (response.checks?.referenceFound && !response.checks?.receiverMatches) {
+          return "Paid to a different receiver account (not your configured account)";
+        }
+        if (response.checks?.referenceFound && !response.checks?.amountMatches) {
+          return "Amount doesn't match the entered value";
+        }
+        return "Transaction isn't verified";
+      })();
+
       setVerificationResult({
         success,
         status: response.status,
-        reference: response.reference,
-        provider: response.provider,
-        details: response.verification,
-        message: response.error,
+        reference: response.transaction?.reference ?? reference,
+        provider,
+        details: {
+          checks: response.checks,
+          mismatchReason: response.mismatchReason ?? null,
+          receiverAccount: response.transaction?.receiverAccount ?? null,
+          amount: response.transaction?.amount ?? null,
+        },
+        message: success ? undefined : failureMessage,
       });
 
-      toast[success ? "success" : "error"](
-        success ? "Payment verified" : "Verification failed",
+      // UNVERIFIED is an expected outcome (it means we fetched the receipt but checks didn't pass).
+      // Only use an error toast for network/server errors (caught in catch below).
+      toast[success ? "success" : "warning"](
+        success ? "Payment verified" : "Not verified",
         {
           description: success
-            ? `Reference ${response.reference} verified`
-            : response.error ?? "Could not verify the transaction",
+            ? `Reference ${response.transaction?.reference ?? reference} verified`
+            : failureMessage,
         }
       );
 
@@ -477,29 +485,7 @@ export default function ScanPage() {
                   )}
 
                   {/* Account suffix for CBE */}
-                  {selectedBank === "cbe" && (
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium text-foreground">
-                        CBE Account Suffix (5 digits)
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Enter account suffix"
-                        inputMode="numeric"
-                        maxLength={5}
-                        {...register("accountSuffix")}
-                        className={cn(
-                          "h-12 focus-visible:ring-1",
-                          errors.accountSuffix && "border-destructive"
-                        )}
-                      />
-                      {errors.accountSuffix && (
-                        <p className="text-sm text-destructive">
-                          {errors.accountSuffix.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
+
 
                   {/* Tip Input with Switch */}
                   <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">

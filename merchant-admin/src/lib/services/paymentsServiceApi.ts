@@ -4,6 +4,23 @@ import { API_BASE_URL } from '../constants';
 export type TransactionProvider = 'CBE' | 'TELEBIRR' | 'AWASH' | 'BOA' | 'DASHEN';
 export type PaymentVerificationStatus = 'PENDING' | 'VERIFIED' | 'UNVERIFIED';
 
+export interface ListVerificationHistoryParams {
+  provider?: TransactionProvider;
+  status?: PaymentVerificationStatus;
+  reference?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface VerificationHistoryResponse {
+  data: PaymentRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface MerchantReceiverAccount {
   id: string;
   merchantId: string;
@@ -38,6 +55,18 @@ export interface PaymentRecord {
   status: PaymentVerificationStatus;
   verifiedAt?: string | null;
   mismatchReason?: string | null;
+  verifiedById?: string | null;
+  verifiedBy?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+    user?: {
+      id: string;
+      email: string;
+      name: string;
+    } | null;
+  } | null;
   order?: OrderRecord;
   receiverAccount?: MerchantReceiverAccount | null;
 }
@@ -178,6 +207,27 @@ export const paymentsServiceApi = createApi({
       },
       providesTags: [{ type: 'Tips', id: 'SUMMARY' }],
     }),
+
+    listVerificationHistory: builder.query<VerificationHistoryResponse, ListVerificationHistoryParams | void>({
+      query: (params) => {
+        const query = new URLSearchParams();
+        if (params?.provider) query.set('provider', params.provider);
+        if (params?.status) query.set('status', params.status);
+        if (params?.reference) query.set('reference', params.reference);
+        if (params?.from) query.set('from', params.from);
+        if (params?.to) query.set('to', params.to);
+        query.set('page', String(params?.page ?? 1));
+        query.set('pageSize', String(params?.pageSize ?? 20));
+        return { url: `/payments/verification-history?${query.toString()}` };
+      },
+      providesTags: (result) =>
+        result?.data?.length
+          ? [
+              ...result.data.map((p) => ({ type: 'Payment' as const, id: p.id })),
+              { type: 'Payment' as const, id: 'LIST' },
+            ]
+          : [{ type: 'Payment' as const, id: 'LIST' }],
+    }),
   }),
 });
 
@@ -190,4 +240,5 @@ export const {
   useSubmitPaymentClaimMutation,
   useGetPaymentClaimQuery,
   useGetTipsSummaryQuery,
+  useListVerificationHistoryQuery,
 } = paymentsServiceApi;

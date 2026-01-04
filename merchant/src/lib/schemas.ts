@@ -99,32 +99,6 @@ export const createScanSchema = (
           }
         }
       }),
-    accountSuffix: z
-      .string()
-      .optional()
-      .superRefine((val, ctx) => {
-        const requiresSuffix = bankId === "cbe";
-        if (requiresSuffix) {
-          if (!val || !val.trim()) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "Account suffix is required for CBE",
-            });
-            return;
-          }
-          if (!/^\d{5}$/.test(val.trim())) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "Account suffix must be exactly 5 digits",
-            });
-          }
-        } else if (val && !/^\d{5}$/.test(val.trim())) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Account suffix must be exactly 5 digits",
-          });
-        }
-      }),
     verificationMethod: z.enum(["transaction", "camera"]).nullable(),
   });
 };
