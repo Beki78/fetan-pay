@@ -7,7 +7,9 @@ import {
   Post,
   Req,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -69,6 +71,7 @@ export class PaymentsController {
     summary:
       'Verify a payment by provider+reference+amount against the merchant configured receiver account',
   })
+  @UseGuards(ThrottlerGuard)
   async verifyMerchantPayment(
     @Body() body: VerifyMerchantPaymentDto,
     @Req() req: Request,

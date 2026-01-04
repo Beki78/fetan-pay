@@ -238,8 +238,10 @@ export default function ScanPage() {
           block: "start",
         });
       }, 100);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Verification failed";
+    } catch (error: any) {
+      const message =
+        error?.data?.message ||
+        (error instanceof Error ? error.message : "Verification failed");
       toast.error("Verification error", { description: message });
     }
   };

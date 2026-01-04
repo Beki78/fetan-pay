@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import * as PrismaClient from '@prisma/client';
 import { Prisma } from '@prisma/client';
@@ -182,8 +183,15 @@ export class PaymentsService {
           reference: body.reference,
         },
       },
-      select: { id: true, orderId: true },
+      select: { id: true, orderId: true, status: true, verifiedAt: true },
     });
+
+    if (existingPayment?.status === 'VERIFIED') {
+      throw new ConflictException(
+        `Transaction already verified at ${existingPayment.verifiedAt?.toLocaleString() ?? 'an earlier time'}`,
+      );
+    }
+
 
     const order = existingPayment
       ? null
@@ -228,6 +236,27 @@ export class PaymentsService {
       body.reference,
     );
     const txSenderName = this.extractVerifierSenderName(normalizedPayload);
+
+    // If the effective reference differs from the input (e.g. casing, formatting from provider),
+    // we must check again to see if we already verified the canonical reference.
+    if (effectiveReference !== body.reference) {
+      const canonicalPayment = await (this.prisma as any).payment.findUnique({
+        where: {
+          payment_merchant_provider_reference_unique: {
+            merchantId: membership.merchantId,
+            provider: body.provider,
+            reference: effectiveReference,
+          },
+        },
+        select: { status: true, verifiedAt: true },
+      });
+
+      if (canonicalPayment?.status === 'VERIFIED') {
+        throw new ConflictException(
+          `Transaction already verified at ${canonicalPayment.verifiedAt?.toLocaleString() ?? 'an earlier time'}`,
+        );
+      }
+    }
 
     const amountMatches =
       txAmount !== undefined &&
