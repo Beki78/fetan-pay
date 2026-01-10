@@ -6,9 +6,9 @@ import {
   FileDigit,
   Scan,
   RefreshCcw,
+  Building,
+  User,
   // ClipboardClock, // Commented out - history button removed
-  // User, // Commented out - not used
-  // Building, // Commented out - not used
   XCircle,
 } from "lucide-react";
 import Image from "next/image";

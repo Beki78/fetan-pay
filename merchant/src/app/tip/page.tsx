@@ -19,31 +19,7 @@ export default function TipPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading: isSessionLoading } = useSession();
 
-  // Route protection
-  useEffect(() => {
-    if (!isSessionLoading && !isAuthenticated) {
-      router.replace("/login");
-    }
-  }, [isAuthenticated, isSessionLoading, router]);
-
-  if (isSessionLoading) {
-    return (
-      <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center pb-20">
-        <div className="text-sm text-muted-foreground">Loading…</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    // Will redirect in useEffect, but show loading to avoid 404
-    return (
-      <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center pb-20">
-        <div className="text-sm text-muted-foreground">Redirecting...</div>
-      </div>
-    );
-  }
-
-  // Calculate date ranges
+  // Calculate date ranges (must be before hooks)
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekStart = new Date(now);
@@ -51,6 +27,7 @@ export default function TipPage() {
   weekStart.setHours(0, 0, 0, 0);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // Fetch tip summaries
   const { data: todayData, isLoading: todayLoading } = useGetTipsSummaryQuery({
     from: todayStart.toISOString(),
@@ -89,6 +66,24 @@ export default function TipPage() {
   }, [todayData, weekData, monthData, totalData]);
 
   const isLoading = todayLoading || weekLoading || monthLoading || totalLoading;
+
+  // Early returns AFTER all hooks
+  if (isSessionLoading) {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center pb-20">
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    // Will redirect in useEffect, but show loading to avoid 404
+    return (
+      <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center pb-20">
+        <div className="text-sm text-muted-foreground">Redirecting...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">
