@@ -258,9 +258,105 @@ async function main() {
   console.info('✅ Seeded test merchant admin and merchant', {
     merchantAdminUserId: merchantAdminUser.id,
     merchantAdminEmail,
+    merchantAdminPassword: merchantAdminPassword, // Show password for testing
     merchantId: (testMerchant as { id: string; name: string }).id,
     merchantName: (testMerchant as { id: string; name: string }).name,
     merchantUserId: (merchantUser as { id: string }).id,
+  });
+
+  console.info('📝 Merchant Admin Login Credentials:', {
+    email: merchantAdminEmail,
+    password: merchantAdminPassword,
+    role: 'MERCHANT_OWNER',
+  });
+
+  // Seed waiter/sales user for merchant app
+  const waiterEmail = process.env.WAITER_EMAIL || 'waiter@test.com';
+  const waiterPassword = process.env.WAITER_PASSWORD || 'waiter123';
+  const waiterName = process.env.WAITER_NAME || 'Test Waiter';
+  const waiterRole = (process.env.WAITER_ROLE || 'WAITER') as
+    | 'WAITER'
+    | 'SALES';
+
+  // Create waiter/sales user
+  const waiterUser = await prisma.user.upsert({
+    where: { email: waiterEmail },
+    update: {
+      name: waiterName,
+      emailVerified: true,
+    },
+    create: {
+      id: `seed_waiter_${Date.now()}`,
+      name: waiterName,
+      email: waiterEmail,
+      emailVerified: true,
+    },
+  });
+
+  const waiterHashed = await hashPassword(waiterPassword);
+
+  const waiterAccount = await prisma.account.findFirst({
+    where: {
+      providerId: 'credential',
+      accountId: waiterEmail,
+    },
+  });
+
+  if (waiterAccount) {
+    await prisma.account.update({
+      where: { id: waiterAccount.id },
+      data: {
+        userId: waiterUser.id,
+        password: waiterHashed,
+      },
+    });
+  } else {
+    await prisma.account.create({
+      data: {
+        id: `seed_waiter_cred_${waiterUser.id}`,
+        userId: waiterUser.id,
+        providerId: 'credential',
+        accountId: waiterEmail,
+        password: waiterHashed,
+      },
+    });
+  }
+
+  // Create merchant user (waiter/sales) linked to the merchant
+  const waiterMerchantUser = await (prisma as any).merchantUser.upsert({
+    where: { id: 'seed_merchant_user_waiter' },
+    update: {
+      merchantId: (testMerchant as { id: string }).id,
+      userId: waiterUser.id,
+      role: waiterRole,
+      status: 'ACTIVE',
+      name: waiterName,
+      email: waiterEmail,
+    },
+    create: {
+      id: 'seed_merchant_user_waiter',
+      merchantId: (testMerchant as { id: string }).id,
+      userId: waiterUser.id,
+      role: waiterRole,
+      status: 'ACTIVE',
+      name: waiterName,
+      email: waiterEmail,
+    },
+  });
+
+  console.info('✅ Seeded waiter/sales user for merchant app', {
+    waiterUserId: waiterUser.id,
+    waiterEmail,
+    waiterRole,
+    merchantId: (testMerchant as { id: string }).id,
+    merchantUserId: (waiterMerchantUser as { id: string }).id,
+  });
+
+  console.info('📝 Merchant App Login Credentials (Waiter/Sales):', {
+    email: waiterEmail,
+    password: waiterPassword,
+    role: waiterRole,
+    app: 'Merchant App (Mobile)',
   });
 }
 
