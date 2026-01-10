@@ -118,7 +118,7 @@ export default function SubscribePaymentModal({
         <div className="bg-purple-600 dark:bg-purple-700 px-6 pt-6 pb-5 text-white">
           {/* Logo and Icons - Centered */}
           <div className="flex items-center justify-center gap-3 mb-5">
-            <span className="text-lg font-bold">PAYAUTH</span>
+            <span className="text-lg font-bold">FetanPay</span>
             <div className="flex items-center gap-2">
               {/* Placeholder Logo */}
               <div className="w-8 h-8 rounded bg-white/20 flex items-center justify-center border border-white/30">
@@ -386,7 +386,7 @@ export default function SubscribePaymentModal({
           {/* Footer */}
           <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Powered by PAYAUTH
+              Powered by FetanPay
             </p>
           </div>
         </div>

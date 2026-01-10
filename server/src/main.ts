@@ -39,11 +39,63 @@ async function bootstrap() {
   // Setup Swagger
   const config = new DocumentBuilder()
     .setTitle('FetanPay API')
-    .setDescription('API documentation for FetanPay')
+    .setDescription(
+      `Complete API documentation for FetanPay payment verification system.
+      
+## Overview
+FetanPay is a comprehensive payment verification platform that enables merchants to verify customer payments from various Ethiopian payment providers including CBE, Telebirr, Awash, Dashen, and Abyssinia Bank.
+
+## Features
+- **Payment Verification**: Verify payments from multiple Ethiopian banks and payment providers
+- **Merchant Management**: Self-registration and admin management of merchant accounts
+- **User Management**: Create and manage merchant employees (waiters, sales, accountants)
+- **Tip Management**: Track and manage tips received from customers
+- **Transaction History**: View verification history and transaction records
+- **Payment Provider Configuration**: Configure receiver accounts for different payment providers
+
+## Authentication
+Most endpoints require authentication via Better Auth. Include the session cookie or Bearer token in requests.
+
+## Base URL
+- Development: http://localhost:3003
+- Production: [Your production URL]
+
+## API Version
+All endpoints are prefixed with \`/api/v1\`
+
+## Rate Limiting
+Some endpoints (like payment verification) are rate-limited to prevent abuse.`,
+    )
     .setVersion('1.0')
+    .addServer('http://localhost:3003', 'Development Server')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Enter JWT token',
+      },
+      'bearer',
+    )
+    .addCookieAuth('better-auth.session_token', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'better-auth.session_token',
+      description: 'Session cookie from Better Auth',
+    })
+    .addTag('payments', 'Payment verification and management endpoints')
+    .addTag('merchant-accounts', 'Merchant account management and onboarding')
+    .addTag('merchant-users', 'Merchant user (employee) management')
+    .addTag('transactions', 'Transaction listing and querying')
+    .addTag('payment-providers', 'Payment provider configuration')
+    .addTag('verification', 'Payment verification endpoints (public)')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('api', app, document, {
+    customSiteTitle: 'FetanPay API Documentation',
+    customfavIcon: '/favicon.ico',
+    customCss: '.swagger-ui .topbar { display: none }',
+  });
 
   const port = Number(process.env.PORT ?? 3003);
   const server = await app.listen(port);

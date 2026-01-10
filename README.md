@@ -11,7 +11,7 @@ FetanPay is an instant payment verification system designed for Ethiopian busine
 This repository contains comprehensive documentation for the FetanPay project:
 
 - **[FetanPay Overview](./kifiya-auth-overview.md)** - What FetanPay is and what it includes (non-technical overview)
-- **[PayAuth Analysis](./pay-auth.md)** - Analysis of PayAuth (competitor/inspiration)
+- **[FetanPay Analysis](./pay-auth.md)** - Analysis of FetanPay (competitor/inspiration)
 - **[FetanPay Features](./kifiya-feature.md)** - Complete feature list with technical details
 - **[Technical Documentation](./technical-documentation.md)** - Detailed technical architecture and API documentation
 - **[Pricing](./kifiya-pricing.md)** - Pricing plans and information
@@ -167,7 +167,7 @@ Track all your transactions, verification rates, and business metrics in one pla
 
 ```javascript
 const response = await fetch(
-  "https://api.payauth.amixmon.com/v1/payment-intents",
+  "https://api.FetanPay.amixmon.com/v1/payment-intents",
   {
     method: "POST",
     headers: {
@@ -213,21 +213,18 @@ const verification = await response.json();
 **Option B: QR Code Verification**
 
 ```javascript
-const response = await fetch(
-  "https://api.fetanpay.com/v1/verifications/qr",
-  {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer YOUR_API_KEY",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      payment_intent_id: paymentIntent.data.id,
-      qr_code_data: "base64_encoded_qr_or_qr_string",
-      bank_name: "CBE",
-    }),
-  }
-);
+const response = await fetch("https://api.fetanpay.com/v1/verifications/qr", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    payment_intent_id: paymentIntent.data.id,
+    qr_code_data: "base64_encoded_qr_or_qr_string",
+    bank_name: "CBE",
+  }),
+});
 
 const verification = await response.json();
 ```
@@ -235,9 +232,9 @@ const verification = await response.json();
 ### 4. Handle Webhook (Optional)
 
 ```javascript
-app.post("/webhooks/payauth", (req, res) => {
+app.post("/webhooks/FetanPay", (req, res) => {
   // Verify webhook signature
-  const signature = req.headers["x-payauth-signature"];
+  const signature = req.headers["x-FetanPay-signature"];
 
   // Handle payment.verified event
   if (req.body.event === "payment.verified") {
@@ -380,7 +377,7 @@ All plans include:
 - Analytics dashboard
 - Frontend UI Package
 
-Contact sales for enterprise pricing: https://payauth.amixmon.com/#contact
+Contact sales for enterprise pricing: https://FetanPay.amixmon.com/#contact
 
 ## Use Cases
 
@@ -418,15 +415,15 @@ Verify payments between buyers and sellers, providing trust and security.
 
 ## Legal
 
-- **Terms of Use**: https://payauth.amixmon.com/terms
-- **Privacy Policy**: https://payauth.amixmon.com/privacy
-- **Merchant Agreement**: https://payauth.amixmon.com/merchant-agreement
+- **Terms of Use**: https://FetanPay.amixmon.com/terms
+- **Privacy Policy**: https://FetanPay.amixmon.com/privacy
+- **Merchant Agreement**: https://FetanPay.amixmon.com/merchant-agreement
 
 ## Important Disclaimers
 
-1. **Not Affiliated with CBE**: PayAuth is not affiliated with Commercial Bank of Ethiopia
+1. **Not Affiliated with CBE**: FetanPay is not affiliated with Commercial Bank of Ethiopia
 2. **Verification Only**: This platform verifies user-submitted payment receipts. It does not process, hold, or transfer funds
-3. **No Fund Processing**: PayAuth does not process payments or hold funds
+3. **No Fund Processing**: FetanPay does not process payments or hold funds
 
 ## Target Market
 
@@ -490,14 +487,14 @@ FetanPay is designed for two types of users:
 
 - **[Overview](./kifiya-auth-overview.md)** - Start here to understand what FetanPay is
 - **[Features](./kifiya-feature.md)** - Complete feature list with technical details
-- **[PayAuth Analysis](./pay-auth.md)** - Learn about the inspiration/competitor
+- **[FetanPay Analysis](./pay-auth.md)** - Learn about the inspiration/competitor
 - **[Technical Docs](./technical-documentation.md)** - API documentation and technical architecture
 - **[Pricing](./kifiya-pricing.md)** - Pricing plans and information
 
 ## License
 
-© 2025 PayAuth. All rights reserved.
+© 2025 FetanPay. All rights reserved.
 
 ---
 
-**Note**: This documentation is based on analysis of the PayAuth website and API documentation. For the most up-to-date information, please refer to the official PayAuth documentation at https://payauth.amixmon.com/docs/v1
+**Note**: This documentation is based on analysis of the FetanPay website and API documentation. For the most up-to-date information, please refer to the official FetanPay documentation at https://FetanPay.amixmon.com/docs/v1

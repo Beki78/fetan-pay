@@ -38,7 +38,7 @@ function CodeBlock({ code, language }: CodeBlockProps) {
 }
 
 export default function WebhooksPage() {
-  const [webhookUrl, setWebhookUrl] = useState("https://your-domain.com/webhooks/payauth");
+  const [webhookUrl, setWebhookUrl] = useState("https://your-domain.com/webhooks/FetanPay");
   const [webhookSecret, setWebhookSecret] = useState("coPuSAjD••••••••••••••••NL7v");
   const [showSecret, setShowSecret] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -84,7 +84,7 @@ export default function WebhooksPage() {
             </label>
             <Input
               type="url"
-              placeholder="https://your-domain.com/webhooks/payauth"
+              placeholder="https://your-domain.com/webhooks/FetanPay"
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               className="w-full"
@@ -291,8 +291,8 @@ export default function WebhooksPage() {
         </div>
         <div className="rounded-lg bg-gray-900 dark:bg-black p-4 overflow-x-auto relative">
           <CodeBlock
-            code={`X-PayAuth-Signature: <HMAC-SHA256 signature>
-X-PayAuth-Event: payment.verified
+            code={`X-FetanPay-Signature: <HMAC-SHA256 signature>
+X-FetanPay-Event: payment.verified
 Content-Type: application/json`}
           />
         </div>
@@ -305,7 +305,7 @@ Content-Type: application/json`}
             Signature Verification
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Verify the webhook signature using the X-PayAuth-Signature header:
+            Verify the webhook signature using the X-FetanPay-Signature header:
           </p>
         </div>
         <div className="rounded-lg bg-gray-900 dark:bg-black p-4 overflow-x-auto relative">
@@ -313,7 +313,7 @@ Content-Type: application/json`}
             code={`// PHP Example
 $payload = file_get_contents('php://input');
 $signature = hash_hmac('sha256', $payload, $webhook_secret);
-$valid = hash_equals($signature, $_SERVER['HTTP_X_PAYAUTH_SIGNATURE']);
+$valid = hash_equals($signature, $_SERVER['HTTP_X_FetanPay_SIGNATURE']);
 
 if (!$valid) {
     http_response_code(401);
