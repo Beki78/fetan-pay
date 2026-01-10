@@ -18,6 +18,7 @@ export interface VerifyMerchantPaymentRequest {
   reference: string;
   claimedAmount: number;
   qrData?: string;
+  tipAmount?: number;
 }
 
 export interface VerifyMerchantPaymentResponse {
@@ -69,6 +70,48 @@ export interface ListVerificationHistoryResponse {
   data: VerificationHistoryItem[];
 }
 
+export interface TipsSummaryResponse {
+  count: number;
+  totalTipAmount: number | null;
+}
+
+export interface TipItem {
+  id: string;
+  tipAmount: number;
+  claimedAmount: number;
+  reference: string;
+  provider: TransactionProvider;
+  status: VerificationHistoryStatus;
+  createdAt: string;
+  verifiedAt: string | null;
+  verifiedBy: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    role: string;
+  } | null;
+}
+
+export interface ListTipsResponse {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  data: TipItem[];
+}
+
+export interface TipsSummaryQuery {
+  from?: string;
+  to?: string;
+}
+
+export interface ListTipsQuery {
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export const paymentsServiceApi = createApi({
   reducerPath: "paymentsServiceApi",
   baseQuery: fetchBaseQuery({
@@ -97,10 +140,34 @@ export const paymentsServiceApi = createApi({
         params: params ?? undefined,
       }),
     }),
+
+    getTipsSummary: builder.query<
+      TipsSummaryResponse,
+      TipsSummaryQuery | void
+    >({
+      query: (params) => ({
+        url: "/payments/tips/summary",
+        method: "GET",
+        params: params ?? undefined,
+      }),
+    }),
+
+    listTips: builder.query<
+      ListTipsResponse,
+      ListTipsQuery | void
+    >({
+      query: (params) => ({
+        url: "/payments/tips",
+        method: "GET",
+        params: params ?? undefined,
+      }),
+    }),
   }),
 });
 
 export const {
   useVerifyMerchantPaymentMutation,
   useListVerificationHistoryQuery,
+  useGetTipsSummaryQuery,
+  useListTipsQuery,
 } = paymentsServiceApi;

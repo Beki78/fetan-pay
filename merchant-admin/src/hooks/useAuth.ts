@@ -5,7 +5,7 @@ import { authClient } from "@/lib/auth-client";
 import { useSession } from "./useSession";
 import { BASE_URL } from "@/constant/baseApi";
 
-const SOCIAL_CALLBACK_URL = "http://localhost:3000";
+const SOCIAL_CALLBACK_URL = "http://localhost:3001";
 
 interface UseAuthReturn {
   // Social authentication

@@ -23,7 +23,7 @@ export default function PaymentProvidersPage() {
   const [selectedProvider, setSelectedProvider] = useState<ProviderData | null>(null);
   const { showToast, ToastComponent } = useToast();
 
-  const { data: receiverAccountsData } = useGetActiveReceiverAccountsQuery();
+  const { data: receiverAccountsData, refetch: refetchReceiverAccounts } = useGetActiveReceiverAccountsQuery();
   const [setActiveReceiverAccount] = useSetActiveReceiverAccountMutation();
   const [disableActiveReceiverAccount] = useDisableActiveReceiverAccountMutation();
   const [enableLastReceiverAccount] = useEnableLastReceiverAccountMutation();
@@ -130,18 +130,54 @@ export default function PaymentProvidersPage() {
   }) => {
     const provider = providerToTransactionProvider(input.providerId);
     if (!provider) {
-      throw new Error(`Unknown provider: ${input.providerId}`);
+      const errorMsg = `Unknown provider: ${input.providerId}`;
+      showToast(errorMsg, "error");
+      throw new Error(errorMsg);
     }
 
-    await setActiveReceiverAccount({
-      provider,
-      receiverAccount: input.accountNumber,
-      receiverName: input.accountHolderName,
-      receiverLabel: `${provider} Merchant Receiver`,
-      enabled: input.isEnabled,
-    }).unwrap();
+    try {
+      // Trim and validate inputs
+      const trimmedAccountNumber = input.accountNumber.trim();
+      const trimmedAccountHolderName = input.accountHolderName.trim();
 
-    showToast("Receiver account saved", "success");
+      if (!trimmedAccountNumber || !trimmedAccountHolderName) {
+        const errorMsg = "Account number and holder name are required";
+        showToast(errorMsg, "error");
+        throw new Error(errorMsg);
+      }
+
+      // Call the API
+      const result = await setActiveReceiverAccount({
+        provider,
+        receiverAccount: trimmedAccountNumber,
+        receiverName: trimmedAccountHolderName,
+        receiverLabel: `${provider} Merchant Receiver`,
+        enabled: input.isEnabled,
+      }).unwrap();
+
+      // Refetch to get updated data
+      await refetchReceiverAccounts();
+
+      // Show success message
+      showToast("Payment provider updated successfully", "success");
+
+      // Close modal after a short delay to allow toast to be visible
+      setTimeout(() => {
+        handleCloseModal();
+      }, 100);
+    } catch (e: any) {
+      // Extract error message
+      const errorMessage =
+        e?.data?.message ||
+        e?.message ||
+        "Failed to update payment provider. Please try again.";
+
+      // Show error toast
+      showToast(errorMessage, "error");
+
+      // Re-throw so modal can display the error
+      throw e;
+    }
   };
 
   return (

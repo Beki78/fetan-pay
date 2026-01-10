@@ -75,7 +75,11 @@ export class PaymentsService {
 
   private extractVerifierSenderName(payload: any): string | undefined {
     // Common fields for sender/payer name across providers
-    const s = payload?.sender || payload?.senderName || payload?.payer || payload?.payerName;
+    const s =
+      payload?.sender ||
+      payload?.senderName ||
+      payload?.payer ||
+      payload?.payerName;
     if (typeof s === 'string' && s.trim()) return s.trim();
     return undefined;
   }
@@ -171,6 +175,10 @@ export class PaymentsService {
     const membership = await this.requireMembership(req);
 
     const claimedAmount = this.toDecimal(body.claimedAmount, 'claimedAmount');
+    const tipAmount =
+      body.tipAmount === undefined
+        ? null
+        : this.toDecimal(body.tipAmount, 'tipAmount');
 
     // Payment model currently requires an Order relation.
     // For merchant direct-verification (no order flow), we'll create a lightweight OPEN order
@@ -192,7 +200,6 @@ export class PaymentsService {
       );
     }
 
-
     const order = existingPayment
       ? null
       : await (this.prisma as any).order.create({
@@ -205,7 +212,9 @@ export class PaymentsService {
         });
 
     // Require ACTIVE receiver to verify (disabled means merchant intentionally paused).
-    const activeReceiver = await (this.prisma as any).merchantReceiverAccount.findFirst({
+    const activeReceiver = await (
+      this.prisma as any
+    ).merchantReceiverAccount.findFirst({
       where: {
         merchantId: membership.merchantId,
         provider: body.provider,
@@ -220,8 +229,13 @@ export class PaymentsService {
       );
     }
 
-    const verifierResult = await this.runCoreVerifier(body.provider, body.reference);
-    const normalizedPayload = JSON.parse(JSON.stringify(verifierResult ?? null));
+    const verifierResult = await this.runCoreVerifier(
+      body.provider,
+      body.reference,
+    );
+    const normalizedPayload = JSON.parse(
+      JSON.stringify(verifierResult ?? null),
+    );
 
     const referenceFound =
       !!normalizedPayload &&
@@ -229,7 +243,8 @@ export class PaymentsService {
       (normalizedPayload as any).success !== false;
 
     const txAmount = this.extractVerifierAmount(normalizedPayload);
-    const txReceiverAccount = this.extractVerifierReceiverAccount(normalizedPayload);
+    const txReceiverAccount =
+      this.extractVerifierReceiverAccount(normalizedPayload);
     const txReceiverName = this.extractVerifierReceiverName(normalizedPayload);
     const effectiveReference = this.extractVerifierReference(
       normalizedPayload,
@@ -304,6 +319,7 @@ export class PaymentsService {
       update: {
         ...(order ? { order: { connect: { id: order.id } } } : {}),
         claimedAmount,
+        tipAmount,
         status,
         mismatchReason,
         receiverAccount: { connect: { id: activeReceiver.id } },
@@ -313,10 +329,13 @@ export class PaymentsService {
       },
       create: {
         merchant: { connect: { id: membership.merchantId } },
-        order: { connect: { id: (order ?? existingPayment)?.orderId ?? order?.id } },
+        order: {
+          connect: { id: (order ?? existingPayment)?.orderId ?? order?.id },
+        },
         provider: body.provider,
         reference: effectiveReference,
         claimedAmount,
+        tipAmount,
         status,
         mismatchReason,
         receiverAccount: { connect: { id: activeReceiver.id } },
@@ -364,19 +383,27 @@ export class PaymentsService {
     };
   }
 
-  async listVerificationHistory(query: ListVerificationHistoryDto, req: Request) {
+  async listVerificationHistory(
+    query: ListVerificationHistoryDto,
+    req: Request,
+  ) {
     const membership = await this.requireMembership(req);
 
     // Defensive parsing: depending on global validation/transform setup,
     // query params may still arrive as strings.
     const page = Math.max(1, Number(query.page ?? 1) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize ?? 20) || 20));
+    const pageSize = Math.min(
+      100,
+      Math.max(1, Number(query.pageSize ?? 20) || 20),
+    );
     const skip = (page - 1) * pageSize;
 
     const where: any = {
       merchantId: membership.merchantId,
       ...(query.provider ? { provider: query.provider } : {}),
-      ...(query.status ? { status: query.status as PaymentVerificationStatus } : {}),
+      ...(query.status
+        ? { status: query.status as PaymentVerificationStatus }
+        : {}),
       ...(query.reference ? { reference: query.reference } : {}),
     };
 
@@ -454,6 +481,7 @@ export class PaymentsService {
    * Contract:
    * - Uses the current authenticated user to resolve MerchantUser + merchantId.
    * - Only one ACTIVE receiver per (merchant, provider) is enforced by marking previous ACTIVE as INACTIVE.
+   * - Handles account number updates by deleting old records with different account numbers.
    */
   async setActiveReceiverAccount(body: SetActiveReceiverDto, req: Request) {
     const membership = await this.requireMembership(req);
@@ -461,7 +489,19 @@ export class PaymentsService {
     const desiredStatus = body.enabled === false ? 'INACTIVE' : 'ACTIVE';
 
     return this.prisma.$transaction(async (tx) => {
-      // If we're enabling this receiver, ensure it's the only ACTIVE one for this provider.
+      // Step 1: Find existing record for this merchant + provider (regardless of account number)
+      // We only allow one receiver account per merchant + provider combination
+      const existingRecord = await (
+        tx as any
+      ).merchantReceiverAccount.findFirst({
+        where: {
+          merchantId: membership.merchantId,
+          provider: body.provider,
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      // Step 2: If we're enabling this receiver, deactivate all other ACTIVE receivers for this provider
       if (desiredStatus === 'ACTIVE') {
         await (tx as any).merchantReceiverAccount.updateMany({
           where: {
@@ -473,7 +513,19 @@ export class PaymentsService {
         });
       }
 
-      const active = await (tx as any).merchantReceiverAccount.upsert({
+      // Step 3: If existing record has a different account number, delete it
+      // (because unique constraint is on merchantId + provider + receiverAccount)
+      if (
+        existingRecord &&
+        existingRecord.receiverAccount !== body.receiverAccount
+      ) {
+        await (tx as any).merchantReceiverAccount.delete({
+          where: { id: existingRecord.id },
+        });
+      }
+
+      // Step 4: Upsert the receiver account with the new/updated data
+      const result = await (tx as any).merchantReceiverAccount.upsert({
         where: {
           merchant_receiver_account_unique: {
             merchantId: membership.merchantId,
@@ -485,6 +537,7 @@ export class PaymentsService {
           status: desiredStatus,
           receiverLabel: body.receiverLabel,
           receiverName: body.receiverName,
+          receiverAccount: body.receiverAccount,
           meta: (body.meta ?? Prisma.JsonNull) as Prisma.InputJsonValue,
         },
         create: {
@@ -498,7 +551,7 @@ export class PaymentsService {
         },
       });
 
-      return { active };
+      return { active: result };
     });
   }
 
@@ -540,7 +593,9 @@ export class PaymentsService {
   async disableActiveReceiverAccount(body: DisableReceiverDto, req: Request) {
     const membership = await this.requireMembership(req);
 
-    const updated = await (this.prisma as any).merchantReceiverAccount.updateMany({
+    const updated = await (
+      this.prisma as any
+    ).merchantReceiverAccount.updateMany({
       where: {
         merchantId: membership.merchantId,
         provider: body.provider,
@@ -597,7 +652,10 @@ export class PaymentsService {
   async createOrder(body: CreateOrderDto, req: Request) {
     const membership = await this.requireMembership(req);
 
-    const expectedAmount = this.toDecimal(body.expectedAmount, 'expectedAmount');
+    const expectedAmount = this.toDecimal(
+      body.expectedAmount,
+      'expectedAmount',
+    );
     const currency = (body.currency ?? 'ETB').trim() || 'ETB';
 
     const order = await (this.prisma as any).order.create({
@@ -630,9 +688,14 @@ export class PaymentsService {
     if (!order) throw new NotFoundException('Order not found');
 
     const claimedAmount = this.toDecimal(body.claimedAmount, 'claimedAmount');
-    const tipAmount = body.tipAmount === undefined ? null : this.toDecimal(body.tipAmount, 'tipAmount');
+    const tipAmount =
+      body.tipAmount === undefined
+        ? null
+        : this.toDecimal(body.tipAmount, 'tipAmount');
 
-    const activeReceiver = await (this.prisma as any).merchantReceiverAccount.findFirst({
+    const activeReceiver = await (
+      this.prisma as any
+    ).merchantReceiverAccount.findFirst({
       where: {
         merchantId: membership.merchantId,
         provider: body.provider,
@@ -671,9 +734,10 @@ export class PaymentsService {
       );
     }
 
-    const status = (amountMatches && receiverMatches)
-      ? PaymentStatus.VERIFIED
-      : PaymentStatus.UNVERIFIED;
+    const status =
+      amountMatches && receiverMatches
+        ? PaymentStatus.VERIFIED
+        : PaymentStatus.UNVERIFIED;
 
     const mismatchReason =
       status === PaymentStatus.VERIFIED
@@ -687,7 +751,7 @@ export class PaymentsService {
             activeReceiverAccount: activeReceiver.receiverAccount,
           });
 
-  const payment = await (this.prisma as any).payment.upsert({
+    const payment = await (this.prisma as any).payment.upsert({
       where: {
         payment_merchant_provider_reference_unique: {
           merchantId: membership.merchantId,
@@ -705,7 +769,8 @@ export class PaymentsService {
         verifiedAt: new Date(),
         verifiedById: membership.merchantUserId,
         mismatchReason,
-        verificationPayload: (txRecord?.verificationPayload ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+        verificationPayload: (txRecord?.verificationPayload ??
+          Prisma.JsonNull) as Prisma.InputJsonValue,
       },
       create: {
         merchantId: membership.merchantId,
@@ -720,7 +785,8 @@ export class PaymentsService {
         verifiedAt: new Date(),
         verifiedById: membership.merchantUserId,
         mismatchReason,
-        verificationPayload: (txRecord?.verificationPayload ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+        verificationPayload: (txRecord?.verificationPayload ??
+          Prisma.JsonNull) as Prisma.InputJsonValue,
       },
       include: {
         order: true,
@@ -772,7 +838,9 @@ export class PaymentsService {
       restrictedRoles.includes(membership.role) &&
       payment.verifiedById !== membership.merchantUserId
     ) {
-      throw new ForbiddenException('You are not authorized to view this payment');
+      throw new ForbiddenException(
+        'You are not authorized to view this payment',
+      );
     }
 
     return { payment };
@@ -793,11 +861,17 @@ export class PaymentsService {
     const where: any = {
       merchantId: membership.merchantId,
       tipAmount: { not: null },
-      createdAt: {
-        gte: from,
-        lte: to,
-      },
+      // Filter by the current user so they only see their own tips
+      verifiedById: membership.merchantUserId,
     };
+
+    // Add date range filter if provided
+    if (from || to) {
+      where.createdAt = {
+        ...(from ? { gte: from } : {}),
+        ...(to ? { lte: to } : {}),
+      };
+    }
 
     const [count, sum] = await Promise.all([
       (this.prisma as any).payment.count({ where }),
@@ -813,6 +887,79 @@ export class PaymentsService {
     };
   }
 
+  async listTips(
+    query: { from?: string; to?: string; page?: number; pageSize?: number },
+    req: Request,
+  ) {
+    const membership = await this.requireMembership(req);
+
+    const page = Math.max(1, Number(query.page ?? 1) || 1);
+    const pageSize = Math.min(
+      100,
+      Math.max(1, Number(query.pageSize ?? 20) || 20),
+    );
+    const skip = (page - 1) * pageSize;
+
+    const from = query.from ? new Date(query.from) : undefined;
+    const to = query.to ? new Date(query.to) : undefined;
+    if (query.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (query.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    const where: any = {
+      merchantId: membership.merchantId,
+      tipAmount: { not: null },
+      // Filter by the current user so they only see their own tips
+      verifiedById: membership.merchantUserId,
+    };
+
+    if (from || to) {
+      where.createdAt = {
+        ...(from ? { gte: from } : {}),
+        ...(to ? { lte: to } : {}),
+      };
+    }
+
+    const [total, data] = await this.prisma.$transaction([
+      (this.prisma as any).payment.count({ where }),
+      (this.prisma as any).payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          tipAmount: true,
+          claimedAmount: true,
+          reference: true,
+          provider: true,
+          status: true,
+          createdAt: true,
+          verifiedAt: true,
+          verifiedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+      data,
+    };
+  }
+
   private async requireMembership(req: Request) {
     const userId = (req as any).user?.id as string | undefined;
     if (!userId) {
@@ -820,7 +967,9 @@ export class PaymentsService {
     }
 
     const membership = await this.merchantUsersService.me(req);
-    const merchantId = membership?.membership?.merchant?.id as string | undefined;
+    const merchantId = membership?.membership?.merchant?.id as
+      | string
+      | undefined;
     const merchantUserId = membership?.membership?.id as string | undefined;
     const role = membership?.membership?.role as string | undefined;
 
@@ -832,7 +981,8 @@ export class PaymentsService {
   }
 
   private toDecimal(value: number, field: string) {
-    if (!Number.isFinite(value)) throw new BadRequestException(`${field} is invalid`);
+    if (!Number.isFinite(value))
+      throw new BadRequestException(`${field} is invalid`);
     // Prisma Decimal accepts string/number but we normalize via string to preserve precision.
     return new Prisma.Decimal(value.toFixed(2));
   }

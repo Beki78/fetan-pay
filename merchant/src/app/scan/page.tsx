@@ -6,9 +6,9 @@ import {
   FileDigit,
   Scan,
   RefreshCcw,
-  ClipboardClock,
-  User,
-  Building,
+  // ClipboardClock, // Commented out - history button removed
+  // User, // Commented out - not used
+  // Building, // Commented out - not used
   XCircle,
 } from "lucide-react";
 import Image from "next/image";
@@ -18,8 +18,8 @@ import { toast } from "sonner";
 import { BankSelection } from "@/components/bank-selection";
 import { CameraScanner } from "@/components/camera-scanner";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { VerificationHistorySidebar } from "@/components/verification-history-sidebar";
-import { ProfileDropdown } from "@/components/profile-dropdown";
+// import { VerificationHistorySidebar } from "@/components/verification-history-sidebar"; // Commented out - history sidebar removed
+// import { ProfileDropdown } from "@/components/profile-dropdown"; // Commented out - profile dropdown removed
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -46,7 +46,7 @@ export default function ScanPage() {
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [showTip, setShowTip] = useState<boolean>(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [showHistorySidebar, setShowHistorySidebar] = useState(false);
+  // const [showHistorySidebar, setShowHistorySidebar] = useState(false);
   const [verificationMethod, setVerificationMethod] = useState<
     "transaction" | "camera" | null
   >(null);
@@ -173,10 +173,17 @@ export default function ScanPage() {
         throw new Error("Please enter a valid amount");
       }
 
+      // Parse tip amount if provided
+      const tipAmount =
+        showTip && data.tipAmount
+          ? parseFloat((data.tipAmount || "0").replace(/,/g, ""))
+          : undefined;
+
       const response = await verifyMerchantPayment({
         provider,
         reference,
         claimedAmount,
+        tipAmount: tipAmount && tipAmount > 0 ? tipAmount : undefined,
       }).unwrap();
 
       const success = response.status === "VERIFIED";
@@ -194,10 +201,16 @@ export default function ScanPage() {
         if (!response.checks?.referenceFound) {
           return "Reference not found or transaction not successful";
         }
-        if (response.checks?.referenceFound && !response.checks?.receiverMatches) {
+        if (
+          response.checks?.referenceFound &&
+          !response.checks?.receiverMatches
+        ) {
           return "Paid to a different receiver account (not your configured account)";
         }
-        if (response.checks?.referenceFound && !response.checks?.amountMatches) {
+        if (
+          response.checks?.referenceFound &&
+          !response.checks?.amountMatches
+        ) {
           return "Amount doesn't match the entered value";
         }
         return "Transaction isn't verified";
@@ -227,7 +240,9 @@ export default function ScanPage() {
         success ? "Payment verified" : "Not verified",
         {
           description: success
-            ? `Reference ${response.transaction?.reference ?? reference} verified`
+            ? `Reference ${
+                response.transaction?.reference ?? reference
+              } verified`
             : failureMessage,
         }
       );
@@ -266,12 +281,16 @@ export default function ScanPage() {
   }
 
   if (!isAuthenticated) {
-    // Redirect will happen in the effect; avoid rendering protected UI.
-    return null;
+    // Redirect will happen in the effect; show loading to avoid 404
+    return (
+      <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center pb-20">
+        <div className="text-sm text-muted-foreground">Redirecting...</div>
+      </div>
+    );
   }
 
   return (
-  <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background">
+    <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">
       <div className="container mx-auto px-3 py-8 max-w-2xl">
         {/* Header with Theme Toggle and History */}
         <div className="flex items-center justify-between mb-8 gap-4">
@@ -290,11 +309,14 @@ export default function ScanPage() {
               <h1 className="text-3xl md:text-4xl font-bold font-poppins tracking-tight text-blue-700 dark:text-white">
                 {APP_CONFIG.name}
               </h1>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Scan & verify payments</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Scan & verify payments
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-5">
-            <Button
+            {/* History button - commented out */}
+            {/* <Button
               variant="outline"
               size="icon-lg"
               onClick={() => setShowHistorySidebar(true)}
@@ -302,9 +324,10 @@ export default function ScanPage() {
               aria-label="View verification history"
             >
               <ClipboardClock />
-            </Button>
+            </Button> */}
             <ThemeToggle />
-            <ProfileDropdown />
+            {/* Profile dropdown - commented out */}
+            {/* <ProfileDropdown /> */}
           </div>
         </div>
 
@@ -499,7 +522,6 @@ export default function ScanPage() {
 
                   {/* Account suffix for CBE */}
 
-
                   {/* Tip Input with Switch */}
                   <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
                     <div className="flex items-center justify-between">
@@ -607,7 +629,9 @@ export default function ScanPage() {
                                 : "text-red-700 dark:text-red-400"
                             )}
                           >
-                            {verificationResult.success ? "Payment Verified" : "Verification Failed"}
+                            {verificationResult.success
+                              ? "Payment Verified"
+                              : "Verification Failed"}
                           </h3>
                           {verificationResult.message && (
                             <p className="text-sm text-muted-foreground max-w-xs mx-auto">
@@ -626,7 +650,9 @@ export default function ScanPage() {
                               {formatNumberWithCommas(
                                 (verificationResult.amount ?? 0).toString()
                               )}{" "}
-                              <span className="text-lg text-muted-foreground font-semibold">ETB</span>
+                              <span className="text-lg text-muted-foreground font-semibold">
+                                ETB
+                              </span>
                             </div>
                           </div>
 
@@ -642,7 +668,8 @@ export default function ScanPage() {
                                   Sent To (Merchant)
                                 </p>
                                 <p className="font-semibold text-foreground truncate">
-                                  {verificationResult.receiverName || "Unknown Merchant"}
+                                  {verificationResult.receiverName ||
+                                    "Unknown Merchant"}
                                 </p>
                                 <p className="text-xs text-muted-foreground font-mono truncate">
                                   {verificationResult.receiverAccount}
@@ -671,12 +698,21 @@ export default function ScanPage() {
                           {/* Tech Details */}
                           <div className="grid grid-cols-2 gap-3 text-sm">
                             <div className="bg-muted p-3 rounded-lg border border-border/50">
-                              <p className="text-xs text-muted-foreground mb-1">Provider</p>
-                              <p className="font-medium font-mono">{verificationResult.provider}</p>
+                              <p className="text-xs text-muted-foreground mb-1">
+                                Provider
+                              </p>
+                              <p className="font-medium font-mono">
+                                {verificationResult.provider}
+                              </p>
                             </div>
                             <div className="bg-muted p-3 rounded-lg border border-border/50">
-                              <p className="text-xs text-muted-foreground mb-1">Reference</p>
-                              <p className="font-medium font-mono truncate" title={verificationResult.reference}>
+                              <p className="text-xs text-muted-foreground mb-1">
+                                Reference
+                              </p>
+                              <p
+                                className="font-medium font-mono truncate"
+                                title={verificationResult.reference}
+                              >
                                 {verificationResult.reference}
                               </p>
                             </div>
@@ -701,11 +737,11 @@ export default function ScanPage() {
         />
       )}
 
-      {/* Verification History Sidebar */}
-      <VerificationHistorySidebar
+      {/* Verification History Sidebar - commented out */}
+      {/* <VerificationHistorySidebar
         open={showHistorySidebar}
         onOpenChange={setShowHistorySidebar}
-      />
+      /> */}
     </div>
   );
 }

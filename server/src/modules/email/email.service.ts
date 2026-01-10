@@ -20,7 +20,7 @@ export class EmailService {
       requireTLS: true,
     });
 
-    this.transporter
+    void this.transporter
       .verify()
       .then((ok) => console.info('[EmailService] SMTP connection verified', ok))
       .catch((err) =>
@@ -46,10 +46,31 @@ export class EmailService {
       </div>
     `;
 
+    // Format sender with app name - always show "FetanPay" as the sender name
+    const smtpFrom = this.configService.get<string>('SMTP_FROM');
+    const smtpUser = this.configService.get<string>('SMTP_USER');
+    let fromAddress: string;
+
+    if (smtpFrom) {
+      // If SMTP_FROM is already formatted with a name, use it
+      // Otherwise, extract email and format with app name
+      if (smtpFrom.includes('<') && smtpFrom.includes('>')) {
+        // Already formatted, use as-is
+        fromAddress = smtpFrom;
+      } else {
+        // Just an email, format with app name
+        fromAddress = `"${appName}" <${smtpFrom}>`;
+      }
+    } else if (smtpUser) {
+      // Format as "FetanPay" <email@example.com>
+      fromAddress = `"${appName}" <${smtpUser}>`;
+    } else {
+      // Fallback
+      fromAddress = `"${appName}" <noreply@fetanpay.com>`;
+    }
+
     const mailOptions: nodemailer.SendMailOptions = {
-      from:
-        this.configService.get<string>('SMTP_FROM') ||
-        this.configService.get<string>('SMTP_USER'),
+      from: fromAddress,
       to: email,
       subject,
       html,
@@ -57,13 +78,19 @@ export class EmailService {
 
     try {
       const info = await this.transporter.sendMail(mailOptions);
+      const sentInfo = info as {
+        messageId?: string;
+        accepted?: string[];
+        rejected?: string[];
+        response?: string;
+      };
       console.info('[EmailService] OTP email sent', {
         to: email,
         subject,
-        messageId: info.messageId,
-        accepted: info.accepted,
-        rejected: info.rejected,
-        response: info.response,
+        messageId: sentInfo.messageId,
+        accepted: sentInfo.accepted,
+        rejected: sentInfo.rejected,
+        response: sentInfo.response,
       });
     } catch (err) {
       console.error('[EmailService] OTP email failed', {

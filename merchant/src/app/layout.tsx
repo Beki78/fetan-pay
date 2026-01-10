@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { APP_CONFIG } from "@/lib/config";
 import { Providers } from "@/components/providers";
+import { BottomNavigation } from "@/components/bottom-navigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,7 +48,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${poppins.variable} antialiased`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <BottomNavigation />
+        </Providers>
       </body>
     </html>
   );

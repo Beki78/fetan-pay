@@ -18,6 +18,7 @@ import { SubmitPaymentClaimDto } from './dto/submit-payment-claim.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
 import { ListVerificationHistoryDto } from './dto/list-verification-history.dto';
 import { VerifyMerchantPaymentDto } from './dto/verify-merchant-payment.dto';
+import { ListTipsDto } from './dto/list-tips.dto';
 import { PaymentsService } from './payments.service';
 
 @ApiTags('payments')
@@ -102,5 +103,14 @@ export class PaymentsController {
     @Req() req: Request,
   ) {
     return this.paymentsService.getTipsSummary({ from, to }, req);
+  }
+
+  @Get('tips')
+  @ApiOperation({ summary: 'List tip transactions for current merchant' })
+  async listTips(
+    @Query() query: ListTipsDto,
+    @Req() req: Request,
+  ) {
+    return this.paymentsService.listTips(query, req);
   }
 }
