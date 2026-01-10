@@ -1,15 +1,14 @@
-
 services:
   postgres:
     image: postgres:latest
-    container_name: postgres_kifiya_auth
+    container_name: postgres_fetanpay
     restart: always
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: root
-      POSTGRES_DB: KifiyaDB
+      POSTGRES_DB: FetanPayDB
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

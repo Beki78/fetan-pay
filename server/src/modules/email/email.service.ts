@@ -29,7 +29,7 @@ export class EmailService {
   }
 
   async sendOtpEmail(email: string, otp: string, type: OtpType) {
-    const appName = this.configService.get<string>('APP_NAME') || 'Kifiya Pay';
+    const appName = this.configService.get<string>('APP_NAME') || 'FetanPay';
     const expiresMinutes =
       Number(this.configService.get<string>('OTP_EXPIRES_MINUTES')) || 5;
     const subject = this.subjectForType(type, appName);

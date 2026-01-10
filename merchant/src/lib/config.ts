@@ -1,5 +1,5 @@
 /**
- * Centralized configuration for Kifiya Pay
+ * Centralized configuration for FetanPay
  * All app constants, colors, and settings should be defined here
  */
 

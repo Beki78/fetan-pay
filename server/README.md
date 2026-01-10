@@ -1,4 +1,4 @@
-## Kifiya Pay Server (Better Auth)
+## FetanPay Server (Better Auth)
 
 Backend for FetanPay admin, powered by NestJS + Better Auth. This service exposes auth at `/api/auth` and is used by the merchant-admin frontend for sign-in, social login, and password reset flows.
 
@@ -17,7 +17,7 @@ Create a `.env` in `server/` with at least:
 
 ```env
 PORT=3003
-DATABASE_URL=postgres://user:pass@localhost:5432/kifiya
+DATABASE_URL=postgres://user:pass@localhost:5432/fetanpay
 BETTER_AUTH_SECRET=change-me
 BETTER_AUTH_BASE_URL=http://localhost:3003
 GOOGLE_CLIENT_ID=your-google-client-id
@@ -27,8 +27,8 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-smtp-username
 SMTP_PASS=your-smtp-password
-SMTP_FROM="Kifiya Pay" <no-reply@example.com>
-APP_NAME=Kifiya Pay
+SMTP_FROM="FetanPay" <no-reply@example.com>
+APP_NAME=FetanPay
 OTP_EXPIRES_MINUTES=5
 FRONTEND_URL=http://localhost:3000
 ```

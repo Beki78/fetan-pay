@@ -20,7 +20,7 @@ export default function ApiDocumentation() {
           API Documentation
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Complete guide to integrating with the Kifiya Payment Verification API
+          Complete guide to integrating with the FetanPay Payment Verification API
         </p>
       </div>
 
@@ -104,7 +104,7 @@ export default function ApiDocumentation() {
               </h4>
               <div className="rounded-lg bg-gray-50 dark:bg-gray-900 p-4">
                 <pre className="text-xs text-gray-800 dark:text-gray-300">
-                  {`const response = await fetch('https://api.kifiya.com/v1/payments/verify', {
+                  {`const response = await fetch('https://api.fetanpay.com/v1/payments/verify', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
