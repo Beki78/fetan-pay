@@ -60,10 +60,15 @@ export const useAuth = (): UseAuthReturn => {
 
         if (result.error) {
           console.error("❌ Social authentication error:", result.error);
-          setError(
-            (result.error as { message?: string })?.message ||
-              "Authentication failed. Please try again."
-          );
+          const errorMessage = (result.error as { message?: string; code?: string })?.message;
+          const errorCode = (result.error as { message?: string; code?: string })?.code;
+          
+          // Check if account doesn't exist
+          if (errorCode === "USER_NOT_FOUND" || errorMessage?.toLowerCase().includes("not found") || errorMessage?.toLowerCase().includes("does not exist")) {
+            setError("Account does not exist. Please sign up first or contact support.");
+          } else {
+            setError(errorMessage || "Authentication failed. Please try again.");
+          }
         }
         return false;
       } catch (err) {
@@ -309,10 +314,20 @@ export const useAuth = (): UseAuthReturn => {
         }
         if (result.error) {
           console.error("❌ Email/Password registration error:", result.error);
-          setError(
-            (result.error as { message?: string })?.message ||
-              "Registration failed. Please try again."
-          );
+          const errorMessage = (result.error as { message?: string; code?: string })?.message;
+          const errorCode = (result.error as { message?: string; code?: string })?.code;
+          
+          // Check if signup is disabled
+          if (errorCode === "SIGNUP_DISABLED" || errorMessage?.toLowerCase().includes("signup disabled") || errorMessage?.toLowerCase().includes("signup is disabled")) {
+            setError("Sign up is currently disabled. Please contact support or try signing in if you already have an account.");
+            // Redirect to signin after a short delay
+            setTimeout(() => {
+              window.location.href = "/signin?error=signup_disabled";
+            }, 2000);
+            return false;
+          }
+          
+          setError(errorMessage || "Registration failed. Please try again.");
         }
         return false;
       } catch (err) {

@@ -31,8 +31,11 @@ export class PaymentsService {
     private readonly verificationService: VerificationService,
   ) {}
 
-  private paymentStatusEnum() {
-    return (PrismaClient as any).PaymentVerificationStatus as
+  private paymentStatusEnum():
+    | { VERIFIED: 'VERIFIED'; UNVERIFIED: 'UNVERIFIED'; PENDING: 'PENDING' }
+    | undefined {
+    // Prisma enum access - using type assertion for enum access
+    return PrismaClient.PaymentVerificationStatus as unknown as
       | { VERIFIED: 'VERIFIED'; UNVERIFIED: 'UNVERIFIED'; PENDING: 'PENDING' }
       | undefined;
   }
@@ -51,7 +54,9 @@ export class PaymentsService {
     return Math.round(amount * 100);
   }
 
-  private extractVerifierAmount(payload: any): number | undefined {
+  private extractVerifierAmount(
+    payload: Record<string, unknown>,
+  ): number | undefined {
     const a = payload?.amount;
     if (typeof a === 'number' && Number.isFinite(a)) return a;
     if (typeof a === 'string') {
@@ -61,19 +66,25 @@ export class PaymentsService {
     return undefined;
   }
 
-  private extractVerifierReceiverAccount(payload: any): string | undefined {
+  private extractVerifierReceiverAccount(
+    payload: Record<string, unknown>,
+  ): string | undefined {
     const ra = payload?.receiverAccount;
     if (typeof ra === 'string' && ra.trim()) return ra.trim();
     return undefined;
   }
 
-  private extractVerifierReceiverName(payload: any): string | undefined {
+  private extractVerifierReceiverName(
+    payload: Record<string, unknown>,
+  ): string | undefined {
     const r = payload?.receiver;
     if (typeof r === 'string' && r.trim()) return r.trim();
     return undefined;
   }
 
-  private extractVerifierSenderName(payload: any): string | undefined {
+  private extractVerifierSenderName(
+    payload: Record<string, unknown>,
+  ): string | undefined {
     // Common fields for sender/payer name across providers
     const s =
       payload?.sender ||
@@ -110,7 +121,7 @@ export class PaymentsService {
   private receiverAccountMatches(
     txReceiverAccount: string | undefined,
     configuredReceiverAccount: string,
-    txReceiverName?: string | undefined,
+    txReceiverName?: string,
     configuredReceiverName?: string | null,
   ): boolean {
     if (!txReceiverAccount) return false;
@@ -145,7 +156,10 @@ export class PaymentsService {
     return true;
   }
 
-  private extractVerifierReference(payload: any, fallback: string): string {
+  private extractVerifierReference(
+    payload: Record<string, unknown>,
+    fallback: string,
+  ): string {
     const r = payload?.reference;
     return typeof r === 'string' && r.trim() ? r.trim() : fallback;
   }
@@ -178,12 +192,12 @@ export class PaymentsService {
     const tipAmount =
       body.tipAmount === undefined
         ? null
-        : this.toDecimal(body.tipAmount, 'tipAmount');
+        : this.toDecimal(body.tipAmount as number, 'tipAmount');
 
     // Payment model currently requires an Order relation.
     // For merchant direct-verification (no order flow), we'll create a lightweight OPEN order
     // only if we need to create a new Payment record.
-    const existingPayment = await (this.prisma as any).payment.findUnique({
+    const existingPayment = await this.prisma.payment.findUnique({
       where: {
         payment_merchant_provider_reference_unique: {
           merchantId: membership.merchantId,
@@ -202,7 +216,7 @@ export class PaymentsService {
 
     const order = existingPayment
       ? null
-      : await (this.prisma as any).order.create({
+      : await this.prisma.order.create({
           data: {
             merchantId: membership.merchantId,
             expectedAmount: claimedAmount,
@@ -212,9 +226,7 @@ export class PaymentsService {
         });
 
     // Require ACTIVE receiver to verify (disabled means merchant intentionally paused).
-    const activeReceiver = await (
-      this.prisma as any
-    ).merchantReceiverAccount.findFirst({
+    const activeReceiver = await this.prisma.merchantReceiverAccount.findFirst({
       where: {
         merchantId: membership.merchantId,
         provider: body.provider,
@@ -237,25 +249,26 @@ export class PaymentsService {
       JSON.stringify(verifierResult ?? null),
     );
 
+    const payloadRecord = normalizedPayload as Record<string, unknown>;
     const referenceFound =
       !!normalizedPayload &&
       typeof normalizedPayload === 'object' &&
-      (normalizedPayload as any).success !== false;
+      payloadRecord.success !== false;
 
-    const txAmount = this.extractVerifierAmount(normalizedPayload);
+    const txAmount = this.extractVerifierAmount(payloadRecord);
     const txReceiverAccount =
-      this.extractVerifierReceiverAccount(normalizedPayload);
-    const txReceiverName = this.extractVerifierReceiverName(normalizedPayload);
+      this.extractVerifierReceiverAccount(payloadRecord);
+    const txReceiverName = this.extractVerifierReceiverName(payloadRecord);
     const effectiveReference = this.extractVerifierReference(
-      normalizedPayload,
+      payloadRecord,
       body.reference,
     );
-    const txSenderName = this.extractVerifierSenderName(normalizedPayload);
+    const txSenderName = this.extractVerifierSenderName(payloadRecord);
 
     // If the effective reference differs from the input (e.g. casing, formatting from provider),
     // we must check again to see if we already verified the canonical reference.
     if (effectiveReference !== body.reference) {
-      const canonicalPayment = await (this.prisma as any).payment.findUnique({
+      const canonicalPayment = await this.prisma.payment.findUnique({
         where: {
           payment_merchant_provider_reference_unique: {
             merchantId: membership.merchantId,
@@ -297,71 +310,73 @@ export class PaymentsService {
         ? PaymentStatus.VERIFIED
         : PaymentStatus.UNVERIFIED;
 
-    const mismatchReason =
-      status === PaymentStatus.VERIFIED
-        ? null
-        : !referenceFound
-          ? 'REFERENCE_NOT_FOUND'
-          : !receiverMatches
-            ? 'RECEIVER_MISMATCH'
-            : !amountMatches
-              ? 'AMOUNT_MISMATCH'
-              : 'UNVERIFIED';
-
-    const payment = await (this.prisma as any).payment.upsert({
-      where: {
-        payment_merchant_provider_reference_unique: {
-          merchantId: membership.merchantId,
+    // Only save payment record if status is VERIFIED
+    let payment: any = null;
+    if (status === PaymentStatus.VERIFIED) {
+      payment = await this.prisma.payment.upsert({
+        where: {
+          payment_merchant_provider_reference_unique: {
+            merchantId: membership.merchantId,
+            provider: body.provider,
+            reference: effectiveReference,
+          },
+        },
+        update: {
+          ...(order ? { order: { connect: { id: order.id } } } : {}),
+          claimedAmount,
+          tipAmount,
+          status,
+          mismatchReason: null,
+          receiverAccount: { connect: { id: activeReceiver.id } },
+          verificationPayload: normalizedPayload as Prisma.InputJsonValue,
+          verifiedAt: new Date(),
+          verifiedBy: { connect: { id: membership.merchantUserId } },
+        },
+        create: {
+          merchant: { connect: { id: membership.merchantId } },
+          order: {
+            connect: {
+              id:
+                (existingPayment &&
+                'orderId' in existingPayment &&
+                existingPayment.orderId
+                  ? existingPayment.orderId
+                  : null) ??
+                order?.id ??
+                '',
+            },
+          },
           provider: body.provider,
           reference: effectiveReference,
+          claimedAmount,
+          tipAmount,
+          status,
+          mismatchReason: null,
+          receiverAccount: { connect: { id: activeReceiver.id } },
+          verificationPayload: normalizedPayload as Prisma.InputJsonValue,
+          verifiedAt: new Date(),
+          verifiedBy: { connect: { id: membership.merchantUserId } },
         },
-      },
-      update: {
-        ...(order ? { order: { connect: { id: order.id } } } : {}),
-        claimedAmount,
-        tipAmount,
-        status,
-        mismatchReason,
-        receiverAccount: { connect: { id: activeReceiver.id } },
-        verificationPayload: normalizedPayload as any,
-        verifiedAt: status === PaymentStatus.VERIFIED ? new Date() : null,
-        verifiedBy: { connect: { id: membership.merchantUserId } },
-      },
-      create: {
-        merchant: { connect: { id: membership.merchantId } },
-        order: {
-          connect: { id: (order ?? existingPayment)?.orderId ?? order?.id },
-        },
-        provider: body.provider,
-        reference: effectiveReference,
-        claimedAmount,
-        tipAmount,
-        status,
-        mismatchReason,
-        receiverAccount: { connect: { id: activeReceiver.id } },
-        verificationPayload: normalizedPayload as any,
-        verifiedAt: status === PaymentStatus.VERIFIED ? new Date() : null,
-        verifiedBy: { connect: { id: membership.merchantUserId } },
-      },
-      include: {
-        receiverAccount: true,
-        verifiedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            user: {
-              select: {
-                id: true,
-                email: true,
-                name: true,
+        include: {
+          receiverAccount: true,
+          verifiedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
+    }
 
     return {
       status,
@@ -398,7 +413,7 @@ export class PaymentsService {
     );
     const skip = (page - 1) * pageSize;
 
-    const where: any = {
+    const where: Prisma.PaymentWhereInput = {
       merchantId: membership.merchantId,
       ...(query.provider ? { provider: query.provider } : {}),
       ...(query.status
@@ -442,8 +457,8 @@ export class PaymentsService {
     }
 
     const [total, data] = await this.prisma.$transaction([
-      (this.prisma as any).payment.count({ where }),
-      (this.prisma as any).payment.findMany({
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.findMany({
         where,
         orderBy: { updatedAt: 'desc' },
         skip,
@@ -491,9 +506,7 @@ export class PaymentsService {
     return this.prisma.$transaction(async (tx) => {
       // Step 1: Find existing record for this merchant + provider (regardless of account number)
       // We only allow one receiver account per merchant + provider combination
-      const existingRecord = await (
-        tx as any
-      ).merchantReceiverAccount.findFirst({
+      const existingRecord = await tx.merchantReceiverAccount.findFirst({
         where: {
           merchantId: membership.merchantId,
           provider: body.provider,
@@ -503,7 +516,7 @@ export class PaymentsService {
 
       // Step 2: If we're enabling this receiver, deactivate all other ACTIVE receivers for this provider
       if (desiredStatus === 'ACTIVE') {
-        await (tx as any).merchantReceiverAccount.updateMany({
+        await tx.merchantReceiverAccount.updateMany({
           where: {
             merchantId: membership.merchantId,
             provider: body.provider,
@@ -519,13 +532,13 @@ export class PaymentsService {
         existingRecord &&
         existingRecord.receiverAccount !== body.receiverAccount
       ) {
-        await (tx as any).merchantReceiverAccount.delete({
+        await tx.merchantReceiverAccount.delete({
           where: { id: existingRecord.id },
         });
       }
 
       // Step 4: Upsert the receiver account with the new/updated data
-      const result = await (tx as any).merchantReceiverAccount.upsert({
+      const result = await tx.merchantReceiverAccount.upsert({
         where: {
           merchant_receiver_account_unique: {
             merchantId: membership.merchantId,
@@ -562,7 +575,7 @@ export class PaymentsService {
     if (provider) {
       if (
         !Object.values(PrismaClient.TransactionProvider).includes(
-          provider as any,
+          provider as PrismaClient.TransactionProvider,
         )
       ) {
         throw new BadRequestException('Invalid provider');
@@ -578,7 +591,7 @@ export class PaymentsService {
       ...(providerEnum ? { provider: providerEnum } : {}),
     };
 
-    const data = await (this.prisma as any).merchantReceiverAccount.findMany({
+    const data = await this.prisma.merchantReceiverAccount.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
     });
@@ -593,9 +606,7 @@ export class PaymentsService {
   async disableActiveReceiverAccount(body: DisableReceiverDto, req: Request) {
     const membership = await this.requireMembership(req);
 
-    const updated = await (
-      this.prisma as any
-    ).merchantReceiverAccount.updateMany({
+    const updated = await this.prisma.merchantReceiverAccount.updateMany({
       where: {
         merchantId: membership.merchantId,
         provider: body.provider,
@@ -616,7 +627,7 @@ export class PaymentsService {
     const membership = await this.requireMembership(req);
 
     return this.prisma.$transaction(async (tx) => {
-      const latest = await (tx as any).merchantReceiverAccount.findFirst({
+      const latest = await tx.merchantReceiverAccount.findFirst({
         where: {
           merchantId: membership.merchantId,
           provider: body.provider,
@@ -630,7 +641,7 @@ export class PaymentsService {
         );
       }
 
-      await (tx as any).merchantReceiverAccount.updateMany({
+      await tx.merchantReceiverAccount.updateMany({
         where: {
           merchantId: membership.merchantId,
           provider: body.provider,
@@ -639,7 +650,7 @@ export class PaymentsService {
         data: { status: 'INACTIVE' },
       });
 
-      const enabled = await (tx as any).merchantReceiverAccount.update({
+      const enabled = await tx.merchantReceiverAccount.update({
         where: { id: latest.id },
         data: { status: 'ACTIVE' },
       });
@@ -658,7 +669,7 @@ export class PaymentsService {
     );
     const currency = (body.currency ?? 'ETB').trim() || 'ETB';
 
-    const order = await (this.prisma as any).order.create({
+    const order = await this.prisma.order.create({
       data: {
         merchantId: membership.merchantId,
         expectedAmount,
@@ -682,7 +693,7 @@ export class PaymentsService {
   async submitAndVerifyClaim(body: SubmitPaymentClaimDto, req: Request) {
     const membership = await this.requireMembership(req);
 
-    const order = await (this.prisma as any).order.findFirst({
+    const order = await this.prisma.order.findFirst({
       where: { id: body.orderId, merchantId: membership.merchantId },
     });
     if (!order) throw new NotFoundException('Order not found');
@@ -693,9 +704,7 @@ export class PaymentsService {
         ? null
         : this.toDecimal(body.tipAmount, 'tipAmount');
 
-    const activeReceiver = await (
-      this.prisma as any
-    ).merchantReceiverAccount.findFirst({
+    const activeReceiver = await this.prisma.merchantReceiverAccount.findFirst({
       where: {
         merchantId: membership.merchantId,
         provider: body.provider,
@@ -709,7 +718,7 @@ export class PaymentsService {
     }
 
     // optional: link to existing Transaction record if present
-    const txRecord = await (this.prisma as any).transaction.findUnique({
+    const txRecord = await this.prisma.transaction.findUnique({
       where: {
         transaction_provider_reference_key: {
           provider: body.provider,
@@ -739,75 +748,65 @@ export class PaymentsService {
         ? PaymentStatus.VERIFIED
         : PaymentStatus.UNVERIFIED;
 
-    const mismatchReason =
-      status === PaymentStatus.VERIFIED
-        ? null
-        : this.buildMismatchReason({
-            amountMatches,
-            receiverMatches,
-            receiverAccountFromPayload,
-            expectedAmount: order.expectedAmount.toString(),
-            claimedAmount: claimedAmount.toString(),
-            activeReceiverAccount: activeReceiver.receiverAccount,
-          });
-
-    const payment = await (this.prisma as any).payment.upsert({
-      where: {
-        payment_merchant_provider_reference_unique: {
+    // Only save payment record if status is VERIFIED
+    let payment: any = null;
+    if (status === PaymentStatus.VERIFIED) {
+      payment = await this.prisma.payment.upsert({
+        where: {
+          payment_merchant_provider_reference_unique: {
+            merchantId: membership.merchantId,
+            provider: body.provider,
+            reference: body.reference,
+          },
+        },
+        update: {
+          orderId: order.id,
+          claimedAmount,
+          tipAmount,
+          receiverAccountId: activeReceiver.id,
+          transactionId: txRecord?.id ?? null,
+          status,
+          verifiedAt: new Date(),
+          verifiedById: membership.merchantUserId,
+          mismatchReason: null,
+          verificationPayload: (txRecord?.verificationPayload ??
+            Prisma.JsonNull) as Prisma.InputJsonValue,
+        },
+        create: {
           merchantId: membership.merchantId,
+          orderId: order.id,
           provider: body.provider,
           reference: body.reference,
+          claimedAmount,
+          tipAmount,
+          receiverAccountId: activeReceiver.id,
+          transactionId: txRecord?.id ?? null,
+          status,
+          verifiedAt: new Date(),
+          verifiedById: membership.merchantUserId,
+          mismatchReason: null,
+          verificationPayload: (txRecord?.verificationPayload ??
+            Prisma.JsonNull) as Prisma.InputJsonValue,
         },
-      },
-      update: {
-        orderId: order.id,
-        claimedAmount,
-        tipAmount,
-        receiverAccountId: activeReceiver.id,
-        transactionId: txRecord?.id ?? null,
-        status,
-        verifiedAt: new Date(),
-        verifiedById: membership.merchantUserId,
-        mismatchReason,
-        verificationPayload: (txRecord?.verificationPayload ??
-          Prisma.JsonNull) as Prisma.InputJsonValue,
-      },
-      create: {
-        merchantId: membership.merchantId,
-        orderId: order.id,
-        provider: body.provider,
-        reference: body.reference,
-        claimedAmount,
-        tipAmount,
-        receiverAccountId: activeReceiver.id,
-        transactionId: txRecord?.id ?? null,
-        status,
-        verifiedAt: new Date(),
-        verifiedById: membership.merchantUserId,
-        mismatchReason,
-        verificationPayload: (txRecord?.verificationPayload ??
-          Prisma.JsonNull) as Prisma.InputJsonValue,
-      },
-      include: {
-        order: true,
-        receiverAccount: true,
-        transaction: true,
-        verifiedBy: {
-          select: { id: true, name: true, email: true, role: true },
+        include: {
+          order: true,
+          receiverAccount: true,
+          transaction: true,
+          verifiedBy: {
+            select: { id: true, name: true, email: true, role: true },
+          },
         },
-      },
-    });
+      });
 
-    // If verified, mark order as PAID (simple version)
-    if (status === PaymentStatus.VERIFIED) {
-      await (this.prisma as any).order.update({
+      // If verified, mark order as PAID
+      await this.prisma.order.update({
         where: { id: order.id },
         data: { status: 'PAID' },
       });
     }
 
     return {
-      status: payment.status,
+      status,
       payment,
       checks: {
         amountMatches,
@@ -818,7 +817,7 @@ export class PaymentsService {
 
   async getPayment(paymentId: string, req: Request) {
     const membership = await this.requireMembership(req);
-    const payment = await (this.prisma as any).payment.findFirst({
+    const payment = await this.prisma.payment.findFirst({
       where: { id: paymentId, merchantId: membership.merchantId },
       include: {
         order: true,
@@ -858,7 +857,7 @@ export class PaymentsService {
       throw new BadRequestException('Invalid to date');
     }
 
-    const where: any = {
+    const where: Prisma.PaymentWhereInput = {
       merchantId: membership.merchantId,
       tipAmount: { not: null },
       // Filter by the current user so they only see their own tips
@@ -874,8 +873,8 @@ export class PaymentsService {
     }
 
     const [count, sum] = await Promise.all([
-      (this.prisma as any).payment.count({ where }),
-      (this.prisma as any).payment.aggregate({
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.aggregate({
         where,
         _sum: { tipAmount: true },
       }),
@@ -909,23 +908,24 @@ export class PaymentsService {
       throw new BadRequestException('Invalid to date');
     }
 
-    const where: any = {
+    const where: Prisma.PaymentWhereInput = {
       merchantId: membership.merchantId,
       tipAmount: { not: null },
       // Filter by the current user so they only see their own tips
       verifiedById: membership.merchantUserId,
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
     };
 
-    if (from || to) {
-      where.createdAt = {
-        ...(from ? { gte: from } : {}),
-        ...(to ? { lte: to } : {}),
-      };
-    }
-
     const [total, data] = await this.prisma.$transaction([
-      (this.prisma as any).payment.count({ where }),
-      (this.prisma as any).payment.findMany({
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
@@ -961,17 +961,30 @@ export class PaymentsService {
   }
 
   private async requireMembership(req: Request) {
-    const userId = (req as any).user?.id as string | undefined;
+    // Better Auth attaches user to request
+    interface RequestWithUser extends Request {
+      user?: { id: string };
+    }
+    const reqWithUser = req as RequestWithUser;
+    const userId = reqWithUser.user?.id;
     if (!userId) {
       throw new ForbiddenException('Not authenticated');
     }
 
     const membership = await this.merchantUsersService.me(req);
-    const merchantId = membership?.membership?.merchant?.id as
-      | string
-      | undefined;
-    const merchantUserId = membership?.membership?.id as string | undefined;
-    const role = membership?.membership?.role as string | undefined;
+    interface MembershipResponse {
+      membership?: {
+        id: string;
+        role: string;
+        merchant?: {
+          id: string;
+        };
+      };
+    }
+    const membershipData = membership as MembershipResponse;
+    const merchantId = membershipData.membership?.merchant?.id;
+    const merchantUserId = membershipData.membership?.id;
+    const role = membershipData.membership?.role;
 
     if (!merchantId || !merchantUserId || !role) {
       throw new ForbiddenException('Merchant membership required');

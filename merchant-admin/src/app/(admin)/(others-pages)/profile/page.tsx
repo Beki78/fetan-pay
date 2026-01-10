@@ -60,7 +60,29 @@ export default function Settings() {
   const isGoogleLinked = Boolean((user as any)?.providers?.includes?.("google") || (user as any)?.metadata?.googleLinked);
   const passwordSet = Boolean((user as any)?.metadata?.passwordSet);
 
-  // keep merchantId in sync with user updates and optional local storage fallback
+  // Track previous user email to detect user changes
+  const [previousUserEmail, setPreviousUserEmail] = useState<string | null>(null);
+
+  // Clear cached data when user changes
+  useEffect(() => {
+    if (user?.email && user.email !== previousUserEmail) {
+      // User has changed - clear all cached data
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("merchantId");
+        window.localStorage.removeItem("merchantStatus");
+      }
+      setMerchantId(null);
+      setMerchantProfile(null);
+      setFormData({
+        businessName: "",
+        businessEmail: "",
+        businessPhone: "",
+      });
+      setPreviousUserEmail(user.email);
+    }
+  }, [user?.email, previousUserEmail]);
+
+  // keep merchantId in sync with user updates
   useEffect(() => {
     const nextIdFromUser = deriveMerchantId(user);
     if (nextIdFromUser && nextIdFromUser !== merchantId) {
@@ -68,17 +90,22 @@ export default function Settings() {
       return;
     }
 
-    // fallback to locally stored merchantId if user payload lacks it
-    if (!merchantId && typeof window !== "undefined") {
+    // Only use localStorage if we don't have merchantId from user AND we're still on the same user
+    if (!merchantId && !nextIdFromUser && user?.email === previousUserEmail && typeof window !== "undefined") {
       const stored = window.localStorage.getItem("merchantId");
       if (stored) {
         setMerchantId(stored);
       }
     }
-  }, [user, merchantId]);
+  }, [user, merchantId, previousUserEmail]);
 
   useEffect(() => {
     const load = async () => {
+      // Don't load if user email doesn't match (user has changed)
+      if (!user?.email || (previousUserEmail && user.email !== previousUserEmail)) {
+        return;
+      }
+
       if (!merchantId && !user?.email) return;
 
       setIsProfileLoading(true);
@@ -86,13 +113,19 @@ export default function Settings() {
       try {
         let effectiveMerchantId = merchantId;
 
-        // If no merchantId, try lookup by user email
-        if (!effectiveMerchantId && user?.email) {
+        // Always prioritize lookup by current user email to ensure we get the right merchant
+        if (user?.email) {
           const found = await findMerchantByEmail(user.email);
           if (found) {
+            // Verify this merchant belongs to the current user
             effectiveMerchantId = found.id;
             setMerchantId(found.id);
           }
+        }
+
+        // If still no merchantId, use the one from state (but only if user matches)
+        if (!effectiveMerchantId && merchantId && user?.email === previousUserEmail) {
+          effectiveMerchantId = merchantId;
         }
 
         if (!effectiveMerchantId) {
@@ -101,13 +134,18 @@ export default function Settings() {
         }
 
         const profile = await getMerchantProfile(effectiveMerchantId);
-        // cache for later visits if session payload lacks merchantId
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("merchantId", profile.id);
-          if (profile.status) {
-            window.localStorage.setItem("merchantStatus", profile.status.toLowerCase());
+        
+        // Verify the profile belongs to the current user before caching
+        if (user?.email && (profile.contactEmail === user.email || !profile.contactEmail)) {
+          // cache for later visits if session payload lacks merchantId
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem("merchantId", profile.id);
+            if (profile.status) {
+              window.localStorage.setItem("merchantStatus", profile.status.toLowerCase());
+            }
           }
         }
+        
         setMerchantProfile(profile);
         setFormData({
           businessName: profile.name || "",
@@ -123,7 +161,7 @@ export default function Settings() {
     };
 
     load();
-  }, [merchantId, user]);
+  }, [merchantId, user, previousUserEmail]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

@@ -7,6 +7,7 @@ import { History as HistoryIcon, CheckCircle2, XCircle, Clock } from "lucide-rea
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_CONFIG } from "@/lib/config";
 import Image from "next/image";
 import { formatNumberWithCommas } from "@/lib/validation";
@@ -54,26 +55,35 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">
-      {/* Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="relative h-8 w-8">
+      <div className="container mx-auto px-3 py-8 max-w-2xl">
+        {/* Header with Theme Toggle */}
+        <div className="flex items-center justify-between mb-8 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl border border-blue-100 bg-white shadow-sm dark:border-slate-800 dark:bg-background">
               <Image
                 src="/images/logo/fetan-logo.png"
                 alt={APP_CONFIG.name}
                 fill
-                sizes="32px"
-                className="object-contain"
+                sizes="56px"
+                className="object-contain p-2"
                 priority
               />
             </div>
-            <span className="font-semibold text-lg">History</span>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold font-poppins tracking-tight text-blue-700 dark:text-white">
+                {APP_CONFIG.name}
+              </h1>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Verification history
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-5">
+            <ThemeToggle />
           </div>
         </div>
-      </header>
 
-      <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -172,6 +182,7 @@ export default function HistoryPage() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

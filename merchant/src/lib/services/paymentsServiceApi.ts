@@ -1,7 +1,12 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { API_BASE_URL } from "../constants";
 
-export type TransactionProvider = "CBE" | "TELEBIRR" | "AWASH" | "BOA" | "DASHEN";
+export type TransactionProvider =
+  | "CBE"
+  | "TELEBIRR"
+  | "AWASH"
+  | "BOA"
+  | "DASHEN";
 
 export type PaymentVerificationStatus = "VERIFIED" | "UNVERIFIED" | "PENDING";
 
@@ -160,21 +165,63 @@ export const paymentsServiceApi = createApi({
       }),
     }),
 
-    getTipsSummary: builder.query<
-      TipsSummaryResponse,
-      TipsSummaryQuery | void
-    >({
-      query: (params) => ({
-        url: "/payments/tips/summary",
-        method: "GET",
-        params: params ?? undefined,
-      }),
-    }),
+    getTipsSummary: builder.query<TipsSummaryResponse, TipsSummaryQuery | void>(
+      {
+        query: (params) => {
+          let url = "/payments/tips/summary";
+          const searchParams = new URLSearchParams();
 
-    listTips: builder.query<
-      ListTipsResponse,
-      ListTipsQuery | void
-    >({
+          if (params && typeof params === "object") {
+            if (params.from) {
+              searchParams.set("from", params.from);
+            }
+            if (params.to) {
+              searchParams.set("to", params.to);
+            }
+          }
+
+          const queryString = searchParams.toString();
+          if (queryString) {
+            url += `?${queryString}`;
+          }
+
+          return {
+            url,
+            method: "GET",
+          };
+        },
+        serializeQueryArgs: ({ endpointName, queryArgs }) => {
+          // Create unique cache key based on date range
+          if (
+            !queryArgs ||
+            typeof queryArgs !== "object" ||
+            (!queryArgs.from && !queryArgs.to)
+          ) {
+            return `${endpointName}(all)`;
+          }
+          const from = queryArgs.from || "";
+          const to = queryArgs.to || "";
+          return `${endpointName}(${from}-${to})`;
+        },
+        merge: (currentCache, newItems) => {
+          // Always use new data, don't merge
+          return newItems;
+        },
+        forceRefetch: ({ currentArg, previousArg }) => {
+          // Always refetch if args change
+          if (!currentArg && !previousArg) return false;
+          if (!currentArg || !previousArg) return true;
+          if (typeof currentArg !== "object" || typeof previousArg !== "object")
+            return true;
+          return (
+            currentArg.from !== previousArg.from ||
+            currentArg.to !== previousArg.to
+          );
+        },
+      }
+    ),
+
+    listTips: builder.query<ListTipsResponse, ListTipsQuery | void>({
       query: (params) => ({
         url: "/payments/tips",
         method: "GET",

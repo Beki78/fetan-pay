@@ -88,6 +88,7 @@ export const auth = betterAuth({
     google: {
       clientId: GOOGLE_CLIENT_ID,
       clientSecret: GOOGLE_CLIENT_SECRET,
+      disableImplicitSignUp: true,
     },
   },
   callbacks: {
@@ -102,12 +103,8 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: false,
-    // NOTE: In development we disable email verification so admin-created employees
-    // can immediately sign in without needing OTP flows.
-    // For production, set REQUIRE_EMAIL_VERIFICATION=true (or NODE_ENV=production).
-    requireEmailVerification:
-      (process.env.REQUIRE_EMAIL_VERIFICATION ?? process.env.NODE_ENV) ===
-      'production',
+    // Email verification is disabled - users can sign in immediately after signup
+    requireEmailVerification: false,
     minPasswordLength: 8,
     maxPasswordLength: 20,
     autoSignIn: true,

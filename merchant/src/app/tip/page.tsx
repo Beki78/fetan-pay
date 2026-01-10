@@ -7,6 +7,7 @@ import { Coins, TrendingUp, DollarSign, Calendar, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_CONFIG } from "@/lib/config";
 import Image from "next/image";
 import { formatNumberWithCommas } from "@/lib/validation";
@@ -20,33 +21,58 @@ export default function TipPage() {
   const { isAuthenticated, isLoading: isSessionLoading } = useSession();
 
   // Calculate date ranges (must be before hooks)
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
-  weekStart.setHours(0, 0, 0, 0);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const now = useMemo(() => new Date(), []);
+  const todayStart = useMemo(() => {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, [now]);
+  const weekStart = useMemo(() => {
+    const date = new Date(now);
+    date.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, [now]);
+  const monthStart = useMemo(() => {
+    const date = new Date(now.getFullYear(), now.getMonth(), 1);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, [now]);
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // Fetch tip summaries
-  const { data: todayData, isLoading: todayLoading } = useGetTipsSummaryQuery({
+  const {
+    data: todayData,
+    isLoading: todayLoading,
+    error: todayError,
+  } = useGetTipsSummaryQuery({
     from: todayStart.toISOString(),
     to: now.toISOString(),
   });
 
-  const { data: weekData, isLoading: weekLoading } = useGetTipsSummaryQuery({
+  const {
+    data: weekData,
+    isLoading: weekLoading,
+    error: weekError,
+  } = useGetTipsSummaryQuery({
     from: weekStart.toISOString(),
     to: now.toISOString(),
   });
 
-  const { data: monthData, isLoading: monthLoading } = useGetTipsSummaryQuery({
+  const {
+    data: monthData,
+    isLoading: monthLoading,
+    error: monthError,
+  } = useGetTipsSummaryQuery({
     from: monthStart.toISOString(),
     to: now.toISOString(),
   });
 
-  const { data: totalData, isLoading: totalLoading } = useGetTipsSummaryQuery(
-    {}
-  );
+  const {
+    data: totalData,
+    isLoading: totalLoading,
+    error: totalError,
+  } = useGetTipsSummaryQuery({});
 
   // Fetch tip history
   const { data: tipsData, isLoading: tipsLoading } = useListTipsQuery({
@@ -56,16 +82,26 @@ export default function TipPage() {
 
   const tipStats = useMemo(() => {
     return {
-      today: todayData?.totalTipAmount ? Number(todayData.totalTipAmount) : 0,
-      thisWeek: weekData?.totalTipAmount ? Number(weekData.totalTipAmount) : 0,
-      thisMonth: monthData?.totalTipAmount
-        ? Number(monthData.totalTipAmount)
-        : 0,
-      total: totalData?.totalTipAmount ? Number(totalData.totalTipAmount) : 0,
+      today:
+        todayData?.totalTipAmount != null
+          ? Number(todayData.totalTipAmount)
+          : 0,
+      thisWeek:
+        weekData?.totalTipAmount != null
+          ? Number(weekData.totalTipAmount)
+          : 0,
+      thisMonth:
+        monthData?.totalTipAmount != null
+          ? Number(monthData.totalTipAmount)
+          : 0,
+      total:
+        totalData?.totalTipAmount != null
+          ? Number(totalData.totalTipAmount)
+          : 0,
     };
   }, [todayData, weekData, monthData, totalData]);
 
-  const isLoading = todayLoading || weekLoading || monthLoading || totalLoading;
+  // Individual loading states for each card
 
   // Early returns AFTER all hooks
   if (isSessionLoading) {
@@ -87,26 +123,35 @@ export default function TipPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">
-      {/* Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="relative h-8 w-8">
+      <div className="container mx-auto px-3 py-8 max-w-2xl">
+        {/* Header with Theme Toggle */}
+        <div className="flex items-center justify-between mb-8 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl border border-blue-100 bg-white shadow-sm dark:border-slate-800 dark:bg-background">
               <Image
                 src="/images/logo/fetan-logo.png"
                 alt={APP_CONFIG.name}
                 fill
-                sizes="32px"
-                className="object-contain"
+                sizes="56px"
+                className="object-contain p-2"
                 priority
               />
             </div>
-            <span className="font-semibold text-lg">Tips</span>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold font-poppins tracking-tight text-blue-700 dark:text-white">
+                {APP_CONFIG.name}
+              </h1>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Your tips & earnings
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-5">
+            <ThemeToggle />
           </div>
         </div>
-      </header>
 
-      <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-2 gap-4">
           <Card>
@@ -114,7 +159,7 @@ export default function TipPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Today</p>
-                  {isLoading ? (
+                  {todayLoading ? (
                     <Spinner className="size-6 mt-2" />
                   ) : (
                     <p className="text-2xl font-bold text-primary">
@@ -132,7 +177,7 @@ export default function TipPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">This Week</p>
-                  {isLoading ? (
+                  {weekLoading ? (
                     <Spinner className="size-6 mt-2" />
                   ) : (
                     <p className="text-2xl font-bold text-secondary">
@@ -150,7 +195,7 @@ export default function TipPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">This Month</p>
-                  {isLoading ? (
+                  {monthLoading ? (
                     <Spinner className="size-6 mt-2" />
                   ) : (
                     <p className="text-2xl font-bold text-accent">
@@ -168,7 +213,7 @@ export default function TipPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total</p>
-                  {isLoading ? (
+                  {totalLoading ? (
                     <Spinner className="size-6 mt-2" />
                   ) : (
                     <p className="text-2xl font-bold">
@@ -253,6 +298,7 @@ export default function TipPage() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

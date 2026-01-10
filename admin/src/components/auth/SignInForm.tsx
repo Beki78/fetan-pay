@@ -37,11 +37,22 @@ export default function SignInForm() {
     try {
       const params = new URLSearchParams(window.location.search);
       const e = params.get("error");
-      if (e) setRoleError(e);
+      if (e) {
+        // Check if it's a signup disabled error
+        if (e === "signup_disabled" || e.toLowerCase().includes("signup disabled")) {
+          setRoleError("Sign up is currently disabled. Please contact support or sign in if you already have an account.");
+        } else if (e.toLowerCase().includes("not found") || e.toLowerCase().includes("does not exist") || e === "USER_NOT_FOUND") {
+          setRoleError("Account does not exist. Please sign up first or contact support.");
+        } else {
+          setRoleError(e);
+        }
+        // Clean up URL
+        router.replace(window.location.pathname);
+      }
     } catch {
       // ignore
     }
-  }, []);
+  }, [router]);
 
   const enforceAdminRole = async (): Promise<boolean> => {
     const sessionResponse = await authClient.getSession();
@@ -247,7 +258,7 @@ export default function SignInForm() {
               </div>
             </form>
 
-            <div className="mt-6">
+            {/* <div className="mt-6">
               <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
                 Don&apos;t have an account?{" "}
                 <Link
@@ -257,7 +268,7 @@ export default function SignInForm() {
                   Sign Up
                 </Link>
               </p>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
