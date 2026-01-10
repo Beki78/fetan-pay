@@ -25,14 +25,18 @@ const emailService = new EmailService(configService);
 // const prisma = new PrismaClient({ adapter });
 
 const BETTER_AUTH_BASE_URL =
-  process.env.BETTER_AUTH_BASE_URL || process.env.AUTH_BASE_URL || 'http://localhost:3003';
+  process.env.BETTER_AUTH_BASE_URL ||
+  process.env.AUTH_BASE_URL ||
+  'http://localhost:3003';
 const DEFAULT_CLIENT_ORIGINS = ['http://localhost:3000'];
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set for Google OAuth.');
+  throw new Error(
+    'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set for Google OAuth.',
+  );
 }
 type Auth = ReturnType<typeof betterAuth>;
 
@@ -88,6 +92,10 @@ export const auth = betterAuth({
   },
   callbacks: {
     signIn: {
+      // Better Auth will use the callbackURL from the client's signIn.social() call
+      // Admin panel uses: http://localhost:3000
+      // Merchant admin uses: http://localhost:3001
+      // This is just a fallback if no callbackURL is provided
       redirect: 'http://localhost:3000',
     },
   },
