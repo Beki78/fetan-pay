@@ -126,6 +126,12 @@ export default function VerificationHistoryTable({
                   Reference
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
+                  Amount
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
+                  Tip
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
                   Verified By
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
@@ -138,9 +144,6 @@ export default function VerificationHistoryTable({
                   Verified At
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
-                  Mismatch
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
                   Actions
                 </TableCell>
               </TableRow>
@@ -149,7 +152,7 @@ export default function VerificationHistoryTable({
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
               {(isLoading || isFetching) && (
                 <TableRow>
-                  <TableCell colSpan={7} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={8} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
                     Loading verification history...
                   </TableCell>
                 </TableRow>
@@ -157,7 +160,7 @@ export default function VerificationHistoryTable({
 
               {!isLoading && !isFetching && error && (
                 <TableRow>
-                  <TableCell colSpan={7} className="px-5 py-6 text-center text-red-500">
+                  <TableCell colSpan={8} className="px-5 py-6 text-center text-red-500">
                     {"status" in (error as any) && (error as any).status === 0
                       ? "Network error"
                       : "data" in (error as any) && (error as any).data?.message
@@ -169,54 +172,86 @@ export default function VerificationHistoryTable({
 
               {!isLoading && !isFetching && !error && filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={8} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
                     No verification history found
                   </TableCell>
                 </TableRow>
               )}
 
               {!isLoading && !isFetching && !error &&
-                filtered.map((p) => (
-                  <TableRow
-                    key={p.id}
-                    className={`bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors ${selectedId === p.id ? "ring-2 ring-brand-500/40" : ""}`}
-                  >
-                    <TableCell className="px-5 py-4">
-                      <span className="font-semibold text-blue-600 dark:text-blue-300">
-                        {p.reference}
-                      </span>
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                      {getVerifierLabel(p)}
-                    </TableCell>
-                    <TableCell className="px-5 py-4">
-                      <Badge size="sm" variant="light" color="info">
-                        {providerLabels[p.provider] ?? p.provider}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="px-5 py-4">
-                      <Badge size="sm" color={statusColor(p.status)}>
-                        {p.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                      {formatDate(p.verifiedAt)}
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                      {p.mismatchReason ?? "—"}
-                    </TableCell>
-                    <TableCell className="px-5 py-4">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onView?.(p)}
-                        disabled={!onView}
-                      >
-                        View
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                filtered.map((p) => {
+                  const claimedAmount = Number(p.claimedAmount || 0);
+                  const tipAmount = p.tipAmount ? Number(p.tipAmount) : null;
+                  const verifierRole = p.verifiedBy?.role;
+                  const isWaiter = verifierRole === "WAITER";
+
+                  return (
+                    <TableRow
+                      key={p.id}
+                      className={`bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors ${selectedId === p.id ? "ring-2 ring-brand-500/40" : ""}`}
+                    >
+                      <TableCell className="px-5 py-4">
+                        <span className="font-semibold text-blue-600 dark:text-blue-300">
+                          {p.reference}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                        <span className="font-medium">
+                          {claimedAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-5 py-4">
+                        {tipAmount ? (
+                          <div className="flex items-center gap-2">
+                            <Badge size="sm" variant="light" color="success">
+                              {tipAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB
+                            </Badge>
+                            {isWaiter && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400" title="Verified by waiter">
+                                👤
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                        <div className="flex flex-col gap-1">
+                          <span>{getVerifierLabel(p)}</span>
+                          {p.verifiedBy?.role && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {p.verifiedBy.role}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-5 py-4">
+                        <Badge size="sm" variant="light" color="info">
+                          {providerLabels[p.provider] ?? p.provider}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-5 py-4">
+                        <Badge size="sm" color={statusColor(p.status)}>
+                          {p.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                        {formatDate(p.verifiedAt)}
+                      </TableCell>
+                      <TableCell className="px-5 py-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onView?.(p)}
+                          disabled={!onView}
+                        >
+                          View
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
             </TableBody>
           </Table>
         </div>

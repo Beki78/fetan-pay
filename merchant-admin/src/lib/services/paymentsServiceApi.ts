@@ -76,6 +76,38 @@ export interface TipsSummaryResponse {
   totalTipAmount: string | null;
 }
 
+export interface TipItem {
+  id: string;
+  tipAmount: number;
+  claimedAmount: number;
+  reference: string;
+  provider: TransactionProvider;
+  status: PaymentVerificationStatus;
+  createdAt: string;
+  verifiedAt: string | null;
+  verifiedBy: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    role: string;
+  } | null;
+}
+
+export interface ListTipsResponse {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  data: TipItem[];
+}
+
+export interface ListTipsParams {
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export const paymentsServiceApi = createApi({
   reducerPath: 'paymentsServiceApi',
   baseQuery: fetchBaseQuery({
@@ -208,6 +240,18 @@ export const paymentsServiceApi = createApi({
       providesTags: [{ type: 'Tips', id: 'SUMMARY' }],
     }),
 
+    listTips: builder.query<ListTipsResponse, ListTipsParams | void>({
+      query: (params) => {
+        const query = new URLSearchParams();
+        if (params?.from) query.set('from', params.from);
+        if (params?.to) query.set('to', params.to);
+        query.set('page', String(params?.page ?? 1));
+        query.set('pageSize', String(params?.pageSize ?? 20));
+        return { url: `/payments/tips?${query.toString()}` };
+      },
+      providesTags: [{ type: 'Tips', id: 'LIST' }],
+    }),
+
     listVerificationHistory: builder.query<VerificationHistoryResponse, ListVerificationHistoryParams | void>({
       query: (params) => {
         const query = new URLSearchParams();
@@ -240,5 +284,6 @@ export const {
   useSubmitPaymentClaimMutation,
   useGetPaymentClaimQuery,
   useGetTipsSummaryQuery,
+  useListTipsQuery,
   useListVerificationHistoryQuery,
 } = paymentsServiceApi;

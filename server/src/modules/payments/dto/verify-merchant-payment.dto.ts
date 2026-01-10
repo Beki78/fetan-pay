@@ -26,4 +26,15 @@ export class VerifyMerchantPaymentDto {
   @IsOptional()
   @IsString()
   qrData?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Optional tip amount given by the customer',
+    example: 50,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  tipAmount?: number;
 }

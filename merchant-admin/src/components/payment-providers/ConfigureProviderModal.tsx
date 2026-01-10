@@ -83,59 +83,66 @@ export default function ConfigureProviderModal({
   }, [isOpen, initialData]);
 
   const handleSave = async () => {
+    // Clear previous errors
+    setErrors({});
+    setSubmitError(null);
+
+    // Validate inputs
+    const trimmedAccountNumber = accountNumber.trim();
+    const trimmedAccountHolderName = accountHolderName.trim();
+
     const newErrors: { accountNumber?: string; accountHolderName?: string } = {};
 
-    if (!accountNumber.trim()) {
+    if (!trimmedAccountNumber) {
       newErrors.accountNumber = "Account number is required";
     }
-    if (!accountHolderName.trim()) {
+
+    if (!trimmedAccountHolderName) {
       newErrors.accountHolderName = "Account holder name is required";
     }
 
+    // If validation errors, show them and stop
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    setSubmitError(null);
+    // Start submission
     setIsSubmitting(true);
 
     try {
       if (onSubmit) {
+        // Call parent's submit handler
         await onSubmit({
           providerId,
-          accountNumber: accountNumber.trim(),
-          accountHolderName: accountHolderName.trim(),
+          accountNumber: trimmedAccountNumber,
+          accountHolderName: trimmedAccountHolderName,
           isEnabled,
         });
+
+        // Success - reset form state
+        setIsSubmitting(false);
+        setErrors({});
+        setSubmitError(null);
+
+        // Parent will handle toast and closing the modal
       } else {
-        // Fallback for dev/testing
-        console.log("Saving configuration:", {
-          providerId,
-          accountNumber,
-          accountHolderName,
-          isEnabled,
-        });
+        // Fallback for dev/testing (should not happen in production)
+        console.warn("onSubmit handler not provided");
+        setIsSubmitting(false);
+        onClose();
       }
     } catch (e: any) {
-      setSubmitError(e?.message ?? "Failed to save configuration");
+      // Extract error message
+      const errorMsg =
+        e?.message ?? e?.data?.message ?? "Failed to save configuration";
+
+      // Show error in modal
+      setSubmitError(errorMsg);
       setIsSubmitting(false);
-      return;
+
+      // Don't close modal on error - let user see the error and try again
     }
-
-    // Call onSave callback
-    if (onSave) {
-      onSave(providerId, "save");
-    }
-
-    setIsSubmitting(false);
-
-    // Reset form and close
-    setAccountNumber("");
-    setAccountHolderName("");
-    setIsEnabled(false);
-    setErrors({});
-    onClose();
   };
 
   const handleClose = () => {
