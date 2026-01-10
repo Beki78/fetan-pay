@@ -52,6 +52,25 @@ export class VerifyController {
   }
 
   @Get('/')
+  @ApiOperation({
+    summary: 'Get verification API information',
+    description: 'Returns information about available verification endpoints. This endpoint is public.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'API information retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'Payment Verification API' },
+        version: { type: 'string', example: '2.1.0' },
+        endpoints: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+      },
+    },
+  })
   root() {
     return {
       name: 'Payment Verification API',
@@ -71,6 +90,21 @@ export class VerifyController {
   }
 
   @Get('/health')
+  @ApiOperation({
+    summary: 'Health check endpoint',
+    description: 'Returns the health status of the verification service. This endpoint is public.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Service is healthy',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'ok' },
+        timestamp: { type: 'string', example: '2024-01-01T00:00:00.000Z' },
+      },
+    },
+  })
   health() {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }

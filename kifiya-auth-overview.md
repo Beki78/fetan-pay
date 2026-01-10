@@ -7,6 +7,7 @@ Kifiya Auth is a payment verification system designed for Ethiopian businesses t
 ## Core Purpose
 
 Kifiya Auth **verifies** that bank transfers have been completed. It does **NOT**:
+
 - Process payments
 - Hold funds
 - Transfer money
@@ -19,6 +20,7 @@ The system simply validates that payments have been made by checking transaction
 ### 1. Three User Types
 
 #### Normal Merchants (Vendors)
+
 - Simple dashboard interface for managing payments
 - No coding required
 - Add bank accounts directly in the dashboard
@@ -26,6 +28,7 @@ The system simply validates that payments have been made by checking transaction
 - Perfect for small to medium businesses
 
 #### Waiters (For Restaurants/Cafes)
+
 - No separate UI/dashboard access
 - Work through vendor admin dashboard
 - Verify payments and input tips during verification
@@ -33,6 +36,7 @@ The system simply validates that payments have been made by checking transaction
 - Perfect for restaurants and cafes
 
 #### Developers
+
 - Full REST API access
 - 2 API keys for programmatic integration
 - Webhook support for real-time notifications
@@ -41,6 +45,7 @@ The system simply validates that payments have been made by checking transaction
 ### 2. Multi-Bank Support
 
 Kifiya Auth supports verification from multiple Ethiopian banks:
+
 - **BOA** (Bank of Abyssinia)
 - **Awash Bank**
 - **CBE** (Commercial Bank of Ethiopia)
@@ -50,11 +55,13 @@ Kifiya Auth supports verification from multiple Ethiopian banks:
 ### 3. Two Verification Methods
 
 #### Transaction ID Verification
+
 - Customer provides transaction reference/ID
 - System validates against bank records
 - Instant verification results
 
 #### QR Code Verification
+
 - Scan QR codes from bank receipts
 - Automatic bank detection
 - Extract transaction details from QR code
@@ -111,6 +118,7 @@ kifiya-pay/
 ## Key Capabilities
 
 ### For Vendors
+
 1. Sign up and create account
 2. Add bank accounts (BOA, Awash, CBE, Telebirr, etc.)
 3. (Optional) Add waiters if running restaurant/cafe
@@ -121,6 +129,7 @@ kifiya-pay/
 8. (Optional) View and approve waiter tips/bonuses
 
 ### For Waiters (Restaurants/Cafes)
+
 1. Waiters are added by restaurant admin
 2. Waiters verify payments through admin dashboard
 3. Input tip amount during verification
@@ -128,6 +137,7 @@ kifiya-pay/
 5. Admin approves and processes bonus payment
 
 ### For Developers
+
 1. Sign up and get API key
 2. Integrate payment verification into your application
 3. Create payment intents
@@ -138,21 +148,25 @@ kifiya-pay/
 ## Benefits
 
 ### Instant Verification
+
 - No more waiting for manual confirmation
 - Verify payments in seconds
 - Real-time results
 
 ### Fraud Prevention
+
 - Built-in duplicate transaction detection
 - Prevents screenshot-based fraud
 - Secure verification process
 
 ### Easy to Use
+
 - Simple dashboard for merchants
 - Comprehensive API for developers
 - Clear documentation
 
 ### Multi-Bank Support
+
 - Verify payments from all major Ethiopian banks
 - Single interface for all banks
 - Unified verification process
@@ -160,21 +174,25 @@ kifiya-pay/
 ## Use Cases
 
 ### E-commerce Platforms
+
 - Verify payments for online orders
 - Automate order fulfillment
 - Reduce manual verification time
 
 ### Service Providers
+
 - Confirm payments for services
 - Automate payment confirmation
 - Track service payments
 
 ### Small Businesses
+
 - Verify customer payments
 - Track payment history
 - Manage multiple bank accounts
 
 ### Restaurants & Cafes
+
 - Verify customer payments
 - Track tips for waiters
 - Manage waiter bonuses
@@ -182,6 +200,7 @@ kifiya-pay/
 - Staff performance tracking
 
 ### Fintech Companies
+
 - Integrate payment verification
 - Build payment solutions
 - Provide verification services
@@ -189,6 +208,7 @@ kifiya-pay/
 ## What's Included
 
 ### Core Features
+
 - ✅ Multi-bank payment verification
 - ✅ Transaction ID verification
 - ✅ QR code scanning and verification
@@ -201,6 +221,7 @@ kifiya-pay/
 - ✅ Bank account management
 
 ### Technical Components
+
 - Backend API server
 - Vendor dashboard application
 - Admin dashboard
@@ -211,11 +232,13 @@ kifiya-pay/
 ## Getting Started
 
 ### For Vendors
+
 1. Sign up for an account
 2. Add your bank accounts
 3. Start verifying payments
 
 ### For Developers
+
 1. Sign up for a developer account
 2. Get your 2 API keys
 3. Read the API documentation
@@ -226,9 +249,8 @@ kifiya-pay/
 - See [Kifiya Features](./kifiya-feature.md) for detailed feature list
 - See [Technical Documentation](./technical-documentation.md) for API details
 - See [Pricing](./kifiya-pricing.md) for pricing information
-- See [PayAuth Analysis](./pay-auth.md) for competitor analysis
+- See [FetanPay Analysis](./pay-auth.md) for competitor analysis
 
 ---
 
 **Note**: This is an overview document. For technical details, implementation guides, and API documentation, please refer to the other documentation files.
-

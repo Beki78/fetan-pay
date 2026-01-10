@@ -10,7 +10,16 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiTags,
+  ApiResponse,
+  ApiBody,
+  ApiQuery,
+  ApiParam,
+  ApiBearerAuth,
+  ApiCookieAuth,
+} from '@nestjs/swagger';
 import { MerchantsService } from './merchants.service';
 import { SelfRegisterMerchantDto } from './dto/self-register-merchant.dto';
 import { AdminCreateMerchantDto } from './dto/admin-create-merchant.dto';
@@ -25,6 +34,8 @@ import { SetMerchantUserStatusDto } from './dto/set-merchant-user-status.dto';
 // by Better Auth (see auth.ts). Routes here stay focused on merchant + staff membership records and
 // defer credential lifecycle to Better Auth.
 @ApiTags('merchant-accounts')
+@ApiBearerAuth('bearer')
+@ApiCookieAuth('better-auth.session_token')
 @Controller('merchant-accounts')
 export class MerchantsController {
   constructor(private readonly merchantsService: MerchantsService) {}
@@ -35,14 +46,30 @@ export class MerchantsController {
     summary:
       'Merchant self-registration (creates pending merchant + owner membership)',
     description:
-      'Creates merchant + owner membership; authentication/credentials are handled via Better Auth (user signs up separately).',
+      'Creates merchant + owner membership; authentication/credentials are handled via Better Auth (user signs up separately). This endpoint is public and does not require authentication.',
   })
+  @ApiBody({ type: SelfRegisterMerchantDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Merchant registered successfully (pending approval)',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 409, description: 'Merchant with this email already exists' })
   async selfRegister(@Body() body: SelfRegisterMerchantDto) {
     return this.merchantsService.selfRegister(body);
   }
 
   @Get()
-  @ApiOperation({ summary: 'List merchants with users (paginated)' })
+  @ApiOperation({
+    summary: 'List merchants with users (paginated)',
+    description: 'Retrieves a paginated list of merchants with their associated users. Requires admin authentication.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Merchants retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async list(@Query() query: MerchantQueryDto) {
     return this.merchantsService.findAll(query);
   }
@@ -51,8 +78,16 @@ export class MerchantsController {
   @ApiOperation({
     summary: 'Admin creates a merchant (active or pending) with owner invite',
     description:
-      'Creates merchant + owner membership; Better Auth still owns credentials. Use email invite flow to let the owner sign in.',
+      'Creates merchant + owner membership; Better Auth still owns credentials. Use email invite flow to let the owner sign in. Requires admin authentication.',
   })
+  @ApiBody({ type: AdminCreateMerchantDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Merchant created successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async adminCreate(@Body() body: AdminCreateMerchantDto) {
     return this.merchantsService.adminCreate(body);
   }
@@ -60,31 +95,105 @@ export class MerchantsController {
   @Patch(':id/approve')
   @ApiOperation({
     summary: 'Approve merchant (set ACTIVE, stamp approvedAt/approvedBy)',
+    description: 'Approves a pending merchant account, setting status to ACTIVE. Requires admin authentication.',
   })
+  @ApiParam({
+    name: 'id',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiBody({ type: ApproveMerchantDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Merchant approved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async approve(@Param('id') id: string, @Body() body: ApproveMerchantDto) {
     return this.merchantsService.approve(id, body);
   }
 
   @Patch(':id/reject')
-  @ApiOperation({ summary: 'Reject merchant (set SUSPENDED, stamp rejectedBy)' })
+  @ApiOperation({
+    summary: 'Reject merchant (set SUSPENDED, stamp rejectedBy)',
+    description: 'Rejects a pending merchant account, setting status to SUSPENDED. Requires admin authentication.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiBody({ type: RejectMerchantDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Merchant rejected successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async reject(@Param('id') id: string, @Body() body: RejectMerchantDto) {
     return this.merchantsService.reject(id, body);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get merchant with users' })
+  @ApiOperation({
+    summary: 'Get merchant with users',
+    description: 'Retrieves detailed information about a specific merchant including associated users.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Merchant retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getOne(@Param('id') id: string) {
     return this.merchantsService.findOne(id);
   }
 
   @Get(':id/users')
-  @ApiOperation({ summary: 'List users for a merchant account' })
+  @ApiOperation({
+    summary: 'List users for a merchant account',
+    description: 'Retrieves all users (employees) associated with a merchant account.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Users retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async listUsers(@Param('id') id: string) {
     return this.merchantsService.listUsers(id);
   }
 
   @Post(':id/users')
-  @ApiOperation({ summary: 'Create a merchant employee with auth account' })
+  @ApiOperation({
+    summary: 'Create a merchant employee with auth account',
+    description: 'Creates a new employee user for a merchant account. Also creates the corresponding Better Auth user account.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiBody({ type: CreateMerchantUserDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Employee created successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 404, description: 'Merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createUser(
     @Param('id') id: string,
     @Body() body: CreateMerchantUserDto,
@@ -94,7 +203,26 @@ export class MerchantsController {
   }
 
   @Get(':merchantId/users/:userId')
-  @ApiOperation({ summary: 'Get a merchant employee by id' })
+  @ApiOperation({
+    summary: 'Get a merchant employee by id',
+    description: 'Retrieves detailed information about a specific merchant employee.',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User or merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getUser(
     @Param('merchantId') merchantId: string,
     @Param('userId') userId: string,
@@ -103,7 +231,28 @@ export class MerchantsController {
   }
 
   @Patch(':merchantId/users/:userId')
-  @ApiOperation({ summary: 'Update a merchant employee (profile/role)' })
+  @ApiOperation({
+    summary: 'Update a merchant employee (profile/role)',
+    description: 'Updates profile information and/or role for a merchant employee.',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID',
+    type: String,
+  })
+  @ApiBody({ type: UpdateMerchantUserDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 404, description: 'User or merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async updateUser(
     @Param('merchantId') merchantId: string,
     @Param('userId') userId: string,
@@ -113,7 +262,27 @@ export class MerchantsController {
   }
 
   @Patch(':merchantId/users/:userId/deactivate')
-  @ApiOperation({ summary: 'Deactivate/suspend a merchant employee' })
+  @ApiOperation({
+    summary: 'Deactivate/suspend a merchant employee',
+    description: 'Deactivates or suspends a merchant employee account.',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID',
+    type: String,
+  })
+  @ApiBody({ type: SetMerchantUserStatusDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User deactivated successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User or merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async deactivateUser(
     @Param('merchantId') merchantId: string,
     @Param('userId') userId: string,
@@ -123,7 +292,27 @@ export class MerchantsController {
   }
 
   @Patch(':merchantId/users/:userId/activate')
-  @ApiOperation({ summary: 'Activate a merchant employee' })
+  @ApiOperation({
+    summary: 'Activate a merchant employee',
+    description: 'Activates a previously deactivated merchant employee account.',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'User ID',
+    type: String,
+  })
+  @ApiBody({ type: SetMerchantUserStatusDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User activated successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User or merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async activateUser(
     @Param('merchantId') merchantId: string,
     @Param('userId') userId: string,

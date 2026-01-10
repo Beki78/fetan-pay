@@ -273,7 +273,7 @@ export default function BrandingPage() {
               <Checkbox
                 checked={showPoweredBy}
                 onChange={setShowPoweredBy}
-                label="Show 'Powered by PayAuth' badge"
+                label="Show 'Powered by FetanPay' badge"
               />
             </div>
           </div>
@@ -325,7 +325,7 @@ export default function BrandingPage() {
               {showPoweredBy && (
                 <div className="bg-gray-900/40 backdrop-blur-sm px-6 py-4 border-t border-white/20">
                   <p className="text-xs text-white/90 text-center font-medium">
-                    Powered by PayAuth
+                    Powered by FetanPay
                   </p>
                 </div>
               )}
