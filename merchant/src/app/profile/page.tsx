@@ -3,17 +3,20 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/hooks/useSession";
-import { User, Mail, Building, LogOut, Settings } from "lucide-react";
+import { User, Mail, Building, LogOut, Settings, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { APP_CONFIG } from "@/lib/config";
+import { APP_CONFIG, BANKS } from "@/lib/config";
 import Image from "next/image";
 import { toast } from "sonner";
+import { useGetActiveReceiverAccountsQuery } from "@/lib/services/paymentsServiceApi";
+import type { TransactionProvider } from "@/lib/services/paymentsServiceApi";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, membership, isAuthenticated, isLoading: isSessionLoading, signOut } = useSession();
+  const { data: receiverAccountsData, isLoading: isLoadingAccounts } = useGetActiveReceiverAccountsQuery();
 
   // Route protection
   useEffect(() => {
@@ -51,6 +54,33 @@ export default function ProfilePage() {
 
   const businessName = (membership as any)?.membership?.merchant?.name ?? null;
   const userRole = (membership as any)?.membership?.role ?? null;
+  // Only show ACTIVE receiver accounts
+  const receiverAccounts = (receiverAccountsData?.data ?? []).filter(
+    (account) => account.status === "ACTIVE"
+  );
+
+  // Helper function to get bank info from provider
+  const getBankInfo = (provider: TransactionProvider) => {
+    const providerMap: Record<TransactionProvider, string> = {
+      CBE: "cbe",
+      TELEBIRR: "telebirr",
+      AWASH: "awash",
+      BOA: "boa",
+      DASHEN: "cbe", // Fallback to CBE if Dashen not in BANKS
+    };
+
+    const bankId = providerMap[provider];
+    const bank = BANKS.find((b) => b.id === bankId);
+
+    return (
+      bank || {
+        id: provider.toLowerCase(),
+        name: provider,
+        fullName: provider,
+        icon: "/banks/default.png",
+      }
+    );
+  };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">
@@ -125,6 +155,63 @@ export default function ProfilePage() {
                   <p className="text-sm text-muted-foreground">Business</p>
                   <p className="font-medium">{businessName}</p>
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Payment Accounts */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="size-5" />
+              Payment Accounts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingAccounts ? (
+              <div className="flex items-center justify-center py-8">
+                <Spinner className="size-6" />
+              </div>
+            ) : receiverAccounts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">No payment accounts configured</p>
+                <p className="text-xs mt-1">
+                  Contact your merchant admin to set up payment accounts
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {receiverAccounts.map((account) => {
+                  const bankInfo = getBankInfo(account.provider);
+                  return (
+                    <div
+                      key={account.id}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="relative h-10 w-10 rounded-lg bg-background border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                        <Image
+                          src={bankInfo.icon}
+                          alt={bankInfo.name}
+                          fill
+                          sizes="40px"
+                          className="object-contain p-1"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{bankInfo.fullName}</p>
+                        {account.receiverName && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {account.receiverName}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                          {account.receiverAccount}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>

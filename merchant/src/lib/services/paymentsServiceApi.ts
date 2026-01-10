@@ -31,7 +31,9 @@ export interface VerifyMerchantPaymentResponse {
   transaction: {
     reference: string;
     receiverAccount: string | null;
+    receiverName: string | null;
     amount: number | null;
+    senderName: string | null;
     raw: unknown;
   };
   payment: unknown;
@@ -112,6 +114,23 @@ export interface ListTipsQuery {
   pageSize?: number;
 }
 
+export interface MerchantReceiverAccount {
+  id: string;
+  merchantId: string;
+  provider: TransactionProvider;
+  status: "ACTIVE" | "INACTIVE";
+  receiverLabel?: string | null;
+  receiverAccount: string;
+  receiverName?: string | null;
+  meta?: unknown;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GetActiveReceiverAccountsResponse {
+  data: MerchantReceiverAccount[];
+}
+
 export const paymentsServiceApi = createApi({
   reducerPath: "paymentsServiceApi",
   baseQuery: fetchBaseQuery({
@@ -162,6 +181,22 @@ export const paymentsServiceApi = createApi({
         params: params ?? undefined,
       }),
     }),
+
+    getActiveReceiverAccounts: builder.query<
+      GetActiveReceiverAccountsResponse,
+      { provider?: TransactionProvider } | void
+    >({
+      query: (params) => {
+        const query = new URLSearchParams();
+        if (params && "provider" in params && params.provider) {
+          query.set("provider", params.provider);
+        }
+        const qs = query.toString();
+        return {
+          url: `/payments/receiver-accounts/active${qs ? `?${qs}` : ""}`,
+        };
+      },
+    }),
   }),
 });
 
@@ -170,4 +205,5 @@ export const {
   useListVerificationHistoryQuery,
   useGetTipsSummaryQuery,
   useListTipsQuery,
+  useGetActiveReceiverAccountsQuery,
 } = paymentsServiceApi;
