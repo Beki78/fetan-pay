@@ -253,10 +253,19 @@ export default function ScanPage() {
           block: "start",
         });
       }, 100);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message =
-        error?.data?.message ||
-        (error instanceof Error ? error.message : "Verification failed");
+        error &&
+        typeof error === "object" &&
+        "data" in error &&
+        error.data &&
+        typeof error.data === "object" &&
+        "message" in error.data &&
+        typeof error.data.message === "string"
+          ? error.data.message
+          : error instanceof Error
+          ? error.message
+          : "Verification failed";
       toast.error("Verification error", { description: message });
     }
   };

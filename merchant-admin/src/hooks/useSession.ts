@@ -40,6 +40,25 @@ export const useSession = (): UseSessionReturn => {
       if (sessionResponse.data?.user && sessionResponse.data?.session) {
         setUser(sessionResponse.data.user);
         setSession(sessionResponse.data.session);
+        
+        // Fetch merchant profile to get status immediately after login
+        if (sessionResponse.data.user?.email && typeof window !== 'undefined') {
+          try {
+            const { findMerchantByEmail, getMerchantProfile } = await import('@/lib/services/profileService');
+            const merchant = await findMerchantByEmail(sessionResponse.data.user.email);
+            if (merchant) {
+              const profile = await getMerchantProfile(merchant.id);
+              if (profile.status) {
+                window.localStorage.setItem('merchantStatus', profile.status.toLowerCase());
+                window.localStorage.setItem('merchantId', profile.id);
+              }
+            }
+          } catch (err) {
+            // Silently fail - profile fetch is optional for session check
+            console.debug('Could not fetch merchant profile during session check:', err);
+          }
+        }
+        
         return true;
       }
 
@@ -73,6 +92,12 @@ export const useSession = (): UseSessionReturn => {
   // Sign out function
   const signOut = useCallback(async () => {
     try {
+      // Clear localStorage before signing out to prevent data leakage between users
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("merchantId");
+        window.localStorage.removeItem("merchantStatus");
+      }
+
       // Call Better Auth's signOut and wait for it to complete
       await authClient.signOut({
         fetchOptions: {

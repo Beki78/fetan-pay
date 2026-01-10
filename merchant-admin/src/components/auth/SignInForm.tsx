@@ -14,8 +14,31 @@ export default function SignInForm() {
   const [isChecked, setIsChecked] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
   const { signInWithGoogle, signInWithEmailAndPassword, isLoading, error } = useAuth();
   const router = useRouter();
+
+  // Check for error in URL parameters (from OAuth callback)
+  React.useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const e = params.get("error");
+      if (e) {
+        // Check if it's a signup disabled error
+        if (e === "signup_disabled" || e.toLowerCase().includes("signup disabled")) {
+          setUrlError("Sign up is currently disabled. Please contact support or sign in if you already have an account.");
+        } else if (e.toLowerCase().includes("not found") || e.toLowerCase().includes("does not exist") || e === "USER_NOT_FOUND") {
+          setUrlError("Account does not exist. Please sign up first or contact support.");
+        } else {
+          setUrlError(e);
+        }
+        // Clean up URL
+        router.replace(window.location.pathname);
+      }
+    } catch {
+      // ignore
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,9 +140,9 @@ export default function SignInForm() {
                 X (Twitter)
               </button>
             </div>
-            {error && (
+            {(error || urlError) && (
               <div className="mb-4 text-sm text-error-600 dark:text-error-400">
-                {error}
+                {urlError || error}
               </div>
             )}
             <div className="relative py-3 sm:py-5">
