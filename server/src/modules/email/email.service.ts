@@ -46,10 +46,24 @@ export class EmailService {
       </div>
     `;
 
+    // Format sender with app name
+    const smtpFrom = this.configService.get<string>('SMTP_FROM');
+    const smtpUser = this.configService.get<string>('SMTP_USER');
+    let fromAddress: string;
+    
+    if (smtpFrom) {
+      // If SMTP_FROM is already formatted, use it
+      fromAddress = smtpFrom;
+    } else if (smtpUser) {
+      // Format as "FetanPay" <email@example.com>
+      fromAddress = `"${appName}" <${smtpUser}>`;
+    } else {
+      // Fallback
+      fromAddress = `"${appName}" <noreply@fetanpay.com>`;
+    }
+
     const mailOptions: nodemailer.SendMailOptions = {
-      from:
-        this.configService.get<string>('SMTP_FROM') ||
-        this.configService.get<string>('SMTP_USER'),
+      from: fromAddress,
       to: email,
       subject,
       html,
