@@ -6,9 +6,9 @@ import {
   FileDigit,
   Scan,
   RefreshCcw,
-  ClipboardClock,
-  User,
-  Building,
+  // ClipboardClock, // Commented out - history button removed
+  // User, // Commented out - not used
+  // Building, // Commented out - not used
   XCircle,
 } from "lucide-react";
 import Image from "next/image";
@@ -18,8 +18,8 @@ import { toast } from "sonner";
 import { BankSelection } from "@/components/bank-selection";
 import { CameraScanner } from "@/components/camera-scanner";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { VerificationHistorySidebar } from "@/components/verification-history-sidebar";
-import { ProfileDropdown } from "@/components/profile-dropdown";
+// import { VerificationHistorySidebar } from "@/components/verification-history-sidebar"; // Commented out - history sidebar removed
+// import { ProfileDropdown } from "@/components/profile-dropdown"; // Commented out - profile dropdown removed
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -46,7 +46,7 @@ export default function ScanPage() {
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [showTip, setShowTip] = useState<boolean>(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [showHistorySidebar, setShowHistorySidebar] = useState(false);
+  // const [showHistorySidebar, setShowHistorySidebar] = useState(false);
   const [verificationMethod, setVerificationMethod] = useState<
     "transaction" | "camera" | null
   >(null);
@@ -266,12 +266,16 @@ export default function ScanPage() {
   }
 
   if (!isAuthenticated) {
-    // Redirect will happen in the effect; avoid rendering protected UI.
-    return null;
+    // Redirect will happen in the effect; show loading to avoid 404
+    return (
+      <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center pb-20">
+        <div className="text-sm text-muted-foreground">Redirecting...</div>
+      </div>
+    );
   }
 
   return (
-  <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background">
+  <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">
       <div className="container mx-auto px-3 py-8 max-w-2xl">
         {/* Header with Theme Toggle and History */}
         <div className="flex items-center justify-between mb-8 gap-4">
@@ -294,7 +298,8 @@ export default function ScanPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-5">
-            <Button
+            {/* History button - commented out */}
+            {/* <Button
               variant="outline"
               size="icon-lg"
               onClick={() => setShowHistorySidebar(true)}
@@ -302,9 +307,10 @@ export default function ScanPage() {
               aria-label="View verification history"
             >
               <ClipboardClock />
-            </Button>
+            </Button> */}
             <ThemeToggle />
-            <ProfileDropdown />
+            {/* Profile dropdown - commented out */}
+            {/* <ProfileDropdown /> */}
           </div>
         </div>
 
@@ -701,11 +707,11 @@ export default function ScanPage() {
         />
       )}
 
-      {/* Verification History Sidebar */}
-      <VerificationHistorySidebar
+      {/* Verification History Sidebar - commented out */}
+      {/* <VerificationHistorySidebar
         open={showHistorySidebar}
         onOpenChange={setShowHistorySidebar}
-      />
+      /> */}
     </div>
   );
 }

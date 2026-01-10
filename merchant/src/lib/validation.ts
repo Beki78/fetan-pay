@@ -133,9 +133,12 @@ export function validateTransactionInput(
 /**
  * Format number with commas (e.g., 3000 -> 3,000)
  */
-export function formatNumberWithCommas(value: string): string {
+export function formatNumberWithCommas(value: string | number): string {
+  // Convert to string if number
+  const stringValue = typeof value === "number" ? value.toString() : value;
+
   // Remove all non-digit characters
-  const numbers = value.replace(/\D/g, "");
+  const numbers = stringValue.replace(/\D/g, "");
   if (!numbers) return "";
 
   // Add commas for thousands
