@@ -1,7 +1,7 @@
 # Vendor Admin Dashboard - Complete Feature Analysis
 
 ## Overview
-This document provides a detailed breakdown of all features required for the Vendor Admin Dashboard in the Kifiya Payment Verification System. The system automatically confirms payments - vendors cannot manually approve/reject.
+This document provides a detailed breakdown of all features required for the Vendor Admin Dashboard in the FetanPay Payment Verification System. The system automatically confirms payments - vendors cannot manually approve/reject.
 
 ---
 

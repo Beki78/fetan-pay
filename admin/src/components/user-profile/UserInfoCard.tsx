@@ -11,7 +11,7 @@ import Image from "next/image";
 const mockPersonalData = {
   firstName: "John",
   lastName: "Doe",
-  email: "john.doe@kifiya.com",
+  email: "john.doe@fetanpay.com",
   phone: "+251 911 234 567",
   profilePicture: "/images/user/user-01.png",
 };

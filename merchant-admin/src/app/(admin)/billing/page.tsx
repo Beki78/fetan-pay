@@ -497,7 +497,7 @@ export default function BillingPage() {
                         onClick={() => {
                           if (isAccountPending()) return;
                           if (plan.isCustom) {
-                            window.open('mailto:sales@kifiya-auth.com', '_blank');
+                            window.open('mailto:sales@fetanpay.com', '_blank');
                           } else {
                             handleGetStarted(plan);
                           }

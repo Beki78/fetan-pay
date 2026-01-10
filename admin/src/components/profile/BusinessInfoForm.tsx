@@ -10,8 +10,8 @@ import Image from "next/image";
 
 // Mock data
 const mockBusinessData = {
-  businessName: "Kifiya Payment Solutions",
-  businessEmail: "business@kifiya.com",
+  businessName: "FetanPay Payment Solutions",
+  businessEmail: "business@fetanpay.com",
   businessPhone: "+251 911 234 567",
   businessAddress: "Addis Ababa, Ethiopia",
   taxId: "TAX-123456789",

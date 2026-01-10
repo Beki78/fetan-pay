@@ -38,8 +38,8 @@ async function bootstrap() {
 
   // Setup Swagger
   const config = new DocumentBuilder()
-    .setTitle('Kifiya Pay API')
-    .setDescription('API documentation for Kifiya Pay')
+    .setTitle('FetanPay API')
+    .setDescription('API documentation for FetanPay')
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);

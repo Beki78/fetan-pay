@@ -1,5 +1,5 @@
 {
-  "name": "kifiya-pay",
+  "name": "fetanpay",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -8,13 +8,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Fetan-System-Technology/kifiya-pay.git"
+    "url": "git+https://github.com/Fetan-System-Technology/fetanpay.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Fetan-System-Technology/kifiya-pay/issues"
+    "url": "https://github.com/Fetan-System-Technology/fetanpay/issues"
   },
-  "homepage": "https://github.com/Fetan-System-Technology/kifiya-pay#readme",
+  "homepage": "https://github.com/Fetan-System-Technology/fetanpay#readme",
   "description": ""
 }
