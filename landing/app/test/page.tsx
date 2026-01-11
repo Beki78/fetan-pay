@@ -47,6 +47,7 @@ export default function TestPage() {
   const [verifyReceiptImage, { data: imageData, error: imageError, isLoading: isImageLoading, reset: resetImage }] = useVerifyReceiptImageMutation();
   const [uploadInfo, setUploadInfo] = useState<string | null>(null);
   const [forwardUrl, setForwardUrl] = useState<string>("");
+  const [responseTime, setResponseTime] = useState<number | null>(null);
 
   useEffect(() => {
     if (mode !== "Add by Reference Number") {
@@ -107,6 +108,7 @@ export default function TestPage() {
   const handleVerify = async (source: "reference" | "upload") => {
     setUploadError(null);
     setUploadInfo(null);
+    setResponseTime(null);
 
     if (!reference) {
       if (source === "upload") {
@@ -116,7 +118,14 @@ export default function TestPage() {
     }
 
     setHasAttempted(true);
-    await verifyReceipt({ provider: activeTab, reference, phoneNumber });
+    const startTime = performance.now();
+    try {
+      await verifyReceipt({ provider: activeTab, reference, phoneNumber });
+    } finally {
+      const endTime = performance.now();
+      const duration = Math.round(endTime - startTime);
+      setResponseTime(duration);
+    }
   };
 
   const handleFileUpload = async (file: File | null) => {
@@ -129,8 +138,12 @@ export default function TestPage() {
   setExtractedReference(null);
   setDetectedProvider(null);
 
+    const startTime = performance.now();
     try {
       const resp = await verifyReceiptImage({ file }).unwrap();
+      const endTime = performance.now();
+      const duration = Math.round(endTime - startTime);
+      setResponseTime(duration);
 
       if (resp.error) {
         setUploadError(resp.error);
@@ -518,6 +531,11 @@ export default function TestPage() {
                       </span>
                       <span className="rounded-full border border-border bg-background/60 px-3 py-1">Reference: {reference || "—"}</span>
                       <span className="rounded-full border border-border bg-background/60 px-3 py-1">Provider: {activeTab}</span>
+                      {responseTime !== null && (
+                        <span className="rounded-full border border-emerald-300/60 bg-emerald-50/70 px-3 py-1 text-emerald-700 font-semibold">
+                          {responseTime < 1000 ? `${responseTime}ms` : `${(responseTime / 1000).toFixed(2)}s`}
+                        </span>
+                      )}
                     </div>
                   </div>
 

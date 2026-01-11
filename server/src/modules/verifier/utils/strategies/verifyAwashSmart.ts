@@ -4,6 +4,8 @@ import type { CheerioAPI } from 'cheerio';
 import https from 'https';
 import logger from '../logger';
 import { VerifyResult } from './verifyCBE';
+import { verificationCache } from '../cache';
+import { retryWithBackoff } from '../retry';
 
 const AWASH_BASE_URL = 'https://awashpay.awashbank.com:8225/';
 
@@ -77,42 +79,59 @@ export async function verifyAwashSmart(
     return { success: false, error: 'Reference is required' };
   }
 
-  try {
-    const html = await fetchReceiptHtml(receiptId);
-    const $ = cheerio.load(html);
+  const cacheKey = verificationCache.getKey('AWASH_SMART', reference);
 
-    const payer = extractField($, ['sender name', 'customer name']);
-    const receiver = extractField($, ['receiver name']);
-    const payerAccount = extractField($, ['sender account']);
-    const receiverAccount = extractField($, ['receiver account']);
-    const amountText = extractField($, ['amount']);
-    const dateText = extractField($, ['transaction date']);
-    const referenceText =
-      extractField($, ['transaction id', 'transaction reference']) ?? receiptId;
-    const narrative = extractField($, ['reason']);
+  // Check cache first
+  const cached = verificationCache.get<VerifyResult>(cacheKey);
+  if (cached) {
+    logger.info(`✅ Cache hit for Awash Smart verification: ${reference}`);
+    return cached;
+  }
 
-    const amount = parseAmount(amountText);
-    const date = parseDate(dateText);
+  // Perform verification with retry
+  const result = await retryWithBackoff(
+    async () => {
+      const html = await fetchReceiptHtml(receiptId);
+      const $ = cheerio.load(html);
 
-    if (!receiver || amount === undefined) {
-      logger.warn(
-        '⚠️ Unable to extract sender/receiver details from Awash receipt',
-      );
-      return { success: false, error: 'Failed to parse Awash receipt details' };
-    }
+      const payer = extractField($, ['sender name', 'customer name']);
+      const receiver = extractField($, ['receiver name']);
+      const payerAccount = extractField($, ['sender account']);
+      const receiverAccount = extractField($, ['receiver account']);
+      const amountText = extractField($, ['amount']);
+      const dateText = extractField($, ['transaction date']);
+      const referenceText =
+        extractField($, ['transaction id', 'transaction reference']) ?? receiptId;
+      const narrative = extractField($, ['reason']);
 
-    return {
-      success: true,
-      payer: payer ? payer.trim() : undefined,
-      receiver: receiver.trim(),
-      payerAccount: payerAccount ?? undefined,
-      receiverAccount: receiverAccount ?? undefined,
-      amount,
-      date,
-      reference: referenceText,
-      reason: narrative || null,
-    };
-  } catch (error: unknown) {
+      const amount = parseAmount(amountText);
+      const date = parseDate(dateText);
+
+      if (!receiver || amount === undefined) {
+        logger.warn(
+          '⚠️ Unable to extract sender/receiver details from Awash receipt',
+        );
+        throw new Error('Failed to parse Awash receipt details');
+      }
+
+      return {
+        success: true,
+        payer: payer ? payer.trim() : undefined,
+        receiver: receiver.trim(),
+        payerAccount: payerAccount ?? undefined,
+        receiverAccount: receiverAccount ?? undefined,
+        amount,
+        date,
+        reference: referenceText,
+        reason: narrative || null,
+      };
+    },
+    {
+      maxRetries: 2,
+      initialDelay: 1000,
+      retryableErrors: ['timeout', 'network', 'ECONNRESET', 'ETIMEDOUT'],
+    },
+  ).catch((error: unknown) => {
     const message =
       error instanceof Error
         ? error.message
@@ -124,5 +143,13 @@ export async function verifyAwashSmart(
       success: false,
       error: `Smart strategy failed to download Awash receipt: ${message}`,
     };
+  });
+
+  // Cache successful results only
+  if (result.success) {
+    verificationCache.set(cacheKey, result);
+    logger.info(`✅ Cached Awash Smart verification result: ${reference}`);
   }
+
+  return result;
 }
