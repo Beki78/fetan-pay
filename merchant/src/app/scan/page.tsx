@@ -69,6 +69,9 @@ export default function ScanPage() {
   } | null>(null);
   const [verifyMerchantPayment, { isLoading: isVerifying }] =
     useVerifyMerchantPaymentMutation();
+  const [isVerifyingWithBank, setIsVerifyingWithBank] = useState<BankId | null>(
+    null
+  );
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const schema = createScanSchema(
@@ -177,13 +180,22 @@ export default function ScanPage() {
           extractedReference,
           finalBank,
         });
+        // Set verifying state with bank logo
+        setIsVerifyingWithBank(finalBank);
         const formData: FormData = {
           amount: currentAmount,
           transactionId: extractedReference,
           tipAmount: tipAmount || "",
           verificationMethod: "camera",
         };
-        await onSubmit(formData);
+        try {
+          await onSubmit(formData);
+        } finally {
+          // Clear verifying state after a short delay to show result
+          setTimeout(() => {
+            setIsVerifyingWithBank(null);
+          }, 500);
+        }
       }, 300);
     } else {
       // Show helpful message about what's missing
@@ -215,17 +227,23 @@ export default function ScanPage() {
 
   const onSubmit = async (data: FormData) => {
     if (!selectedBank) {
-      toast.error("Please select a bank account");
+      toast.error("Please select a bank account", {
+        duration: 5000,
+      });
       return;
     }
 
     if (!data.verificationMethod) {
-      toast.error("Please select a verification method");
+      toast.error("Please select a verification method", {
+        duration: 5000,
+      });
       return;
     }
 
     if (data.verificationMethod === "camera" && !data.transactionId) {
-      toast.error("Please scan a QR code");
+      toast.error("Please scan a QR code", {
+        duration: 5000,
+      });
       return;
     }
 
@@ -235,6 +253,9 @@ export default function ScanPage() {
       awash: "AWASH",
       telebirr: "TELEBIRR",
     };
+
+    // Set verifying state with bank logo
+    setIsVerifyingWithBank(selectedBank as BankId);
 
     try {
       setVerificationResult(null);
@@ -259,11 +280,19 @@ export default function ScanPage() {
       }
 
       if (!reference) {
+        setIsVerifyingWithBank(null);
+        toast.error("Transaction reference is required", {
+          duration: 5000,
+        });
         throw new Error("Transaction reference is required");
       }
 
       const claimedAmount = parseFloat((data.amount || "0").replace(/,/g, ""));
       if (Number.isNaN(claimedAmount) || claimedAmount <= 0) {
+        setIsVerifyingWithBank(null);
+        toast.error("Please enter a valid amount", {
+          duration: 5000,
+        });
         throw new Error("Please enter a valid amount");
       }
 
@@ -272,6 +301,12 @@ export default function ScanPage() {
         showTip && data.tipAmount
           ? parseFloat((data.tipAmount || "0").replace(/,/g, ""))
           : undefined;
+
+      // Show loading toast
+      toast.loading("Verifying payment...", {
+        description: `Checking ${provider} transaction ${reference}`,
+        duration: 10000,
+      });
 
       const response = await verifyMerchantPayment({
         provider,
@@ -328,8 +363,12 @@ export default function ScanPage() {
         message: success ? undefined : failureMessage,
       });
 
+      // Clear verifying state
+      setIsVerifyingWithBank(null);
+
       // UNVERIFIED is an expected outcome (it means we fetched the receipt but checks didn't pass).
       // Only use an error toast for network/server errors (caught in catch below).
+      toast.dismiss(); // Dismiss loading toast
       toast[success ? "success" : "warning"](
         success ? "Payment verified" : "Not verified",
         {
@@ -338,16 +377,21 @@ export default function ScanPage() {
                 response.transaction?.reference ?? reference
               } verified`
             : failureMessage,
+          duration: 8000,
         }
       );
 
+      // Scroll to results to ensure they're visible
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({
           behavior: "smooth",
-          block: "start",
+          block: "center",
         });
-      }, 100);
+      }, 300);
     } catch (error: unknown) {
+      // Clear verifying state
+      setIsVerifyingWithBank(null);
+
       const message =
         error &&
         typeof error === "object" &&
@@ -360,13 +404,31 @@ export default function ScanPage() {
           : error instanceof Error
           ? error.message
           : "Verification failed";
-      toast.error("Verification error", { description: message });
+
+      toast.dismiss(); // Dismiss loading toast
+      toast.error("Verification failed", {
+        description: message,
+        duration: 8000,
+      });
+
+      // Also set error result for UI display
+      setVerificationResult({
+        success: false,
+        status: "ERROR",
+        reference: (data.transactionId || "").trim(),
+        provider: providerMap[selectedBank as BankId],
+        message: message,
+      });
+
+      // Scroll to results after a short delay
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 300);
     }
   };
-
-  const selectedBankData = selectedBank
-    ? BANKS.find((bank) => bank.id === selectedBank)
-    : null;
 
   // Route protection: unauthenticated users must sign in.
   useEffect(() => {
@@ -392,8 +454,41 @@ export default function ScanPage() {
     );
   }
 
+  const selectedBankData = selectedBank
+    ? BANKS.find((bank) => bank.id === selectedBank)
+    : null;
+  const verifyingBankData = isVerifyingWithBank
+    ? BANKS.find((bank) => bank.id === isVerifyingWithBank)
+    : null;
+
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">
+      {/* Bank Logo Loading Spinner Overlay */}
+      {isVerifyingWithBank && verifyingBankData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 p-8 bg-background rounded-2xl shadow-2xl border border-border">
+            <div className="relative w-24 h-24">
+              <Image
+                src={verifyingBankData.icon}
+                alt={verifyingBankData.name}
+                fill
+                sizes="96px"
+                className="object-contain animate-spin"
+                style={{ animationDuration: "2s" }}
+              />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold text-foreground">
+                Verifying {verifyingBankData.fullName} Payment
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Please wait while we verify your transaction...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-3 py-8 max-w-2xl">
         {/* Header with Theme Toggle and History */}
         <div className="flex items-center justify-between mb-8 gap-4">
@@ -704,10 +799,10 @@ export default function ScanPage() {
                     <div
                       ref={resultsRef}
                       className={cn(
-                        "mt-6 p-1 rounded-xl border shadow-sm animate-in fade-in slide-in-from-bottom-4",
+                        "mt-6 p-1 rounded-xl border-2 shadow-lg animate-in fade-in slide-in-from-bottom-4",
                         verificationResult.success
-                          ? "bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800"
-                          : "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800"
+                          ? "bg-green-50 border-green-500 dark:bg-green-900/20 dark:border-green-600"
+                          : "bg-red-50 border-red-500 dark:bg-red-900/20 dark:border-red-600"
                       )}
                     >
                       <div className="p-6 space-y-6">
