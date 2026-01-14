@@ -44,7 +44,12 @@ export default function SignInForm() {
     e.preventDefault();
     const success = await signInWithEmailAndPassword(email, password, isChecked);
     if (success) {
-      router.push("/");
+      // Use window.location for production to ensure cookies are set
+      if (process.env.NODE_ENV === 'production') {
+        window.location.href = "/";
+      } else {
+        router.push("/");
+      }
     }
   };
 
@@ -90,7 +95,12 @@ export default function SignInForm() {
                 onClick={async () => {
                   const success = await signInWithGoogle();
                   if (success) {
-                    router.push("/");
+                    // Use window.location for production to ensure cookies are set
+                    if (process.env.NODE_ENV === 'production') {
+                      window.location.href = "/";
+                    } else {
+                      router.push("/");
+                    }
                   }
                 }}
                 disabled={isLoading}

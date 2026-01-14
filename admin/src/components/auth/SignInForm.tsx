@@ -74,7 +74,13 @@ export default function SignInForm() {
     if (success) {
       const ok = await enforceAdminRole();
       if (ok) {
-        router.push(getNextUrl());
+        // Use window.location for production to ensure cookies are set
+        const nextUrl = getNextUrl();
+        if (process.env.NODE_ENV === 'production') {
+          window.location.href = nextUrl;
+        } else {
+          router.push(nextUrl);
+        }
       }
     }
   };
@@ -123,7 +129,13 @@ export default function SignInForm() {
                   if (success) {
                     const ok = await enforceAdminRole();
                     if (ok) {
-                      router.push(getNextUrl());
+                      // Use window.location for production to ensure cookies are set
+                      const nextUrl = getNextUrl();
+                      if (process.env.NODE_ENV === 'production') {
+                        window.location.href = nextUrl;
+                      } else {
+                        router.push(nextUrl);
+                      }
                     }
                   }
                 }}
