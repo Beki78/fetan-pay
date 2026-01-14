@@ -50,11 +50,19 @@ export const auth = betterAuth({
   basePath: '/api/auth',
 
   trustedOrigins: [
+    // Development
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:3002',
     'http://localhost:3003',
     ...DEFAULT_CLIENT_ORIGINS,
+    // Production subdomains
+    'https://admin.fetanpay.et',
+    'https://merchant.fetanpay.et',
+    'https://client.fetanpay.et',
+    'http://admin.fetanpay.et',
+    'http://merchant.fetanpay.et',
+    'http://client.fetanpay.et',
   ],
   advanced: {
     crossSubDomainCookies: {

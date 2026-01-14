@@ -16,14 +16,51 @@ async function bootstrap() {
   logger.info(`Platform: ${process.platform}`);
 
   // Enable CORS
+  const allowedOrigins = [
+    // Development
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+    // Production subdomains
+    'https://admin.fetanpay.et',
+    'https://merchant.fetanpay.et',
+    'https://client.fetanpay.et',
+    'http://admin.fetanpay.et',
+    'http://merchant.fetanpay.et',
+    'http://client.fetanpay.et',
+  ];
+
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      'http://localhost:3003',
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow subdomains of fetanpay.et
+      try {
+        const url = new URL(origin);
+        if (
+          url.hostname.endsWith('.fetanpay.et') ||
+          url.hostname === 'fetanpay.et'
+        ) {
+          return callback(null, true);
+        }
+      } catch {
+        // Invalid URL, reject
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   // Log auth route hits to debug routing
