@@ -4,15 +4,11 @@ import type { CheerioAPI } from 'cheerio';
 import https from 'https';
 import logger from '../logger';
 import { VerifyResult } from './verifyCBE';
+import { browserPool } from '../browser-pool';
+import { verificationCache } from '../cache';
+import { retryWithBackoff } from '../retry';
 
 const ABYSSINIA_SLIP_URL = 'https://cs.bankofabyssinia.com/slip/?trx=';
-
-let puppeteer: typeof import('puppeteer') | null = null;
-try {
-  puppeteer = require('puppeteer');
-} catch (error) {
-  logger.warn('Puppeteer is not available for Abyssinia smart fetch');
-}
 
 function normalizeLabel(text: string): string {
   return text.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -79,25 +75,8 @@ function titleCase(input: string): string {
     .trim();
 }
 
-async function renderSlipWithPuppeteer(reference: string): Promise<string> {
-  if (!puppeteer) {
-    throw new Error('Puppeteer is not available');
-  }
-
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',
-      '--disable-gpu',
-    ],
-  });
-
+async function renderSlipWithBrowserPool(reference: string): Promise<string> {
+  const browser = await browserPool.acquire();
   try {
     const page = await browser.newPage();
     await page.goto(`${ABYSSINIA_SLIP_URL}${encodeURIComponent(reference)}`, {
@@ -107,37 +86,47 @@ async function renderSlipWithPuppeteer(reference: string): Promise<string> {
     await page.waitForSelector('table', { timeout: 10000 });
     return await page.content();
   } finally {
-    await browser.close();
+    browserPool.release(browser);
   }
 }
 
 async function fetchSlipHtml(reference: string): Promise<string> {
-  if (puppeteer) {
-    try {
-      logger.info('✨ Rendering Abyssinia slip via Puppeteer');
-      return await renderSlipWithPuppeteer(reference);
-    } catch (error: any) {
-      logger.warn('⚠️ Puppeteer render failed, falling back to HTTP fetch', {
-        message: error?.message ?? error,
-      });
-    }
-  }
-
+  // Strategy 1: Try direct HTTP fetch first (faster)
   const url = `${ABYSSINIA_SLIP_URL}${encodeURIComponent(reference)}`;
   const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
-  const response = await axios.get(url, {
-    httpsAgent,
-    timeout: 30000,
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
-      Accept: 'text/html,application/xhtml+xml',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
-  });
+  try {
+    const response = await axios.get(url, {
+      httpsAgent,
+      timeout: 30000,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
 
-  return typeof response.data === 'string' ? response.data : '';
+    const html = typeof response.data === 'string' ? response.data : '';
+    // Check if HTML contains table (valid receipt)
+    if (html.includes('<table')) {
+      return html;
+    }
+    throw new Error('HTML does not contain expected table structure');
+  } catch (error: any) {
+    logger.warn('⚠️ Direct HTTP fetch failed, falling back to browser pool', {
+      message: error?.message ?? error,
+    });
+
+    // Strategy 2: Use browser pool (fallback)
+    try {
+      logger.info('✨ Rendering Abyssinia slip via browser pool');
+      return await renderSlipWithBrowserPool(reference);
+    } catch (browserError: any) {
+      logger.error('❌ Browser pool also failed', browserError?.message);
+      throw browserError;
+    }
+  }
 }
 
 export async function verifyAbyssiniaSmart(
@@ -150,56 +139,70 @@ export async function verifyAbyssiniaSmart(
     return { success: false, error: 'Reference is required' };
   }
 
-  try {
-    const html = await fetchSlipHtml(slipId);
-    const $ = cheerio.load(html);
+  const cacheKey = verificationCache.getKey('ABYSSINIA_SMART', reference);
 
-    const receiver = extractField($, [
-      "receiver's name",
-      'receiver name',
-      'receiver',
-    ]);
-    const payer = extractField($, [
-      'source account name',
-      'source account',
-      'payer name',
-      'payer',
-    ]);
-    const amountText = extractField($, [
-      'transferred amount',
-      'amount',
-      'settled amount',
-    ]);
-    const dateText = extractField($, [
-      'transaction date',
-      'date',
-      'payment date',
-    ]);
-    const referenceText =
-      extractField($, ['transaction reference', 'reference']) ?? slipId;
-    const narrative = extractField($, ['narrative', 'description', 'reason']);
+  // Check cache first
+  const cached = verificationCache.get<VerifyResult>(cacheKey);
+  if (cached) {
+    logger.info(`✅ Cache hit for Abyssinia Smart verification: ${reference}`);
+    return cached;
+  }
 
-    const amount = parseAmount(amountText);
-    const date = parseDate(dateText);
+  // Perform verification with retry
+  const result = await retryWithBackoff(
+    async () => {
+      const html = await fetchSlipHtml(slipId);
+      const $ = cheerio.load(html);
 
-    if (!receiver || amount === undefined) {
-      logger.warn('⚠️ Unable to extract required fields from Abyssinia slip');
+      const receiver = extractField($, [
+        "receiver's name",
+        'receiver name',
+        'receiver',
+      ]);
+      const payer = extractField($, [
+        'source account name',
+        'source account',
+        'payer name',
+        'payer',
+      ]);
+      const amountText = extractField($, [
+        'transferred amount',
+        'amount',
+        'settled amount',
+      ]);
+      const dateText = extractField($, [
+        'transaction date',
+        'date',
+        'payment date',
+      ]);
+      const referenceText =
+        extractField($, ['transaction reference', 'reference']) ?? slipId;
+      const narrative = extractField($, ['narrative', 'description', 'reason']);
+
+      const amount = parseAmount(amountText);
+      const date = parseDate(dateText);
+
+      if (!receiver || amount === undefined) {
+        logger.warn('⚠️ Unable to extract required fields from Abyssinia slip');
+        throw new Error('Failed to parse Abyssinia slip details');
+      }
+
       return {
-        success: false,
-        error: 'Failed to parse Abyssinia slip details',
+        success: true,
+        payer: payer ? titleCase(payer) : undefined,
+        receiver: titleCase(receiver),
+        amount,
+        date,
+        reference: referenceText,
+        reason: narrative || null,
       };
-    }
-
-    return {
-      success: true,
-      payer: payer ? titleCase(payer) : undefined,
-      receiver: titleCase(receiver),
-      amount,
-      date,
-      reference: referenceText,
-      reason: narrative || null,
-    };
-  } catch (error: any) {
+    },
+    {
+      maxRetries: 2,
+      initialDelay: 1000,
+      retryableErrors: ['timeout', 'network', 'ECONNRESET', 'ETIMEDOUT'],
+    },
+  ).catch((error: any) => {
     logger.error('⚠️ Smart Abyssinia fetch failed', error?.message ?? error);
     return {
       success: false,
@@ -207,5 +210,13 @@ export async function verifyAbyssiniaSmart(
         error?.message ?? 'unknown'
       }`,
     };
+  });
+
+  // Cache successful results only
+  if (result.success) {
+    verificationCache.set(cacheKey, result);
+    logger.info(`✅ Cached Abyssinia Smart verification result: ${reference}`);
   }
+
+  return result;
 }

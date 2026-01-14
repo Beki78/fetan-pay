@@ -5,10 +5,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import pg from 'pg';
+import * as pg from 'pg';
 
 @Injectable()
 export class PrismaService
@@ -26,6 +25,7 @@ export class PrismaService
       throw new Error('DATABASE_URL is not set for Prisma connection');
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const pool = new pg.Pool({ connectionString });
     const adapter = new PrismaPg(pool);
 
@@ -42,14 +42,15 @@ export class PrismaService
     this.pool = pool;
 
     // Log queries in development
-    if (this.configService.get('database.logging')) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      (this.$on as any)('query', (e: Prisma.QueryEvent) => {
-        this.logger.debug(`Query: ${e.query}`);
-        this.logger.debug(`Params: ${e.params}`);
-        this.logger.debug(`Duration: ${e.duration}ms`);
-      });
-    }
+    // Commented out to reduce log noise - uncomment if needed for debugging
+    // if (this.configService.get('database.logging')) {
+    //   // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    //   (this.$on as any)('query', (e: Prisma.QueryEvent) => {
+    //     this.logger.debug(`Query: ${e.query}`);
+    //     this.logger.debug(`Params: ${e.params}`);
+    //     this.logger.debug(`Duration: ${e.duration}ms`);
+    //   });
+    // }
   }
 
   async onModuleInit() {
@@ -64,7 +65,10 @@ export class PrismaService
 
   async onModuleDestroy() {
     await this.$disconnect();
-    await this.pool.end();
+    if (this.pool) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await this.pool.end();
+    }
     this.logger.log('Database connection closed');
   }
 
