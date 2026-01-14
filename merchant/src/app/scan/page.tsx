@@ -27,7 +27,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { APP_CONFIG, BANKS } from "@/lib/config";
 import { cn } from "@/lib/utils";
-import { formatNumberWithCommas, extractTransactionId, detectBankFromUrl, type BankId } from "@/lib/validation";
+import {
+  formatNumberWithCommas,
+  extractTransactionId,
+  detectBankFromUrl,
+  type BankId,
+} from "@/lib/validation";
 import { createScanSchema } from "@/lib/schemas";
 import { useVerifyMerchantPaymentMutation } from "@/lib/services/paymentsServiceApi";
 import { useSession } from "@/hooks/useSession";
@@ -106,14 +111,27 @@ export default function ScanPage() {
   };
 
   const handleCameraScan = async (scannedUrl: string) => {
+    console.log("handleCameraScan called with:", scannedUrl);
+
+    // Close camera scanner
     setShowCamera(false);
+
+    // Set verification method
     setVerificationMethod("camera");
-    setValue("verificationMethod", "camera");
-    
+    setValue("verificationMethod", "camera", { shouldValidate: false });
+
     // Extract transaction reference from URL if it's a full URL
-    const detectedBank = (selectedBank as BankId | null) || detectBankFromUrl(scannedUrl);
+    const detectedBank =
+      (selectedBank as BankId | null) || detectBankFromUrl(scannedUrl);
     const extractedReference = extractTransactionId(detectedBank, scannedUrl);
-    
+
+    console.log(
+      "Detected bank:",
+      detectedBank,
+      "Extracted reference:",
+      extractedReference
+    );
+
     // If bank was detected from URL but not selected, auto-select it
     if (!selectedBank && detectedBank) {
       setSelectedBank(detectedBank);
@@ -121,22 +139,52 @@ export default function ScanPage() {
         description: `${detectedBank.toUpperCase()} detected from QR code`,
       });
     }
-    
+
     // Set the extracted reference (or original if extraction failed)
-    setValue("transactionId", extractedReference);
+    setValue("transactionId", extractedReference, { shouldValidate: false });
+
+    // Show feedback
+    toast.success("QR code scanned!", {
+      description: extractedReference
+        ? `Reference: ${extractedReference}`
+        : "Transaction details extracted",
+    });
 
     // Auto-verify after successful scan if amount is already entered
-    if (amount && (selectedBank || detectedBank)) {
+    const finalBank = selectedBank || detectedBank;
+    const currentAmount = amount;
+
+    if (currentAmount && finalBank && extractedReference) {
       // Wait a bit for form state to update, then auto-verify
       setTimeout(async () => {
+        console.log("Auto-verifying with:", {
+          currentAmount,
+          extractedReference,
+          finalBank,
+        });
         const formData: FormData = {
-          amount: amount,
+          amount: currentAmount,
           transactionId: extractedReference,
           tipAmount: tipAmount || "",
           verificationMethod: "camera",
         };
         await onSubmit(formData);
-      }, 500);
+      }, 300);
+    } else {
+      // Show helpful message about what's missing
+      if (!currentAmount) {
+        toast.info("Amount required", {
+          description: "Please enter the amount to verify the payment",
+        });
+      } else if (!finalBank) {
+        toast.info("Bank selection required", {
+          description: "Please select a bank account first",
+        });
+      } else if (!extractedReference) {
+        toast.warning("Invalid QR code", {
+          description: "Could not extract transaction reference from QR code",
+        });
+      }
     }
   };
 
@@ -178,17 +226,23 @@ export default function ScanPage() {
 
       const provider = providerMap[selectedBank as BankId];
       let reference = (data.transactionId || "").trim();
-      
+
       // Extract reference from URL if it's a full URL
-      if (reference && (reference.startsWith("http") || reference.includes("://"))) {
-        const extracted = extractTransactionId(selectedBank as BankId, reference);
+      if (
+        reference &&
+        (reference.startsWith("http") || reference.includes("://"))
+      ) {
+        const extracted = extractTransactionId(
+          selectedBank as BankId,
+          reference
+        );
         if (extracted && extracted !== reference) {
           reference = extracted;
           // Update the form value with extracted reference
           setValue("transactionId", reference);
         }
       }
-      
+
       if (!reference) {
         throw new Error("Transaction reference is required");
       }
