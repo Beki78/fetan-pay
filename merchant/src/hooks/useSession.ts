@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { API_BASE_URL } from "@/lib/constants";
+import { API_BASE_URL } from "@/lib/config";
 
 type User = NonNullable<
   ReturnType<typeof authClient.getSession>["data"]

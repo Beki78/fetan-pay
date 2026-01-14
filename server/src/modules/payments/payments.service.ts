@@ -5,6 +5,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as PrismaClient from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
@@ -25,11 +26,23 @@ type TipsRange = { from?: string; to?: string };
 
 @Injectable()
 export class PaymentsService {
+  private readonly paymentPageUrl: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly merchantUsersService: MerchantUsersService,
     private readonly verificationService: VerificationService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    // Get payment page URL from environment variables
+    // This is where payment links will redirect users
+    this.paymentPageUrl =
+      this.configService.get<string>('PAYMENT_PAGE_URL') ||
+      this.configService.get<string>('FRONTEND_URL') ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://fetanpay.et'
+        : 'http://localhost:3000');
+  }
 
   private paymentStatusEnum():
     | { VERIFIED: 'VERIFIED'; UNVERIFIED: 'UNVERIFIED'; PENDING: 'PENDING' }
@@ -688,11 +701,7 @@ export class PaymentsService {
     };
 
     const transactionRef = generateTransactionRef();
-    const baseUrl =
-      process.env.FRONTEND_URL ||
-      process.env.BETTER_AUTH_BASE_URL ||
-      'http://localhost:3001';
-    const paymentLink = `${baseUrl}/payment/${transactionRef}`;
+    const paymentLink = `${this.paymentPageUrl}/payment/${transactionRef}`;
 
     // Get active receiver account for CBE (default provider) to include in response
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call

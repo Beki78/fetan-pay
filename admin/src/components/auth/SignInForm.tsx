@@ -13,11 +13,8 @@ import { authClient } from "@/lib/auth-client";
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
-  const isDev = process.env.NODE_ENV !== "production";
-  const [email, setEmail] = useState(
-    isDev ? "superadmin@fetanpay.com" : ""
-  );
-  const [password, setPassword] = useState(isDev ? "12345678" : "");
+  const [email, setEmail] = useState("superadmin@fetanpay.com");
+  const [password, setPassword] = useState("12345678");
   const [roleError, setRoleError] = useState<string | null>(null);
   const { signInWithGoogle, signInWithEmailAndPassword, isLoading, error } =
     useAuth();
@@ -114,7 +111,7 @@ export default function SignInForm() {
               Welcome Back
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Sign in to your vendor admin account to continue
+              Sign in to your admin account to continue
             </p>
           </div>
           <div>

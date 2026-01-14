@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./constants";
+import { API_BASE_URL } from "./config";
 
 export type TransactionStatus = "PENDING" | "VERIFIED" | "FAILED";
 export type TransactionProvider = "CBE" | "TELEBIRR" | "AWASH" | "BOA" | "DASHEN";

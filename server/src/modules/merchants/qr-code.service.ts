@@ -17,10 +17,13 @@ export class QrCodeService {
       'default-secret-change-in-production';
 
     // Get merchant app URL from env (where QR codes should be scanned)
+    // This is the client app URL where QR codes are scanned
     this.merchantAppUrl =
       this.configService.get<string>('MERCHANT_APP_URL') ||
-      this.configService.get<string>('FRONTEND_URL') ||
-      'http://localhost:3002';
+      this.configService.get<string>('CLIENT_APP_URL') ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://client.fetanpay.et'
+        : 'http://localhost:3002');
   }
 
   /**
