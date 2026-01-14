@@ -87,6 +87,7 @@ model Merchant {
   receiverAccounts MerchantReceiverAccount[]
   orders           Order[]
   payments         Payment[]
+  branding         MerchantBranding?
 
   // Provider catalog is global (admin-managed), so no relation here.
 
@@ -317,4 +318,29 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model MerchantBranding {
+  id            String   @id @default(uuid())
+  merchantId    String   @unique
+  merchant      Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  // Logo
+  logoUrl       String?
+
+  // Colors
+  primaryColor  String   @default("#5CFFCE")
+  secondaryColor String  @default("#4F46E5")
+
+  // Text
+  displayName   String?
+  tagline       String?
+
+  // Options
+  showPoweredBy Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("merchant_branding")
 }

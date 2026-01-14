@@ -1,8 +1,9 @@
 import { Mistral } from '@mistralai/mistralai';
 import fs from 'fs';
 import { Request, Response } from 'express';
-import type { File as MulterFile } from 'multer';
 import multer from 'multer';
+
+type MulterFile = Express.Multer.File;
 import logger from '../logger';
 import { verifyTelebirr } from './verifyTelebirr';
 import { verifyCBE } from './verifyCBE';

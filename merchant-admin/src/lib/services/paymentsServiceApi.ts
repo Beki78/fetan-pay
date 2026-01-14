@@ -44,6 +44,32 @@ export interface OrderRecord {
   updatedAt: string;
 }
 
+export interface TransactionRecord {
+  id: string;
+  provider: TransactionProvider;
+  reference: string;
+  qrUrl: string;
+  status: 'PENDING' | 'VERIFIED' | 'FAILED';
+  merchantId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  verifiedBy?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+    user?: {
+      id: string;
+      email: string;
+      name: string;
+    } | null;
+  } | null;
+  merchant?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
 export interface PaymentRecord {
   id: string;
   merchantId: string;
@@ -189,7 +215,14 @@ export const paymentsServiceApi = createApi({
     }),
 
     createOrder: builder.mutation<
-      { order: OrderRecord },
+      { 
+        order: OrderRecord; 
+        transaction: TransactionRecord;
+        receiverAccount?: {
+          receiverName?: string | null;
+          receiverAccount: string;
+        } | null;
+      },
       { expectedAmount: number; currency?: string }
     >({
       query: (body) => ({

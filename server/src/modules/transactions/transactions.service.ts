@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { TransactionProvider, TransactionStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { VerificationService } from '../verifier/services/verification.service';
@@ -58,7 +62,8 @@ export class TransactionsService {
         qrUrl: body.qrUrl,
         status,
         verifiedAt: status === TransactionStatus.VERIFIED ? new Date() : null,
-        verifiedById: status === TransactionStatus.VERIFIED ? verifiedById : null,
+        verifiedById:
+          status === TransactionStatus.VERIFIED ? verifiedById : null,
         verificationPayload: verificationPayload ?? Prisma.JsonNull,
         errorMessage,
       },
@@ -68,7 +73,8 @@ export class TransactionsService {
         qrUrl: body.qrUrl,
         status,
         verifiedAt: status === TransactionStatus.VERIFIED ? new Date() : null,
-        verifiedById: status === TransactionStatus.VERIFIED ? verifiedById : null,
+        verifiedById:
+          status === TransactionStatus.VERIFIED ? verifiedById : null,
         verificationPayload: verificationPayload ?? Prisma.JsonNull,
         errorMessage,
       },
@@ -84,7 +90,7 @@ export class TransactionsService {
     };
   }
 
-  async listTransactions(query: ListTransactionsQueryDto) {
+  async listTransactions(query: ListTransactionsQueryDto, req?: Request) {
     const page = Number(query.page ?? 1);
     const pageSize = Number(query.pageSize ?? 20);
 
@@ -94,9 +100,30 @@ export class TransactionsService {
     if (!Number.isInteger(pageSize) || pageSize < 1) {
       throw new BadRequestException('pageSize must be a positive integer');
     }
+
+    // Get merchant ID from request to scope transactions
+    let merchantId: string | undefined;
+    if (req) {
+      try {
+        const authUser = (req as any)?.user;
+        const authUserId: string | undefined = authUser?.id;
+        if (authUserId) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+          const membership = await (this.prisma as any).merchantUser.findFirst({
+            where: { userId: authUserId },
+            select: { merchantId: true },
+          });
+          merchantId = membership?.merchantId;
+        }
+      } catch {
+        // If we can't get merchant, continue without filtering (for admin access)
+      }
+    }
+
     const where = {
       provider: query.provider,
       status: query.status,
+      ...(merchantId ? { merchantId } : {}),
     } satisfies Prisma.TransactionWhereInput;
 
     const [data, total] = await Promise.all([
@@ -138,6 +165,84 @@ export class TransactionsService {
       page,
       pageSize,
     };
+  }
+
+  async getTransaction(idOrReference: string, req?: Request) {
+    // Try to find by ID first, then by reference
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+    let transaction = await (this.prisma as any).transaction.findFirst({
+      where: {
+        OR: [{ id: idOrReference }, { reference: idOrReference }],
+      },
+      include: {
+        verifiedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+        },
+        merchant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        payments: {
+          include: {
+            order: {
+              select: {
+                id: true,
+                expectedAmount: true,
+                currency: true,
+                status: true,
+                createdAt: true,
+              },
+            },
+            receiverAccount: {
+              select: {
+                receiverName: true,
+                receiverAccount: true,
+              },
+            },
+          },
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    // If request is provided, verify the transaction belongs to the merchant
+    if (req && transaction.merchantId) {
+      const authUser = (req as any)?.user;
+      const authUserId: string | undefined = authUser?.id;
+
+      if (authUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        const membership = await (this.prisma as any).merchantUser.findFirst({
+          where: { userId: authUserId },
+          select: { merchantId: true },
+        });
+
+        if (membership?.merchantId !== transaction.merchantId) {
+          throw new NotFoundException('Transaction not found');
+        }
+      }
+    }
+
+    return transaction;
   }
 
   async listVerifiedByUser(

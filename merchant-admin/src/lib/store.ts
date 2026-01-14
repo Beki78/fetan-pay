@@ -3,6 +3,7 @@ import { transactionsServiceApi } from './services/transactionsServiceApi';
 import { merchantUsersServiceApi } from './services/merchantUsersServiceApi';
 import { paymentsServiceApi } from './services/paymentsServiceApi';
 import { paymentProvidersServiceApi } from './services/paymentProvidersServiceApi';
+import { brandingServiceApi } from './services/brandingServiceApi';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     [merchantUsersServiceApi.reducerPath]: merchantUsersServiceApi.reducer,
     [paymentsServiceApi.reducerPath]: paymentsServiceApi.reducer,
     [paymentProvidersServiceApi.reducerPath]: paymentProvidersServiceApi.reducer,
+    [brandingServiceApi.reducerPath]: brandingServiceApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -17,8 +19,14 @@ export const store = configureStore({
       merchantUsersServiceApi.middleware,
       paymentsServiceApi.middleware,
       paymentProvidersServiceApi.middleware,
+      brandingServiceApi.middleware,
     ),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+
+// Typed hooks
+import { useDispatch, useSelector } from 'react-redux';
+export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
+export const useAppSelector = useSelector.withTypes<RootState>();

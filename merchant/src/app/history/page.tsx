@@ -51,7 +51,9 @@ export default function HistoryPage() {
   }
 
   const transactions = data?.data || [];
-  const totalPages = data?.totalPages || 0;
+  const totalPages = data?.total && data?.pageSize 
+    ? Math.ceil(data.total / data.pageSize) 
+    : 0;
 
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">

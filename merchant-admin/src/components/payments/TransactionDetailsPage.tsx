@@ -15,6 +15,15 @@ interface TransactionDetailsPageProps {
   expiresAt?: string;
   receiverName?: string;
   receiverAccount?: string;
+  verifiedBy?: {
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+    user?: {
+      name?: string;
+      email?: string;
+    } | null;
+  } | null;
   onBack?: () => void;
 }
 
@@ -28,15 +37,28 @@ export default function TransactionDetailsPage({
   expiresAt: propExpiresAt,
   receiverName: propReceiverName,
   receiverAccount: propReceiverAccount,
+  verifiedBy: propVerifiedBy,
   onBack,
 }: TransactionDetailsPageProps) {
-  const [timeRemaining, setTimeRemaining] = useState(1200); // 20:00 in seconds
   const [copied, setCopied] = useState(false);
+  // Use the transaction ID (which is the reference) to construct payment link
   const paymentLink = `https://fetanpay.et/payment/${transactionId}`;
 
   // Calculate dates using lazy initialization
   const [createdAt] = useState(() => {
-    if (propCreatedAt) return propCreatedAt;
+    if (propCreatedAt) {
+      // If it's an ISO string, format it
+      if (propCreatedAt.includes('T')) {
+        return new Date(propCreatedAt).toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+      return propCreatedAt;
+    }
     return new Date().toLocaleString("en-US", {
       year: "numeric",
       month: "short",
@@ -47,7 +69,19 @@ export default function TransactionDetailsPage({
   });
 
   const [expiresAt] = useState(() => {
-    if (propExpiresAt) return propExpiresAt;
+    if (propExpiresAt) {
+      // If it's an ISO string, format it
+      if (propExpiresAt.includes('T')) {
+        return new Date(propExpiresAt).toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+      return propExpiresAt;
+    }
     const now = new Date();
     const expiryDate = new Date(now.getTime() + 20 * 60 * 1000);
     return expiryDate.toLocaleString("en-US", {
@@ -59,15 +93,47 @@ export default function TransactionDetailsPage({
     });
   });
 
+  // Calculate time remaining from expiresAt
+  const calculateTimeRemaining = () => {
+    if (!propExpiresAt) return 1200; // Default 20 minutes
+    const expiry = new Date(propExpiresAt);
+    const now = new Date();
+    const diff = Math.max(0, Math.floor((expiry.getTime() - now.getTime()) / 1000));
+    return diff;
+  };
+
+  const [timeRemaining, setTimeRemaining] = useState(calculateTimeRemaining());
+  const [currentStatus, setCurrentStatus] = useState<"pending" | "expired" | "verified" | "unconfirmed">(status);
+
+  // Update currentStatus when status prop changes
   useEffect(() => {
-    if (status === "pending") {
+    setCurrentStatus(status);
+  }, [status]);
+
+  useEffect(() => {
+    if (currentStatus === "pending") {
+      // Update immediately
+      const initialRemaining = calculateTimeRemaining();
+      setTimeRemaining(initialRemaining);
+      
+      // If already expired, set status immediately
+      if (initialRemaining <= 0) {
+        setCurrentStatus("expired");
+        return;
+      }
+      
       const timer = setInterval(() => {
-        setTimeRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+        const remaining = calculateTimeRemaining();
+        setTimeRemaining(remaining);
+        if (remaining <= 0) {
+          setCurrentStatus("expired");
+          clearInterval(timer);
+        }
       }, 1000);
 
       return () => clearInterval(timer);
     }
-  }, [status]);
+  }, [currentStatus, propExpiresAt]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -83,8 +149,8 @@ export default function TransactionDetailsPage({
 
   const receiverName = propReceiverName || "EPHREM DEBEBE";
   const receiverAccount = propReceiverAccount || "****55415444";
-  const isExpired = status === "expired";
-  const isPending = status === "pending";
+  const isExpired = currentStatus === "expired";
+  const isPending = currentStatus === "pending";
 
   return (
     <div className="space-y-6">
@@ -225,6 +291,23 @@ export default function TransactionDetailsPage({
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Expires At</p>
                     <p className="text-base text-gray-800 dark:text-white">{expiresAt}</p>
                   </div>
+                  {propVerifiedBy && (
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Created By</p>
+                      <p className="text-base text-gray-800 dark:text-white">
+                        {propVerifiedBy.name || 
+                         propVerifiedBy.user?.name || 
+                         propVerifiedBy.email || 
+                         propVerifiedBy.user?.email || 
+                         "Admin"}
+                        {propVerifiedBy.role && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                            ({propVerifiedBy.role})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -266,6 +349,23 @@ export default function TransactionDetailsPage({
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Expires At</p>
                   <p className="text-base text-gray-800 dark:text-white">{expiresAt}</p>
                 </div>
+                {propVerifiedBy && (
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Created By</p>
+                    <p className="text-base text-gray-800 dark:text-white">
+                      {propVerifiedBy.name || 
+                       propVerifiedBy.user?.name || 
+                       propVerifiedBy.email || 
+                       propVerifiedBy.user?.email || 
+                       "Admin"}
+                      {propVerifiedBy.role && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                          ({propVerifiedBy.role})
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

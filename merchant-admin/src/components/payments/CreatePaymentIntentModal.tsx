@@ -61,7 +61,7 @@ export default function CreatePaymentIntentModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} className="max-w-[500px] m-4" showCloseButton={false}>
+    <Modal isOpen={isOpen} onClose={handleClose} className="max-w-[500px] m-4" showCloseButton={true}>
       <div className="rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
         <div className="mb-6">
           <h4 className="text-2xl font-semibold text-gray-800 dark:text-white mb-2">

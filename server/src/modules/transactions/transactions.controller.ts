@@ -48,8 +48,8 @@ export class TransactionsController {
     description: 'Transactions retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async list(@Query() query: ListTransactionsQueryDto) {
-    return this.transactionsService.listTransactions(query);
+  async list(@Query() query: ListTransactionsQueryDto, @Req() req: Request) {
+    return this.transactionsService.listTransactions(query, req);
   }
 
   @Get('verified-by/:merchantUserId')
@@ -74,5 +74,25 @@ export class TransactionsController {
     @Query() query: ListVerifiedByUserQueryDto,
   ) {
     return this.transactionsService.listVerifiedByUser(merchantUserId, query);
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get a single transaction by ID or reference',
+    description: 'Retrieves detailed information about a specific transaction by its ID or reference.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Transaction ID or reference',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getOne(@Param('id') id: string, @Req() req: Request) {
+    return this.transactionsService.getTransaction(id, req);
   }
 }

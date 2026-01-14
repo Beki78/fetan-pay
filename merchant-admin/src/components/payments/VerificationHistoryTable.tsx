@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Badge from "../ui/badge/Badge";
 import Input from "../form/input/InputField";
 import Button from "../ui/button/Button";
+import Skeleton from "../ui/skeleton/Skeleton";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
 import {
   type PaymentRecord,
@@ -150,13 +151,35 @@ export default function VerificationHistoryTable({
             </TableHeader>
 
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {(isLoading || isFetching) && (
-                <TableRow>
-                  <TableCell colSpan={8} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
-                    Loading verification history...
-                  </TableCell>
-                </TableRow>
-              )}
+              {(isLoading || isFetching) &&
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`} className="bg-white dark:bg-gray-800/50">
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={150} height={20} />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={100} height={20} />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={80} height={20} />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={120} height={20} />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={60} height={24} rounded="full" />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={80} height={24} rounded="full" />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={180} height={20} />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={60} height={32} />
+                    </TableCell>
+                  </TableRow>
+                ))}
 
               {!isLoading && !isFetching && error && (
                 <TableRow>

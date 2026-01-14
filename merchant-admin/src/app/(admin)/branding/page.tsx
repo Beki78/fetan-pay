@@ -1,32 +1,118 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Checkbox from "@/components/form/input/Checkbox";
+import { useSession } from "@/hooks/useSession";
+import {
+  useGetBrandingQuery,
+  useUpdateBrandingMutation,
+  useDeleteBrandingMutation,
+} from "@/lib/services/brandingServiceApi";
+import { useToast } from "@/components/ui/toast/useToast";
+import { Modal } from "@/components/ui/modal";
+import { Trash2, Plus, Edit2 } from "lucide-react";
 
 export default function BrandingPage() {
+  const { user } = useSession();
+  const { showToast, ToastComponent } = useToast();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState("#5CFFCE");
   const [secondaryColor, setSecondaryColor] = useState("#4F46E5");
-  const [displayName, setDisplayName] = useState("ephrem debebe's Business");
+  const [displayName, setDisplayName] = useState("");
   const [tagline, setTagline] = useState("");
   const [showPoweredBy, setShowPoweredBy] = useState(true);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  // Get merchantId from session or localStorage
+  const merchantId = (() => {
+    const meta = (user as any)?.metadata;
+    if (meta?.merchantId) return meta.merchantId as string;
+    if (meta?.merchant?.id) return meta.merchant.id as string;
+    if ((user as any)?.merchantId) return (user as any).merchantId as string;
+    if ((user as any)?.merchant?.id) return (user as any).merchant.id as string;
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("merchantId");
+      if (stored) return stored;
+    }
+    return null;
+  })();
+
+  // Fetch existing branding
+  const {
+    data: brandingData,
+    isLoading: isLoadingBranding,
+    refetch: refetchBranding,
+  } = useGetBrandingQuery(merchantId ?? "", {
+    skip: !merchantId,
+  });
+
+  // Check if branding exists (has an ID)
+  const hasBranding = brandingData?.id !== null && brandingData?.id !== undefined;
+
+  // Update mutation
+  const [updateBranding, { isLoading: isSaving }] = useUpdateBrandingMutation();
+  const [deleteBranding, { isLoading: isDeleting }] = useDeleteBrandingMutation();
+
+  // Load branding data into form
+  useEffect(() => {
+    if (brandingData && hasBranding) {
+      setPrimaryColor(brandingData.primaryColor || "#5CFFCE");
+      setSecondaryColor(brandingData.secondaryColor || "#4F46E5");
+      setDisplayName(brandingData.displayName || "");
+      setTagline(brandingData.tagline || "");
+      setShowPoweredBy(brandingData.showPoweredBy ?? true);
+
+      // Load logo preview if exists
+      if (brandingData.logoUrl) {
+        // Ensure logoUrl starts with / for proper path construction
+        const logoPath = brandingData.logoUrl.startsWith('/')
+          ? brandingData.logoUrl
+          : `/${brandingData.logoUrl}`;
+        const baseUrl =
+          process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "") ||
+          "http://localhost:3003";
+        setLogoPreview(`${baseUrl}${logoPath}`);
+      } else {
+        setLogoPreview(null);
+      }
+    } else {
+      // Reset to defaults for create mode
+      setPrimaryColor("#5CFFCE");
+      setSecondaryColor("#4F46E5");
+      setDisplayName("");
+      setTagline("");
+      setShowPoweredBy(true);
+      setLogoPreview(null);
+      setLogoFile(null);
+    }
+  }, [brandingData, hasBranding]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploadingLogo(true);
+      
       // Validate file size (2MB max)
       if (file.size > 2 * 1024 * 1024) {
-        alert("File size must be less than 2MB");
+        showToast("File size must be less than 2MB", "error");
+        setIsUploadingLogo(false);
         return;
       }
 
       // Validate file type
-      const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+      const validTypes = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/svg+xml",
+      ];
       if (!validTypes.includes(file.type)) {
-        alert("Please upload a PNG, JPG, or SVG file");
+        showToast("Please upload a PNG, JPG, or SVG file", "error");
+        setIsUploadingLogo(false);
         return;
       }
 
@@ -34,9 +120,12 @@ export default function BrandingPage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setLogoPreview(reader.result as string);
+        setIsUploadingLogo(false);
+        showToast("Logo loaded successfully", "success");
       };
       reader.onerror = () => {
-        alert("Error reading file. Please try again.");
+        showToast("Error reading file. Please try again.", "error");
+        setIsUploadingLogo(false);
       };
       reader.readAsDataURL(file);
     }
@@ -46,45 +135,183 @@ export default function BrandingPage() {
     setLogoFile(null);
     setLogoPreview(null);
     // Reset file input
-    const fileInput = document.getElementById("logo-upload") as HTMLInputElement;
+    const fileInput = document.getElementById(
+      "logo-upload",
+    ) as HTMLInputElement;
     if (fileInput) {
       fileInput.value = "";
     }
   };
 
-  const handleSave = () => {
-    // Handle save logic
-    console.log("Saving branding settings:", {
-      logo: logoFile?.name,
-      primaryColor,
-      secondaryColor,
-      displayName,
-      tagline,
-      showPoweredBy,
-    });
-    // Show success toast or notification
+  const handleSave = async () => {
+    if (!merchantId) {
+      showToast("Merchant ID not found. Please refresh the page.", "error");
+      return;
+    }
+
+    try {
+      setIsUploadingLogo(true);
+      await updateBranding({
+        merchantId,
+        primaryColor,
+        secondaryColor,
+        displayName: displayName || undefined,
+        tagline: tagline || undefined,
+        showPoweredBy,
+        logo: logoFile || undefined,
+      }).unwrap();
+
+      showToast(
+        hasBranding
+          ? "Branding settings updated successfully!"
+          : "Branding settings created successfully!",
+        "success",
+      );
+      setLogoFile(null); // Clear file after successful save
+      await refetchBranding(); // Refresh to get the new branding data
+    } catch (error: any) {
+      showToast(
+        error?.data?.message ||
+          error?.message ||
+          "Failed to save branding settings",
+        "error",
+      );
+    } finally {
+      setIsUploadingLogo(false);
+    }
   };
+
+  const handleDelete = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!merchantId) {
+      showToast("Merchant ID not found. Please refresh the page.", "error");
+      return;
+    }
+
+    try {
+      await deleteBranding(merchantId).unwrap();
+      showToast("Branding deleted successfully!", "success");
+      setIsDeleteModalOpen(false);
+      // Reset form to defaults
+      setPrimaryColor("#5CFFCE");
+      setSecondaryColor("#4F46E5");
+      setDisplayName("");
+      setTagline("");
+      setShowPoweredBy(true);
+      setLogoPreview(null);
+      setLogoFile(null);
+      await refetchBranding();
+    } catch (error: any) {
+      showToast(
+        error?.data?.message ||
+          error?.message ||
+          "Failed to delete branding settings",
+        "error",
+      );
+    }
+  };
+
+  if (isLoadingBranding) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Loading branding settings...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header with Save Button */}
+      <ToastComponent />
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">
             Custom Branding
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Customize the look of your payment pages
+            {hasBranding
+              ? "Manage your payment page branding"
+              : "Create branding for your payment pages"}
           </p>
         </div>
-        <Button
-          size="sm"
-          onClick={handleSave}
-          className="bg-purple-500 hover:bg-purple-600 text-white border-0"
-        >
-          Save Changes
-        </Button>
+        <div className="flex items-center gap-3">
+          {hasBranding && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-300 dark:border-red-700 disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+          )}
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-purple-500 hover:bg-purple-600 text-white border-0 disabled:opacity-50"
+          >
+            {hasBranding ? (
+              <>
+                <Edit2 className="w-4 h-4 mr-2" />
+                {isSaving ? "Updating..." : "Update"}
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                {isSaving ? "Creating..." : "Create Branding"}
+              </>
+            )}
+          </Button>
+        </div>
       </div>
+
+      {/* Show existing branding info if it exists */}
+      {hasBranding && brandingData && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <Edit2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                Branding Active
+              </h3>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Your branding is currently active. You can edit the settings
+                below or delete to start fresh.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Show empty state if no branding */}
+      {!hasBranding && !isLoadingBranding && (
+        <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-8 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-4">
+              <Plus className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+              No Branding Configured
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Create custom branding for your payment pages. Add your logo,
+              choose colors, and customize the appearance to match your brand.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column - Form Fields */}
@@ -131,7 +358,10 @@ export default function BrandingPage() {
                 </div>
                 <div className="flex-1">
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="logo-upload" className="cursor-pointer inline-block w-fit">
+                    <label
+                      htmlFor="logo-upload"
+                      className="cursor-pointer inline-block w-fit"
+                    >
                       <Button
                         size="sm"
                         variant="outline"
@@ -150,7 +380,13 @@ export default function BrandingPage() {
                       onChange={handleLogoUpload}
                       className="hidden"
                     />
-                    {logoPreview && (
+                    {isUploadingLogo && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                        <span>Uploading...</span>
+                      </div>
+                    )}
+                    {logoPreview && !isUploadingLogo && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -241,7 +477,7 @@ export default function BrandingPage() {
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="ephrem debebe's Business"
+                    placeholder="Your Business Name"
                     className="w-full"
                   />
                   <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -252,7 +488,7 @@ export default function BrandingPage() {
                 {/* Tagline */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Tagline
+                    Tagline <span className="text-gray-400">(Optional)</span>
                   </label>
                   <Input
                     type="text"
@@ -333,7 +569,49 @@ export default function BrandingPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        className="max-w-[400px] m-4"
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <h4 className="text-xl font-semibold text-gray-800 dark:text-white/90">
+                Delete Branding
+              </h4>
+            </div>
+          </div>
+          <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+            Are you sure you want to delete your branding settings? This will
+            remove your custom logo, colors, and display settings. This action
+            cannot be undone.
+          </p>
+          <div className="flex items-center gap-3 justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
-

@@ -18,8 +18,9 @@ import {
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import { FileInterceptor } from '@nestjs/platform-express';
 import fs from 'fs';
-import type { File as MulterFile } from 'multer';
 import { VerificationService } from '../services/verification.service';
+
+type MulterFile = Express.Multer.File;
 import {
   VerifyAbyssiniaDto,
   VerifyAbyssiniaSmartDto,
