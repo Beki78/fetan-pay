@@ -137,13 +137,13 @@ export default function Settings() {
         
         // Verify the profile belongs to the current user before caching
         if (user?.email && (profile.contactEmail === user.email || !profile.contactEmail)) {
-          // cache for later visits if session payload lacks merchantId
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem("merchantId", profile.id);
-            if (profile.status) {
-              window.localStorage.setItem("merchantStatus", profile.status.toLowerCase());
-            }
+        // cache for later visits if session payload lacks merchantId
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("merchantId", profile.id);
+          if (profile.status) {
+            window.localStorage.setItem("merchantStatus", profile.status.toLowerCase());
           }
+        }
         }
         
         setMerchantProfile(profile);

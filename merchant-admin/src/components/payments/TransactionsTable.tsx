@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   useListTransactionsQuery,
   type TransactionRecord,
@@ -10,6 +11,7 @@ import {
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Badge from "../ui/badge/Badge";
+import Skeleton from "../ui/skeleton/Skeleton";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
 
 const providerLabels: Record<TransactionProvider, string> = {
@@ -20,14 +22,15 @@ const providerLabels: Record<TransactionProvider, string> = {
   DASHEN: "Dashen",
 };
 
-const statusColors: Record<TransactionStatus, string> = {
+const statusColors: Record<TransactionStatus | 'EXPIRED', string> = {
   PENDING: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-200",
   VERIFIED: "bg-green-500/10 text-green-700 dark:text-green-200",
   FAILED: "bg-red-500/10 text-red-700 dark:text-red-200",
+  EXPIRED: "bg-red-500/10 text-red-700 dark:text-red-200",
 };
 
 interface TransactionsTableProps {
-  onView: (transaction: TransactionRecord) => void;
+  onView?: (transaction: TransactionRecord) => void;
   selectedId?: string;
 }
 
@@ -42,11 +45,21 @@ function getVerifierLabel(tx: TransactionRecord) {
 }
 
 export default function TransactionsTable({ onView, selectedId }: TransactionsTableProps) {
+  const router = useRouter();
   const [providerFilter, setProviderFilter] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [page] = useState(1);
   const [pageSize] = useState(20);
   const [search, setSearch] = useState("");
+
+  const handleView = (transaction: TransactionRecord) => {
+    if (onView) {
+      onView(transaction);
+    } else {
+      // Navigate to details page
+      router.push(`/payments/${transaction.reference || transaction.id}`);
+    }
+  };
 
   const { data, isLoading, isFetching, error } = useListTransactionsQuery({
     provider: providerFilter === "All" ? undefined : (providerFilter as TransactionProvider),
@@ -54,6 +67,26 @@ export default function TransactionsTable({ onView, selectedId }: TransactionsTa
     page,
     pageSize,
   });
+
+  // Helper function to get actual status (check if PENDING transactions are expired)
+  const getActualStatus = (tx: TransactionRecord): TransactionStatus => {
+    if (tx.status !== 'PENDING') {
+      return tx.status;
+    }
+    
+    // If PENDING, check if it's actually expired (> 20 minutes old)
+    if (tx.createdAt) {
+      const createdAt = new Date(tx.createdAt);
+      const now = new Date();
+      const expiryTime = new Date(createdAt.getTime() + 20 * 60 * 1000); // 20 minutes
+      
+      if (now > expiryTime) {
+        return 'FAILED'; // Treat expired as FAILED for display
+      }
+    }
+    
+    return tx.status;
+  };
 
   const transactions = useMemo(() => data?.data ?? [], [data]);
 
@@ -131,13 +164,32 @@ export default function TransactionsTable({ onView, selectedId }: TransactionsTa
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {(isLoading || isFetching) && (
-                <TableRow>
-                  <TableCell colSpan={7} className="px-5 py-6 text-center text-gray-500 dark:text-gray-400">
-                    Loading transactions...
-                  </TableCell>
-                </TableRow>
-              )}
+              {(isLoading || isFetching) &&
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`} className="bg-white dark:bg-gray-800/50">
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={150} height={20} />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={120} height={20} />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={60} height={24} rounded="full" />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={80} height={24} rounded="full" />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={180} height={20} />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={180} height={20} />
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Skeleton width={60} height={32} />
+                    </TableCell>
+                  </TableRow>
+                ))}
               {!isLoading && !isFetching && error && (
                 <TableRow>
                   <TableCell colSpan={7} className="px-5 py-6 text-center text-red-500">
@@ -174,9 +226,16 @@ export default function TransactionsTable({ onView, selectedId }: TransactionsTa
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <span className={`px-2 py-1 rounded-md text-xs font-semibold ${statusColors[tx.status]}`}>
-                        {tx.status}
-                      </span>
+                      {(() => {
+                        const actualStatus = getActualStatus(tx);
+                        const displayStatus = actualStatus === 'FAILED' && tx.status === 'PENDING' ? 'EXPIRED' : actualStatus;
+                        const colorKey = displayStatus === 'EXPIRED' ? 'EXPIRED' : actualStatus;
+                        return (
+                          <span className={`px-2 py-1 rounded-md text-xs font-semibold ${statusColors[colorKey as keyof typeof statusColors] || statusColors.PENDING}`}>
+                            {displayStatus}
+                          </span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
                       {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : "—"}
@@ -185,7 +244,7 @@ export default function TransactionsTable({ onView, selectedId }: TransactionsTa
                       {tx.verifiedAt ? new Date(tx.verifiedAt).toLocaleString() : "—"}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <Button size="sm" variant="outline" onClick={() => onView(tx)}>
+                      <Button size="sm" variant="outline" onClick={() => handleView(tx)}>
                         View
                       </Button>
                     </TableCell>

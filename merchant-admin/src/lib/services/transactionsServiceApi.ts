@@ -29,6 +29,20 @@ export interface TransactionRecord {
       name: string;
     } | null;
   } | null;
+  payments?: Array<{
+    id: string;
+    order: {
+      id: string;
+      expectedAmount: string;
+      currency: string;
+      status: string;
+      createdAt: string;
+    };
+    receiverAccount?: {
+      receiverName?: string | null;
+      receiverAccount: string;
+    } | null;
+  }>;
 }
 
 export interface TransactionListResponse {
@@ -47,6 +61,7 @@ export const transactionsServiceApi = createApi({
   // These endpoints back "live" verification tables; prefer fresh data over cache reuse.
   refetchOnFocus: true,
   refetchOnReconnect: true,
+  tagTypes: ['Transaction'],
   endpoints: (builder) => ({
     listTransactions: builder.query<
       TransactionListResponse,
@@ -62,6 +77,7 @@ export const transactionsServiceApi = createApi({
           url: `/transactions?${query.toString()}`,
         };
       },
+      providesTags: [{ type: 'Transaction', id: 'LIST' }],
     }),
 
     listVerifiedByUser: builder.query<
@@ -77,7 +93,13 @@ export const transactionsServiceApi = createApi({
         };
       },
     }),
+
+    getTransaction: builder.query<TransactionRecord, string>({
+      query: (idOrReference) => ({
+        url: `/transactions/${idOrReference}`,
+      }),
+    }),
   }),
 });
 
-export const { useListTransactionsQuery, useListVerifiedByUserQuery } = transactionsServiceApi;
+export const { useListTransactionsQuery, useListVerifiedByUserQuery, useGetTransactionQuery } = transactionsServiceApi;

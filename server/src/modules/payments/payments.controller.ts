@@ -119,7 +119,14 @@ export class PaymentsController {
   @ApiBody({ type: CreateOrderDto })
   @ApiResponse({
     status: 201,
-    description: 'Order created successfully',
+    description: 'Order and transaction created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        order: { type: 'object' },
+        transaction: { type: 'object' },
+      },
+    },
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

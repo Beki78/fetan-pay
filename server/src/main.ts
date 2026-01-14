@@ -4,9 +4,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from '../auth';
 import logger from './modules/verifier/utils/logger';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const env = process.env.NODE_ENV ?? 'development';
   logger.info(`Starting server in ${env} mode`);
@@ -25,13 +27,21 @@ async function bootstrap() {
   });
 
   // Log auth route hits to debug routing
-  app.use('/api/auth', (req, _res, next) => {
-    console.log(`[auth-route] ${req.method} ${req.originalUrl}`);
-    next();
-  });
+  app.use(
+    '/api/auth',
+    (req: { method: string; originalUrl: string }, _res, next: () => void) => {
+      console.log(`[auth-route] ${req.method} ${req.originalUrl}`);
+      next();
+    },
+  );
 
   // Explicitly mount Better Auth handler (defensive in case module wiring is bypassed)
   app.use('/api/auth', toNodeHandler(auth));
+
+  // Serve static files from public directory
+  app.useStaticAssets(join(process.cwd(), 'public'), {
+    prefix: '/',
+  });
 
   // Prefix all controllers under /api/v1 for consistent versioning
   app.setGlobalPrefix('api/v1');
@@ -56,12 +66,34 @@ FetanPay is a comprehensive payment verification platform that enables merchants
 ## Authentication
 Most endpoints require authentication via Better Auth. Include the session cookie or Bearer token in requests.
 
+## Better Auth Endpoints
+Better Auth endpoints are available at \`/api/auth\` (not under \`/api/v1\`):
+
+### Authentication
+- **POST** \`/api/auth/sign-in\` - Sign in with email and password
+- **POST** \`/api/auth/sign-up\` - Create a new account
+- **POST** \`/api/auth/sign-out\` - Sign out current session
+- **GET** \`/api/auth/session\` - Get current session
+
+### Social Login
+- **POST** \`/api/auth/social/google\` - Sign in with Google (only if account exists)
+
+### Password Management
+- **POST** \`/api/auth/password/forgot\` - Request password reset
+- **POST** \`/api/auth/password/reset\` - Reset password with token
+
+### Email Verification
+- **POST** \`/api/auth/email/send-otp\` - Send email verification OTP
+- **POST** \`/api/auth/email/verify-otp\` - Verify email with OTP
+
+Note: Better Auth endpoints use session cookies for authentication. Include the \`better-auth.session_token\` cookie in requests.
+
 ## Base URL
 - Development: http://localhost:3003
 - Production: [Your production URL]
 
 ## API Version
-All endpoints are prefixed with \`/api/v1\`
+All endpoints are prefixed with \`/api/v1\` except Better Auth endpoints which are at \`/api/auth\`
 
 ## Rate Limiting
 Some endpoints (like payment verification) are rate-limited to prevent abuse.`,
@@ -89,6 +121,11 @@ Some endpoints (like payment verification) are rate-limited to prevent abuse.`,
     .addTag('transactions', 'Transaction listing and querying')
     .addTag('payment-providers', 'Payment provider configuration')
     .addTag('verification', 'Payment verification endpoints (public)')
+    .addTag('branding', 'Merchant branding customization endpoints')
+    .addTag(
+      'auth',
+      'Better Auth authentication endpoints (available at /api/auth)',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
@@ -104,10 +141,12 @@ Some endpoints (like payment verification) are rate-limited to prevent abuse.`,
   logger.info(`Platform: ${process.platform}`);
   const gracefulShutdown = () => {
     logger.info('Shutting down server...');
-    server.close(async () => {
-      logger.info('HTTP server closed');
-      await app.close();
-      process.exit(0);
+    server.close(() => {
+      void (async () => {
+        logger.info('HTTP server closed');
+        await app.close();
+        process.exit(0);
+      })();
     });
 
     setTimeout(() => {
@@ -119,4 +158,4 @@ Some endpoints (like payment verification) are rate-limited to prevent abuse.`,
   process.on('SIGTERM', gracefulShutdown);
   process.on('SIGINT', gracefulShutdown);
 }
-bootstrap();
+void bootstrap();

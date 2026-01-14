@@ -677,7 +677,75 @@ export class PaymentsService {
       },
     });
 
-    return { order };
+    // Generate transaction reference (format: TXN + 12 random alphanumeric chars)
+    const generateTransactionRef = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = 'TXN';
+      for (let i = 0; i < 12; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    };
+
+    const transactionRef = generateTransactionRef();
+    const baseUrl =
+      process.env.FRONTEND_URL ||
+      process.env.BETTER_AUTH_BASE_URL ||
+      'http://localhost:3001';
+    const paymentLink = `${baseUrl}/payment/${transactionRef}`;
+
+    // Get active receiver account for CBE (default provider) to include in response
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+    const activeReceiver = await (
+      this.prisma as any
+    ).merchantReceiverAccount.findFirst({
+      where: {
+        merchantId: membership.merchantId,
+        provider: 'CBE',
+        status: 'ACTIVE',
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    // Create transaction record with PENDING status
+    // Use CBE as default provider (can be changed later when payment is made)
+    // Set verifiedById to the merchant user who created this transaction (admin)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+    const transaction = await (this.prisma as any).transaction.create({
+      data: {
+        provider: 'CBE', // Default provider, will be updated when payment is verified
+        reference: transactionRef,
+        qrUrl: paymentLink,
+        status: 'PENDING',
+        merchantId: membership.merchantId,
+        verifiedById: membership.merchantUserId, // Set the admin who created this transaction
+      },
+      include: {
+        verifiedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+        },
+        merchant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return { order, transaction, receiverAccount: activeReceiver };
   }
 
   /**

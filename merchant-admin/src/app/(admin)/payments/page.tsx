@@ -1,23 +1,112 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import TransactionsTable from "@/components/payments/TransactionsTable";
 import VerificationHistoryTable from "@/components/payments/VerificationHistoryTable";
+import CreatePaymentIntentModal from "@/components/payments/CreatePaymentIntentModal";
 import { type PaymentRecord } from "@/lib/services/paymentsServiceApi";
+import { useCreateOrderMutation } from "@/lib/services/paymentsServiceApi";
+import { transactionsServiceApi } from "@/lib/services/transactionsServiceApi";
+import { useAppDispatch } from "@/lib/store";
+import Button from "@/components/ui/button/Button";
+import { PlusIcon } from "@/icons";
+import { useToast } from "@/components/ui/toast/useToast";
 
 export default function PaymentsPage() {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
   const [viewingPayment, setViewingPayment] = useState<PaymentRecord | null>(null);
+  const [activeTab, setActiveTab] = useState<"transactions" | "payments">("transactions");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createOrder, { isLoading: isCreating }] = useCreateOrderMutation();
+  const { showToast } = useToast();
   const selectedId = viewingPayment?.id;
+
+  const handleCreateTransaction = async (data: { payerName: string; amount: number; notes?: string }) => {
+    try {
+      const result = await createOrder({
+        expectedAmount: data.amount,
+        currency: "ETB",
+      }).unwrap();
+
+      // Close modal
+      setIsCreateModalOpen(false);
+      
+      // Invalidate transactions cache to refresh the list
+      dispatch(
+        transactionsServiceApi.util.invalidateTags([{ type: 'Transaction', id: 'LIST' }])
+      );
+      
+      showToast("Payment intent created successfully", "success");
+      
+      // Navigate to details page
+      router.push(`/payments/${result.transaction.reference}`);
+    } catch (error: any) {
+      showToast(
+        error?.data?.message || error?.message || "Failed to create payment intent",
+        "error"
+      );
+    }
+  };
+
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Payment Verifications</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Merchant-scoped verification history (VERIFIED / UNVERIFIED)
-        </p>
-      </div>
+      {!viewingPayment && (
+        <>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Payments</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Create and manage payment intents and view verification history
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              startIcon={<PlusIcon className="w-4 h-4" />}
+            >
+              Add Transaction
+            </Button>
+          </div>
 
-      {viewingPayment ? (
+          {/* Tabs */}
+          <div className="border-b border-gray-200 dark:border-gray-700">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab("transactions")}
+                className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+                  activeTab === "transactions"
+                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
+              >
+                Transactions
+              </button>
+              <button
+                onClick={() => setActiveTab("payments")}
+                className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+                  activeTab === "payments"
+                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
+              >
+                Verification History
+              </button>
+            </nav>
+          </div>
+
+          {/* Content based on active tab */}
+          {activeTab === "transactions" ? (
+            <TransactionsTable />
+          ) : (
+            <VerificationHistoryTable onView={(p) => setViewingPayment(p)} selectedId={selectedId} />
+          )}
+        </>
+      )}
+
+      {viewingPayment && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800/50">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -78,9 +167,13 @@ export default function PaymentsPage() {
             <Detail label="Receiver" value={viewingPayment.receiverAccount?.receiverAccount ?? "—"} />
           </div>
         </div>
-      ) : (
-        <VerificationHistoryTable onView={(p) => setViewingPayment(p)} selectedId={selectedId} />
       )}
+
+      <CreatePaymentIntentModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={handleCreateTransaction}
+      />
     </div>
   );
 }

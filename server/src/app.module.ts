@@ -13,6 +13,7 @@ import { MerchantsModule } from './modules/merchants/merchants.module';
 import { MerchantUsersModule } from './modules/merchant-users/merchant-users.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PaymentProvidersModule } from './modules/payment-providers/payment-providers.module';
+import { BrandingModule } from './modules/branding/branding.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -30,6 +31,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     PaymentsModule,
     PaymentsModule,
     PaymentProvidersModule,
+    BrandingModule,
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 10,
