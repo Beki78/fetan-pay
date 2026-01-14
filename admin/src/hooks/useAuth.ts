@@ -3,8 +3,9 @@
 import { useState, useCallback } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useSession } from "./useSession";
+import { FRONTEND_URL } from "@/lib/config";
 
-const SOCIAL_CALLBACK_URL = "http://localhost:3000";
+const SOCIAL_CALLBACK_URL = FRONTEND_URL;
 
 type EmailOtpType = "sign-in" | "email-verification" | "forget-password";
 

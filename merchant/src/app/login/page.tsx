@@ -67,8 +67,12 @@ export default function LoginPage() {
         description: `Welcome back, ${data.email}`,
       });
 
-      // Redirect to scan page
-      router.push("/scan");
+      // Redirect to scan page - use window.location for production to ensure cookies are set
+      if (process.env.NODE_ENV === 'production') {
+        window.location.href = "/scan";
+      } else {
+        router.push("/scan");
+      }
     } catch (error) {
       toast.error("Login failed", {
         description:
@@ -120,8 +124,14 @@ export default function LoginPage() {
   }
 
   if (isAuthenticated) {
-    router.replace("/scan");
-    return null;
+    // Use window.location for production to ensure cookies are set
+    if (process.env.NODE_ENV === 'production') {
+      window.location.href = "/scan";
+      return null;
+    } else {
+      router.replace("/scan");
+      return null;
+    }
   }
 
   return (

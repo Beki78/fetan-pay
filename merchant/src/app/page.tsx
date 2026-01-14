@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/hooks/useSession";
 import Image from "next/image";
@@ -9,11 +9,19 @@ import { APP_CONFIG } from "@/lib/config";
 export default function Home() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useSession();
+  const hasRedirected = useRef(false);
 
   // Root route is just an auth gate.
   useEffect(() => {
-    if (isLoading) return;
-    router.replace(isAuthenticated ? "/scan" : "/login");
+    if (isLoading || hasRedirected.current) return;
+    hasRedirected.current = true;
+
+    // Use window.location for production to ensure cookies are set
+    if (process.env.NODE_ENV === "production") {
+      window.location.href = isAuthenticated ? "/scan" : "/login";
+    } else {
+      router.replace(isAuthenticated ? "/scan" : "/login");
+    }
   }, [isAuthenticated, isLoading, router]);
 
   return (
