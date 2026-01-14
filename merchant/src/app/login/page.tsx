@@ -68,7 +68,7 @@ export default function LoginPage() {
       });
 
       // Redirect to scan page - use window.location for production to ensure cookies are set
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === "production") {
         window.location.href = "/scan";
       } else {
         router.push("/scan");
@@ -100,8 +100,41 @@ export default function LoginPage() {
       setValue("password", result.password);
 
       toast.success("QR code scanned successfully!", {
-        description: "Login credentials filled. Click Sign in to continue.",
+        description: "Logging you in...",
       });
+
+      // Automatically submit the form after a short delay to ensure form state is updated
+      setTimeout(async () => {
+        setIsLoading(true);
+        try {
+          const ok = await signInWithEmailAndPassword(
+            result.email,
+            result.password
+          );
+
+          if (!ok) {
+            throw new Error("Invalid email or password");
+          }
+
+          toast.success("Login successful!", {
+            description: `Welcome back, ${result.email}`,
+          });
+
+          // Redirect to scan page - use window.location for production to ensure cookies are set
+          if (process.env.NODE_ENV === "production") {
+            window.location.href = "/scan";
+          } else {
+            router.push("/scan");
+          }
+        } catch (error) {
+          toast.error("Login failed", {
+            description:
+              (error as Error)?.message ||
+              "Invalid email or password. Please try again.",
+          });
+          setIsLoading(false);
+        }
+      }, 100);
     } catch (error: unknown) {
       const errorMessage =
         (error as { data?: { message?: string }; message?: string })?.data
@@ -125,7 +158,7 @@ export default function LoginPage() {
 
   if (isAuthenticated) {
     // Use window.location for production to ensure cookies are set
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       window.location.href = "/scan";
       return null;
     } else {
