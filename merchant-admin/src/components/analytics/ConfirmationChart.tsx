@@ -1,16 +1,41 @@
 "use client";
 import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
+import { useGetStatusDistributionQuery } from "@/lib/services/dashboardServiceApi";
 
 // Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
 });
 
-export default function ConfirmationChart() {
+interface ConfirmationChartProps {
+  period?: string;
+}
+
+export default function ConfirmationChart({ period }: ConfirmationChartProps) {
+  const { data: statusData, isLoading, isError } =
+    useGetStatusDistributionQuery(period ? { period } : undefined);
+
+  // Compute labels and colors based on available data
+  const labels = statusData
+    ? ["Verified", "Pending", "Failed"].filter((label) => {
+        if (label === "Verified") return statusData.verified > 0;
+        if (label === "Pending") return statusData.pending > 0;
+        if (label === "Failed") return statusData.failed > 0;
+        return false;
+      })
+    : ["Expired"];
+
+  const colors = statusData
+    ? [
+        ...(statusData.verified > 0 ? ["#10B981"] : []), // Green for Verified
+        ...(statusData.pending > 0 ? ["#F59E0B"] : []), // Orange for Pending
+        ...(statusData.failed > 0 ? ["#EF4444"] : []), // Red for Failed
+      ]
+    : ["#9CA3AF"]; // Gray fallback
 
   const options: ApexOptions = {
-    colors: ["#9CA3AF"], // Gray for Expired
+    colors,
     chart: {
       fontFamily: "Outfit, sans-serif",
       type: "donut",
@@ -19,7 +44,7 @@ export default function ConfirmationChart() {
         show: false,
       },
     },
-    labels: ["Expired"],
+    labels,
     legend: {
       show: true,
       position: "bottom",
@@ -64,7 +89,7 @@ export default function ConfirmationChart() {
               fontSize: "14px",
               fontWeight: 600,
               color: "#6B7280",
-              formatter: () => "3",
+              formatter: () => String(statusData?.total || 0),
             },
           },
         },
@@ -77,7 +102,47 @@ export default function ConfirmationChart() {
     },
   };
 
-  const series = [3]; // Expired
+  const series = statusData
+    ? [
+        statusData.verified,
+        statusData.pending,
+        statusData.failed,
+      ].filter((val) => val > 0)
+    : [0];
+
+  if (isLoading) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Status Distribution
+            </h3>
+          </div>
+        </div>
+        <div className="h-[300px] bg-gray-100 dark:bg-gray-700 rounded animate-pulse"></div>
+      </div>
+    );
+  }
+
+  if (isError || !statusData || statusData.total === 0) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Status Distribution
+            </h3>
+          </div>
+        </div>
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          {isError
+            ? "Failed to load status distribution. Please try again later."
+            : "No transaction data available for the selected period."}
+        </div>
+      </div>
+    );
+  }
 
   return (
   <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">

@@ -1,13 +1,21 @@
 "use client";
 import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
+import { useGetTransactionTrendQuery } from "@/lib/services/dashboardServiceApi";
 
 // Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
 });
 
-export default function RevenueTrendChart() {
+interface RevenueTrendChartProps {
+  period?: string;
+}
+
+export default function RevenueTrendChart({ period }: RevenueTrendChartProps) {
+  const { data: trendData, isLoading, isError } = useGetTransactionTrendQuery(
+    period ? { period } : undefined
+  );
 
   const options: ApexOptions = {
     legend: {
@@ -70,7 +78,7 @@ export default function RevenueTrendChart() {
     },
     xaxis: {
       type: "category",
-      categories: ["Dec 20", "Dec 21", "Dec 22", "Dec 23", "Dec 24", "Dec 25", "Dec 26", "Dec 27"],
+      categories: trendData?.categories || [],
       axisBorder: {
         show: false,
       },
@@ -95,25 +103,45 @@ export default function RevenueTrendChart() {
     },
   };
 
-  // Mock data for transaction trend
-  const series = [
-        {
-      name: "Total",
-      data: [0, 0, 0, 0, 0, 0, 0, 3],
-        },
-        {
-      name: "Verified",
-      data: [0, 0, 0, 0, 0, 0, 0, 0],
-        },
-        {
-      name: "Pending",
-      data: [0, 0, 0, 0, 0, 0, 0, 0],
-        },
-        {
-      name: "Failed",
-      data: [0, 0, 0, 0, 0, 0, 0, 0],
-        },
-      ];
+  // Use real data from API or fallback to empty data
+  const series = trendData?.series || [
+    { name: "Total", data: [] },
+    { name: "Verified", data: [] },
+    { name: "Pending", data: [] },
+    { name: "Failed", data: [] },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
+        <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
+          <div className="w-full">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Transaction Trend
+            </h3>
+          </div>
+        </div>
+        <div className="h-[350px] bg-gray-100 dark:bg-gray-700 rounded animate-pulse"></div>
+      </div>
+    );
+  }
+
+  if (isError || !trendData) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-red-200 bg-red-50 px-5 pt-5 dark:border-red-800 dark:bg-red-900/20 sm:px-6 sm:pt-6">
+        <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
+          <div className="w-full">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Transaction Trend
+            </h3>
+          </div>
+        </div>
+        <p className="text-red-600 dark:text-red-400">
+          Failed to load transaction trend data. Please try again later.
+        </p>
+      </div>
+    );
+  }
 
   return (
   <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">

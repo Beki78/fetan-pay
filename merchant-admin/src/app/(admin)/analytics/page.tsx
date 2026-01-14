@@ -61,18 +61,18 @@ export default function AnalyticsPage() {
       </div>
 
         {/* Transaction Metrics */}
-        <TransactionMetrics />
+        <TransactionMetrics period={selectedPeriod} />
 
       {/* Charts Grid - One Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Transaction Trend */}
         <div className="lg:col-span-1">
-            <RevenueTrendChart />
+            <RevenueTrendChart period={selectedPeriod} />
           </div>
 
         {/* Status Distribution */}
         <div className="lg:col-span-1">
-            <ConfirmationChart />
+            <ConfirmationChart period={selectedPeriod} />
         </div>
       </div>
     </div>

@@ -4,8 +4,13 @@ import DashboardMetrics from "@/components/dashboard/DashboardMetrics";
 import Subscription from "@/components/dashboard/Subscription";
 import QuickActions from "@/components/dashboard/QuickActions";
 import RecentTransactions from "@/components/dashboard/RecentTransactions";
+import { useGetDashboardStatsQuery } from "@/lib/services/dashboardServiceApi";
+import { useSession } from "@/hooks/useSession";
 
 export default function Dashboard() {
+  const { data: dashboardStats, isLoading: isStatsLoading } = useGetDashboardStatsQuery();
+  const { user } = useSession();
+
   // Mock subscription data - In production, this would come from API/context
   // Set hasActiveSubscription to false to show "No Active Subscription" banner
   const hasActiveSubscription = false; // Change to true to show subscription details
@@ -14,13 +19,21 @@ export default function Dashboard() {
   const daysRemaining = 1;
   const planName = "Free";
 
+  // Get owner name from dashboard stats or fallback to user name
+  const ownerName = dashboardStats?.ownerName || user?.name || "User";
+  const merchantName = dashboardStats?.merchantName || "";
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">Dashboard</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Welcome back, ephrem debebe&apos;s Business
+          {isStatsLoading ? (
+            "Loading..."
+          ) : (
+            `Welcome back, ${ownerName}${merchantName ? `'s ${merchantName}` : ""}`
+          )}
         </p>
       </div>
 

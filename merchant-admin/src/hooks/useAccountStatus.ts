@@ -38,12 +38,11 @@ function getCachedStatus(): AccountStatus | null {
 export const useAccountStatus = () => {
   const { user, isLoading: isSessionLoading } = useSession();
   // Initialize status from localStorage immediately to avoid flash
-  const [status, setStatus] = useState<AccountStatus>(() => {
-    const cached = getCachedStatus();
-    return cached || "pending";
-  });
+  const cached = getCachedStatus();
+  const [status, setStatus] = useState<AccountStatus | null>(cached);
   const [cachedStatus, setCachedStatus] = useState<AccountStatus | null>(() => getCachedStatus());
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
+  const [isStatusConfirmed, setIsStatusConfirmed] = useState(!!cached);
 
   const derived = useMemo(() => deriveAccountStatus(user), [user]);
 
@@ -57,6 +56,7 @@ export const useAccountStatus = () => {
       setCachedStatus(newCachedStatus);
       // Update status immediately if we have a cached value
       setStatus(newCachedStatus);
+      setIsStatusConfirmed(true);
     }
   }, []);
 
@@ -76,13 +76,13 @@ export const useAccountStatus = () => {
     }
   }, [user?.email, previousUserEmail]);
 
-  // Fetch merchant profile when user is available but status is still pending
+  // Fetch merchant profile when user is available but status is not confirmed
   useEffect(() => {
-    if (isSessionLoading || isFetchingProfile || !user?.email) return;
+    if (isSessionLoading || isFetchingProfile || !user?.email || isStatusConfirmed) return;
     
-    // Only fetch if we don't have cached status and derived status is pending
+    // Fetch profile if we don't have cached status
     // And make sure we're fetching for the current user
-    if (!cachedStatus && derived === "pending" && user.email === previousUserEmail && typeof window !== "undefined") {
+    if (!cachedStatus && user.email === previousUserEmail && typeof window !== "undefined") {
       const fetchProfile = async () => {
         setIsFetchingProfile(true);
         try {
@@ -98,6 +98,7 @@ export const useAccountStatus = () => {
               setCachedStatus(profileStatus);
               // Update status immediately when we get the profile
               setStatus(profileStatus);
+              setIsStatusConfirmed(true);
             }
           }
         } catch (err) {
@@ -110,22 +111,32 @@ export const useAccountStatus = () => {
       
       fetchProfile();
     }
-  }, [user, isSessionLoading, cachedStatus, derived, isFetchingProfile, previousUserEmail]);
+  }, [user, isSessionLoading, cachedStatus, isFetchingProfile, previousUserEmail, isStatusConfirmed]);
 
   useEffect(() => {
     // Prefer cached status (from profile fetch) when available
     // Only update if we have a cached status, otherwise use derived
     if (cachedStatus) {
       setStatus(cachedStatus);
-    } else if (!isSessionLoading && derived) {
-      // Only use derived status if session is loaded and we don't have cache
-      setStatus(derived);
+      setIsStatusConfirmed(true);
+    } else if (!isSessionLoading && user && derived) {
+      // Only use derived status if session is loaded, user exists, and we don't have cache
+      // Check if derived status is actually from user data (not default)
+      const hasStatusInUser = !!(user as any)?.metadata?.merchantStatus ||
+        !!(user as any)?.merchantStatus ||
+        !!(user as any)?.status;
+      
+      if (hasStatusInUser) {
+        setStatus(derived);
+        setIsStatusConfirmed(true);
+      }
     }
-  }, [derived, cachedStatus, isSessionLoading]);
+  }, [derived, cachedStatus, isSessionLoading, user]);
 
   return {
-    status,
+    status: status || "pending", // Return pending as fallback for type safety, but isStatusConfirmed tells if it's real
     isPending: status === "pending",
-    isLoading: isSessionLoading,
+    isLoading: isSessionLoading || isFetchingProfile || !isStatusConfirmed,
+    isStatusConfirmed,
   } as const;
 };
