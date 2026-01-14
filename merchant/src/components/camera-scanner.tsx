@@ -202,42 +202,42 @@ export function CameraScanner({
     // Stop scanning first
     await stopScanning();
 
-    // Try to detect bank from URL if not selected
-    const detectedBank = selectedBank || detectBankFromUrl(scannedUrl);
+    // Always try to detect bank from URL first (QR code contains the actual bank info)
+    const urlDetectedBank = detectBankFromUrl(scannedUrl);
+    const detectedBank = urlDetectedBank || selectedBank;
 
-    // Validate the scanned URL
+    // Check for bank mismatch if bank was selected but doesn't match URL
+    if (selectedBank && urlDetectedBank && selectedBank !== urlDetectedBank) {
+      toast.error("Bank mismatch", {
+        description: `Selected ${selectedBank.toUpperCase()} but QR code is for ${urlDetectedBank.toUpperCase()}`,
+      });
+      // Still pass the URL to parent, but show the error
+      onScan(scannedUrl);
+      onClose();
+      return;
+    }
+
+    // Validate the scanned URL with detected bank
     const validation = validateTransactionInput(detectedBank, scannedUrl);
 
     if (validation.isValid) {
       // URL is valid - show success toast
-      const bankName = (detectedBank ||
-        selectedBank ||
-        "transaction") as string;
+      const bankName = (detectedBank || "transaction") as string;
       toast.success("QR Code scanned successfully!", {
         description:
-          detectedBank && !selectedBank
+          urlDetectedBank && !selectedBank
             ? `${bankName.toUpperCase()} detected and validated`
             : `Valid ${bankName.toUpperCase()} transaction detected`,
       });
       onScan(scannedUrl);
       onClose();
     } else {
-      // URL validation failed
-      if (selectedBank && !detectedBank) {
-        // Bank mismatch
-        toast.error("Bank mismatch", {
-          description: `The scanned QR code does not match the selected bank (${(
-            selectedBank as string
-          ).toUpperCase()})`,
-        });
-      } else {
-        // Invalid format
-        toast.error("Invalid QR code", {
-          description:
-            validation.error ||
-            "Unable to extract transaction reference from QR code",
-        });
-      }
+      // Invalid format
+      toast.error("Invalid QR code", {
+        description:
+          validation.error ||
+          "Unable to extract transaction reference from QR code",
+      });
       // Still pass the URL to parent, but show the error
       onScan(scannedUrl);
       onClose();
@@ -245,9 +245,10 @@ export function CameraScanner({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-      <div className="relative w-full max-w-4xl bg-card rounded-lg overflow-hidden shadow-2xl">
-        <div className="absolute top-4 right-4 z-10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+      <div className="relative w-full max-w-md rounded-lg bg-background p-6 shadow-lg">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Scan QR Code</h2>
           <Button
             variant="ghost"
             size="icon"
@@ -255,101 +256,25 @@ export function CameraScanner({
               await stopScanning();
               onClose();
             }}
-            className="bg-black/50 text-white hover:bg-black/70"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="p-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              Scan QR Code
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Position the QR code within the frame
-            </p>
+        {error && (
+          <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
           </div>
+        )}
 
-          {error ? (
-            <div className="p-8 text-center space-y-4">
-              <p className="text-destructive mb-4 font-medium">{error}</p>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>To fix this issue:</p>
-                <ul className="list-disc list-inside space-y-1 text-left max-w-md mx-auto">
-                  <li>Allow camera permissions in your browser settings</li>
-                  <li>Ensure you&apos;re using HTTPS (secure connection)</li>
-                  <li>
-                    Try refreshing the page and granting permissions again
-                  </li>
-                  <li>
-                    Check your device&apos;s camera permissions in system
-                    settings
-                  </li>
-                </ul>
-              </div>
-              <div className="flex gap-2 justify-center mt-6">
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    setError(null);
-                    await startScanning();
-                  }}
-                >
-                  Try Again
-                </Button>
-                <Button variant="outline" onClick={onClose}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Add CSS to fix duplicate video issue */}
-              <style>{`
-                #${scannerId} video {
-                  width: 100% !important;
-                  height: auto !important;
-                  object-fit: cover !important;
-                  transform: none !important;
-                  display: block !important;
-                }
-                #${scannerId} {
-                  position: relative !important;
-                  overflow: hidden !important;
-                  display: block !important;
-                }
-                #${scannerId} > div {
-                  width: 100% !important;
-                  height: 100% !important;
-                  position: relative !important;
-                }
-                #${scannerId} canvas {
-                  display: none !important;
-                }
-                #${scannerId} > div > video {
-                  width: 100% !important;
-                  height: auto !important;
-                }
-              `}</style>
-              <div className="relative">
-                <div
-                  id={scannerId}
-                  className="w-full rounded-lg overflow-hidden bg-black"
-                  style={{ minHeight: "600px" }}
-                />
-                {isScanning && (
-                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div
-                      className="border-2 border-primary rounded-lg"
-                      style={{ width: "400px", height: "400px" }}
-                    />
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        <div
+          id={scannerId}
+          className="mb-4 rounded-lg overflow-hidden bg-muted"
+        />
+
+        <p className="text-center text-sm text-muted-foreground">
+          Position the QR code within the frame to scan
+        </p>
       </div>
     </div>
   );

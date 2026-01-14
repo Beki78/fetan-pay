@@ -120,38 +120,53 @@ export default function ScanPage() {
     setVerificationMethod("camera");
     setValue("verificationMethod", "camera", { shouldValidate: false });
 
-    // Extract transaction reference from URL if it's a full URL
-    const detectedBank =
-      (selectedBank as BankId | null) || detectBankFromUrl(scannedUrl);
+    // Always detect bank from URL first (QR code contains the actual bank info)
+    const urlDetectedBank = detectBankFromUrl(scannedUrl);
+    const detectedBank = urlDetectedBank || (selectedBank as BankId | null);
+
+    // Check for bank mismatch
+    if (selectedBank && urlDetectedBank && selectedBank !== urlDetectedBank) {
+      toast.warning("Bank mismatch detected", {
+        description: `Selected ${selectedBank.toUpperCase()} but QR code is for ${urlDetectedBank.toUpperCase()}. Using detected bank.`,
+      });
+      // Auto-select the detected bank from URL
+      setSelectedBank(urlDetectedBank);
+    } else if (!selectedBank && urlDetectedBank) {
+      // Auto-select bank if detected from URL
+      setSelectedBank(urlDetectedBank);
+      toast.success("Bank detected", {
+        description: `${urlDetectedBank.toUpperCase()} detected from QR code`,
+      });
+    }
+
+    // Extract transaction reference from URL
     const extractedReference = extractTransactionId(detectedBank, scannedUrl);
 
     console.log(
-      "Detected bank:",
+      "URL detected bank:",
+      urlDetectedBank,
+      "Final bank:",
       detectedBank,
       "Extracted reference:",
       extractedReference
     );
 
-    // If bank was detected from URL but not selected, auto-select it
-    if (!selectedBank && detectedBank) {
-      setSelectedBank(detectedBank);
-      toast.success("Bank detected", {
-        description: `${detectedBank.toUpperCase()} detected from QR code`,
-      });
-    }
-
-    // Set the extracted reference (or original if extraction failed)
+    // Set the extracted reference
     setValue("transactionId", extractedReference, { shouldValidate: false });
 
     // Show feedback
-    toast.success("QR code scanned!", {
-      description: extractedReference
-        ? `Reference: ${extractedReference}`
-        : "Transaction details extracted",
-    });
+    if (extractedReference && extractedReference !== scannedUrl) {
+      toast.success("QR code scanned!", {
+        description: `Reference: ${extractedReference}`,
+      });
+    } else {
+      toast.success("QR code scanned!", {
+        description: "Transaction details extracted",
+      });
+    }
 
     // Auto-verify after successful scan if amount is already entered
-    const finalBank = selectedBank || detectedBank;
+    const finalBank = detectedBank;
     const currentAmount = amount;
 
     if (currentAmount && finalBank && extractedReference) {
@@ -180,7 +195,7 @@ export default function ScanPage() {
         toast.info("Bank selection required", {
           description: "Please select a bank account first",
         });
-      } else if (!extractedReference) {
+      } else if (!extractedReference || extractedReference === scannedUrl) {
         toast.warning("Invalid QR code", {
           description: "Could not extract transaction reference from QR code",
         });

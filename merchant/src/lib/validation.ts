@@ -80,17 +80,20 @@ export function extractTransactionId(
   // Awash URL patterns:
   // - https://awashpay.awashbank.com:8225/-2H1NEM30Q0-32CRE9
   // - awashpay.awashbank.com/-2H1NEM30Q0-32CRE9
+  // - https://awashpay.awashbank.com/-2H1RJ8MA49-35BMW3
   if (effectiveBankId === "awash") {
     const awashPatterns = [
       /awashpay\.awashbank\.com[^\/]*\/([A-Z0-9\-]+)/i,
       /awashbank\.com[^\/]*\/([A-Z0-9\-]+)/i,
+      // Also match URLs that might have query parameters
+      /awashpay\.awashbank\.com[^\/]*\/[^?]*([A-Z0-9\-]{8,})/i,
     ];
 
     for (const pattern of awashPatterns) {
       const match = input.match(pattern);
       if (match) {
         const ref = match[1].toUpperCase();
-        // Validate it looks like an Awash reference
+        // Validate it looks like an Awash reference (8+ chars, alphanumeric with dashes)
         if (/^[A-Z0-9\-]{8,}$/i.test(ref)) {
           return ref;
         }
@@ -98,7 +101,8 @@ export function extractTransactionId(
     }
 
     // Awash transaction ID can be numeric (e.g., 251208095540328) or alphanumeric with dashes
-    if (/^[A-Z0-9\-]+$/i.test(input)) return input.toUpperCase();
+    // Must be at least 8 characters
+    if (/^[A-Z0-9\-]{8,}$/i.test(input)) return input.toUpperCase();
   }
 
   // Telebirr URL patterns:
@@ -127,7 +131,8 @@ export function extractTransactionId(
 
   // BOA URL patterns:
   // - https://cs.bankofabyssinia.com/slip/?trx=FT250559L4W725858
-  // - bankofabyssinia.com/slip/?trx=FT250559L4W725858
+  // - https://bankofabyssinia.com/slip/?trx=FT250559L4W725858
+  // - cs.bankofabyssinia.com/slip/?trx=FT250559L4W725858
   if (effectiveBankId === "boa") {
     const boaPatterns = [
       /bankofabyssinia\.com[^?]*[?&]trx=([A-Z0-9]+)/i,
@@ -138,7 +143,7 @@ export function extractTransactionId(
       const match = input.match(pattern);
       if (match) {
         const ref = match[1].toUpperCase();
-        // Validate it looks like a BOA reference (FT prefix)
+        // Validate it looks like a BOA reference (FT prefix, 10+ chars)
         if (/^FT[A-Z0-9]{10,}$/i.test(ref)) {
           return ref;
         }
@@ -146,7 +151,8 @@ export function extractTransactionId(
     }
 
     // BOA transaction ID format: FT + numbers/letters (e.g., FT250559L4W725858)
-    if (/^FT[A-Z0-9]+$/i.test(input)) return input.toUpperCase();
+    // Must be at least 12 characters (FT + 10+ chars)
+    if (/^FT[A-Z0-9]{10,}$/i.test(input)) return input.toUpperCase();
   }
 
   // If no match, return the input as-is (might be a valid ID)
