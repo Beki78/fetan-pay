@@ -98,12 +98,14 @@ export default function LoginPage() {
       toast.success("QR code scanned successfully!", {
         description: "Login credentials filled. Click Sign in to continue.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string }; message?: string })?.data
+          ?.message ||
+        (error as { message?: string })?.message ||
+        "Invalid or expired QR code. Please try again.";
       toast.error("QR code validation failed", {
-        description:
-          error?.data?.message ||
-          error?.message ||
-          "Invalid or expired QR code. Please try again.",
+        description: errorMessage,
       });
     }
   };
