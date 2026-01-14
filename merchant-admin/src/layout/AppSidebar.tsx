@@ -217,7 +217,7 @@ const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
 
-  const { status: accountStatus } = useAccountStatus();
+  const { status: accountStatus, isStatusConfirmed } = useAccountStatus();
 
   const renderMenuItems = (
     navItems: NavItem[],
@@ -450,8 +450,8 @@ const AppSidebar: React.FC = () => {
         </Link>
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
-        {/* Pending approval banner (only when account is pending) */}
-        <PendingApprovalBanner status={accountStatus} />
+        {/* Pending approval banner (only when account is pending and status is confirmed) */}
+        {isStatusConfirmed && <PendingApprovalBanner status={accountStatus} />}
         <nav className="mb-6">
           <div className="flex flex-col gap-6">
             {/* MAIN Section */}

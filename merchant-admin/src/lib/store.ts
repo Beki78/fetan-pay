@@ -4,6 +4,7 @@ import { merchantUsersServiceApi } from './services/merchantUsersServiceApi';
 import { paymentsServiceApi } from './services/paymentsServiceApi';
 import { paymentProvidersServiceApi } from './services/paymentProvidersServiceApi';
 import { brandingServiceApi } from './services/brandingServiceApi';
+import { dashboardServiceApi } from './services/dashboardServiceApi';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     [paymentsServiceApi.reducerPath]: paymentsServiceApi.reducer,
     [paymentProvidersServiceApi.reducerPath]: paymentProvidersServiceApi.reducer,
     [brandingServiceApi.reducerPath]: brandingServiceApi.reducer,
+    [dashboardServiceApi.reducerPath]: dashboardServiceApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -20,6 +22,7 @@ export const store = configureStore({
       paymentsServiceApi.middleware,
       paymentProvidersServiceApi.middleware,
       brandingServiceApi.middleware,
+      dashboardServiceApi.middleware,
     ),
 });
 

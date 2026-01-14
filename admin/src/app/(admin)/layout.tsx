@@ -5,6 +5,8 @@ import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
 import AdminRoleGuard from "@/components/auth/AdminRoleGuard";
+import BreathingLogoLoader from "@/components/ui/loading/BreathingLogoLoader";
+import { useSession } from "@/hooks/useSession";
 import React from "react";
 
 export default function AdminLayout({
@@ -13,6 +15,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
+  const { isLoading } = useSession();
 
   // Dynamic class for main content margin based on sidebar state
   const mainContentMargin = isMobileOpen
@@ -20,6 +23,15 @@ export default function AdminLayout({
     : isExpanded || isHovered
     ? "lg:ml-[290px]"
     : "lg:ml-[90px]";
+
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center w-full h-screen">
+        <BreathingLogoLoader size={100} />
+      </div>
+    );
+  }
 
   return (
     <AdminRoleGuard>

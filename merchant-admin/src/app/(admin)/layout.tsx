@@ -7,6 +7,7 @@ import Backdrop from "@/layout/Backdrop";
 import React, { useEffect } from "react";
 import { useSession } from "@/hooks/useSession";
 import { useRouter } from "next/navigation";
+import BreathingLogoLoader from "@/components/ui/loading/BreathingLogoLoader";
 
 export default function AdminLayout({
   children,
@@ -25,9 +26,7 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center w-full h-screen text-gray-700 dark:text-gray-200">
-        Loading...
-      </div>
+      <div className="flex items-center justify-center w-full h-screen">  <BreathingLogoLoader size={100} /> </div>
     );
   }
 

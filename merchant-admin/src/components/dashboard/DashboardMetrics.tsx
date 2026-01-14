@@ -1,16 +1,44 @@
 "use client";
 import React from "react";
 import { BoxIcon, CheckCircleIcon, TimeIcon, DollarLineIcon } from "@/icons";
-
-// Mock data
-const mockMetrics = {
-  totalTransactions: 3,
-  verified: 0,
-  pending: 0,
-  walletBalance: 0.00,
-};
+import { useGetDashboardStatsQuery } from "@/lib/services/dashboardServiceApi";
 
 export default function DashboardMetrics() {
+  const { data: dashboardStats, isLoading, isError } = useGetDashboardStatsQuery();
+
+  // Use real data from API or fallback to 0
+  const metrics = dashboardStats?.metrics || {
+    totalTransactions: 0,
+    verified: 0,
+    pending: 0,
+    walletBalance: 0,
+  };
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50 animate-pulse"
+          >
+            <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20">
+        <p className="text-red-600 dark:text-red-400">
+          Failed to load dashboard metrics. Please try again later.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* Total Transactions */}
@@ -22,7 +50,7 @@ export default function DashboardMetrics() {
           <span className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</span>
         </div>
         <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-          {mockMetrics.totalTransactions}
+          {metrics.totalTransactions}
         </h4>
       </div>
 
@@ -35,7 +63,7 @@ export default function DashboardMetrics() {
           <span className="text-sm text-gray-600 dark:text-gray-400">Verified</span>
         </div>
         <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-          {mockMetrics.verified}
+          {metrics.verified}
         </h4>
       </div>
 
@@ -48,7 +76,7 @@ export default function DashboardMetrics() {
           <span className="text-sm text-gray-600 dark:text-gray-400">Pending</span>
         </div>
         <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-          {mockMetrics.pending}
+          {metrics.pending}
         </h4>
       </div>
 
@@ -61,7 +89,7 @@ export default function DashboardMetrics() {
           <span className="text-sm text-gray-600 dark:text-gray-400">Wallet Balance</span>
         </div>
         <h4 className="text-2xl font-semibold text-blue-600 dark:text-blue-400">
-          {mockMetrics.walletBalance.toFixed(2)} ETB
+          {metrics.walletBalance.toFixed(2)} ETB
         </h4>
       </div>
     </div>

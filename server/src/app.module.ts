@@ -14,6 +14,7 @@ import { MerchantUsersModule } from './modules/merchant-users/merchant-users.mod
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PaymentProvidersModule } from './modules/payment-providers/payment-providers.module';
 import { BrandingModule } from './modules/branding/branding.module';
+import { MerchantAdminDashboardModule } from './modules/merchant-admin-dashboard/merchant-admin-dashboard.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -32,10 +33,13 @@ import { ThrottlerModule } from '@nestjs/throttler';
     PaymentsModule,
     PaymentProvidersModule,
     BrandingModule,
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 10,
-    }]),
+    MerchantAdminDashboardModule,
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],
