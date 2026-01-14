@@ -3,9 +3,9 @@
 import { useState, useCallback } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useSession } from "./useSession";
-import { BASE_URL } from "@/constant/baseApi";
+import { BASE_URL, FRONTEND_URL } from "@/lib/config";
 
-const SOCIAL_CALLBACK_URL = "http://localhost:3001";
+const SOCIAL_CALLBACK_URL = FRONTEND_URL;
 
 interface UseAuthReturn {
   // Social authentication

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../constants";
+import { API_BASE_URL } from "../config";
 
 export interface MerchantUser {
   id: string;

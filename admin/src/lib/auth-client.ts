@@ -5,7 +5,7 @@ import {
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { auth } from "./auth";
-import { BASE_URL } from "@/constant/baseApi";
+import { BASE_URL } from "@/lib/config";
 
 export const authClient = createAuthClient({
   baseURL: BASE_URL,

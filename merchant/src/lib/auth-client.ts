@@ -1,18 +1,14 @@
 import { createAuthClient } from "better-auth/react";
+import { BASE_URL } from "./config";
 
 /**
- * Base URL for Better Auth endpoints.
- *
- * Our API base URL includes `/api/v1`, but Better Auth is mounted at the server root.
- * So we derive the origin by stripping `/api/v1` when present.
+ * Better Auth client configuration
+ * This client points to the Better Auth server configured in BASE_URL
+ * In production: https://api.fetanpay.et/api/auth
+ * In development: http://localhost:3003/api/auth
  */
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3003/api/v1";
-
-const AUTH_BASE_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, "");
-
 export const authClient = createAuthClient({
-  baseURL: AUTH_BASE_URL,
+  baseURL: BASE_URL, // Points to api.fetanpay.et (production) or localhost:3003 (development)
   fetchOptions: {
     credentials: "include",
   },

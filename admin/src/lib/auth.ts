@@ -1,4 +1,4 @@
-import { BASE_URL } from "@/constant/baseApi";
+import { BASE_URL } from "@/lib/config";
 import { betterAuth } from "better-auth";
 
 export const auth = betterAuth({

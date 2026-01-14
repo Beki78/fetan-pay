@@ -1,2 +1,4 @@
-// export const BASE_URL = "http://localhost:3003";
-export const BASE_URL = "https://api.fetanpay.et";
+// DEPRECATED: Use BASE_URL from @/lib/config instead
+// This file is kept for backward compatibility but will be removed
+import { BASE_URL } from '@/lib/config';
+export { BASE_URL };

@@ -25,20 +25,38 @@ function deriveAccountStatus(user: unknown): AccountStatus {
   return "pending";
 }
 
+// Helper function to get cached status synchronously
+function getCachedStatus(): AccountStatus | null {
+  if (typeof window === "undefined") return null;
+  const stored = window.localStorage.getItem("merchantStatus");
+  if (stored === "active" || stored === "pending") {
+    return stored as AccountStatus;
+  }
+  return null;
+}
+
 export const useAccountStatus = () => {
   const { user, isLoading: isSessionLoading } = useSession();
-  const [status, setStatus] = useState<AccountStatus>("pending");
-  const [cachedStatus, setCachedStatus] = useState<AccountStatus | null>(null);
+  // Initialize status from localStorage immediately to avoid flash
+  const [status, setStatus] = useState<AccountStatus>(() => {
+    const cached = getCachedStatus();
+    return cached || "pending";
+  });
+  const [cachedStatus, setCachedStatus] = useState<AccountStatus | null>(() => getCachedStatus());
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
 
   const derived = useMemo(() => deriveAccountStatus(user), [user]);
 
   // Read any cached status from localStorage (set by profile fetch)
+  // This effect ensures we pick up any updates to localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("merchantStatus");
     if (stored === "active" || stored === "pending") {
-      setCachedStatus(stored as AccountStatus);
+      const newCachedStatus = stored as AccountStatus;
+      setCachedStatus(newCachedStatus);
+      // Update status immediately if we have a cached value
+      setStatus(newCachedStatus);
     }
   }, []);
 
@@ -78,6 +96,8 @@ export const useAccountStatus = () => {
               window.localStorage.setItem('merchantStatus', profileStatus);
               window.localStorage.setItem('merchantId', profile.id);
               setCachedStatus(profileStatus);
+              // Update status immediately when we get the profile
+              setStatus(profileStatus);
             }
           }
         } catch (err) {
@@ -94,12 +114,14 @@ export const useAccountStatus = () => {
 
   useEffect(() => {
     // Prefer cached status (from profile fetch) when available
+    // Only update if we have a cached status, otherwise use derived
     if (cachedStatus) {
       setStatus(cachedStatus);
-    } else {
+    } else if (!isSessionLoading && derived) {
+      // Only use derived status if session is loaded and we don't have cache
       setStatus(derived);
     }
-  }, [derived, cachedStatus]);
+  }, [derived, cachedStatus, isSessionLoading]);
 
   return {
     status,

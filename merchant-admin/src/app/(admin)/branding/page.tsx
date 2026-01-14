@@ -13,6 +13,7 @@ import {
 import { useToast } from "@/components/ui/toast/useToast";
 import { Modal } from "@/components/ui/modal";
 import { Trash2, Plus, Edit2 } from "lucide-react";
+import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
 
 export default function BrandingPage() {
   const { user } = useSession();
@@ -72,10 +73,7 @@ export default function BrandingPage() {
         const logoPath = brandingData.logoUrl.startsWith('/')
           ? brandingData.logoUrl
           : `/${brandingData.logoUrl}`;
-        const baseUrl =
-          process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "") ||
-          "http://localhost:3003";
-        setLogoPreview(`${baseUrl}${logoPath}`);
+        setLogoPreview(`${STATIC_ASSETS_BASE_URL}${logoPath}`);
       } else {
         setLogoPreview(null);
       }
