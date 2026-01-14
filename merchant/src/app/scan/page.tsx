@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { BankSelection } from "@/components/bank-selection";
 import { CameraScanner } from "@/components/camera-scanner";
 import { ThemeToggle } from "@/components/theme-toggle";
+import VConsoleCDN from "@/components/vconsole-cdn";
 // import { VerificationHistorySidebar } from "@/components/verification-history-sidebar"; // Commented out - history sidebar removed
 // import { ProfileDropdown } from "@/components/profile-dropdown"; // Commented out - profile dropdown removed
 import { Button } from "@/components/ui/button";
@@ -114,104 +115,161 @@ export default function ScanPage() {
   };
 
   const handleCameraScan = async (scannedUrl: string) => {
-    console.log("handleCameraScan called with:", scannedUrl);
+    console.log("🔍 [SCAN] handleCameraScan called with:", scannedUrl);
 
-    // Close camera scanner
-    setShowCamera(false);
+    // Show validation loading immediately
+    const loadingToast = toast.loading("Validating QR code...", {
+      description: "Extracting transaction details",
+    });
 
-    // Set verification method
-    setVerificationMethod("camera");
-    setValue("verificationMethod", "camera", { shouldValidate: false });
+    try {
+      // Close camera scanner immediately
+      setShowCamera(false);
+      console.log("✅ [SCAN] Camera scanner closed");
 
-    // Always detect bank from URL first (QR code contains the actual bank info)
-    const urlDetectedBank = detectBankFromUrl(scannedUrl);
-    const detectedBank = urlDetectedBank || (selectedBank as BankId | null);
+      // Set verification method
+      setVerificationMethod("camera");
+      setValue("verificationMethod", "camera", { shouldValidate: false });
+      console.log("✅ [SCAN] Verification method set to camera");
 
-    // Check for bank mismatch
-    if (selectedBank && urlDetectedBank && selectedBank !== urlDetectedBank) {
-      toast.warning("Bank mismatch detected", {
-        description: `Selected ${selectedBank.toUpperCase()} but QR code is for ${urlDetectedBank.toUpperCase()}. Using detected bank.`,
+      // Always detect bank from URL first (QR code contains the actual bank info)
+      const urlDetectedBank = detectBankFromUrl(scannedUrl);
+      const detectedBank = urlDetectedBank || (selectedBank as BankId | null);
+      console.log("🏦 [SCAN] Bank detection:", {
+        urlDetectedBank,
+        selectedBank,
+        detectedBank,
       });
-      // Auto-select the detected bank from URL
-      setSelectedBank(urlDetectedBank);
-    } else if (!selectedBank && urlDetectedBank) {
-      // Auto-select bank if detected from URL
-      setSelectedBank(urlDetectedBank);
-      toast.success("Bank detected", {
-        description: `${urlDetectedBank.toUpperCase()} detected from QR code`,
+
+      // Check for bank mismatch
+      if (selectedBank && urlDetectedBank && selectedBank !== urlDetectedBank) {
+        console.warn("⚠️ [SCAN] Bank mismatch detected");
+        // Auto-select the detected bank from URL
+        setSelectedBank(urlDetectedBank);
+      } else if (!selectedBank && urlDetectedBank) {
+        // Auto-select bank if detected from URL
+        console.log("✅ [SCAN] Auto-selecting bank:", urlDetectedBank);
+        setSelectedBank(urlDetectedBank);
+      }
+
+      // Extract transaction reference from URL
+      const extractedReference = extractTransactionId(detectedBank, scannedUrl);
+      console.log("📝 [SCAN] Extracted reference:", {
+        scannedUrl,
+        detectedBank,
+        extractedReference,
       });
-    }
 
-    // Extract transaction reference from URL
-    const extractedReference = extractTransactionId(detectedBank, scannedUrl);
+      // Always set the transaction ID (use extracted reference or fallback to full URL)
+      const transactionIdToUse =
+        extractedReference && extractedReference !== scannedUrl
+          ? extractedReference
+          : scannedUrl;
 
-    console.log(
-      "URL detected bank:",
-      urlDetectedBank,
-      "Final bank:",
-      detectedBank,
-      "Extracted reference:",
-      extractedReference
-    );
+      setValue("transactionId", transactionIdToUse, { shouldValidate: false });
+      console.log("✅ [SCAN] Transaction ID set in form:", transactionIdToUse);
 
-    // Set the extracted reference
-    setValue("transactionId", extractedReference, { shouldValidate: false });
+      // Dismiss validation toast
+      toast.dismiss(loadingToast);
 
-    // Show feedback
-    if (extractedReference && extractedReference !== scannedUrl) {
-      toast.success("QR code scanned!", {
-        description: `Reference: ${extractedReference}`,
-      });
-    } else {
-      toast.success("QR code scanned!", {
-        description: "Transaction details extracted",
-      });
-    }
-
-    // Auto-verify after successful scan if amount is already entered
-    const finalBank = detectedBank;
-    const currentAmount = amount;
-
-    if (currentAmount && finalBank && extractedReference) {
-      // Wait a bit for form state to update, then auto-verify
-      setTimeout(async () => {
-        console.log("Auto-verifying with:", {
-          currentAmount,
-          extractedReference,
-          finalBank,
+      // Validate extraction
+      if (!extractedReference || extractedReference === scannedUrl) {
+        console.warn(
+          "⚠️ [SCAN] Could not extract clean reference, using full URL"
+        );
+        toast.warning("Using full URL", {
+          description:
+            "Could not extract transaction reference, using full URL for verification",
+          duration: 2000,
         });
-        // Set verifying state with bank logo
-        setIsVerifyingWithBank(finalBank);
-        const formData: FormData = {
-          amount: currentAmount,
-          transactionId: extractedReference,
-          tipAmount: tipAmount || "",
-          verificationMethod: "camera",
-        };
-        try {
-          await onSubmit(formData);
-        } finally {
-          // Clear verifying state after a short delay to show result
-          setTimeout(() => {
-            setIsVerifyingWithBank(null);
-          }, 500);
-        }
-      }, 300);
-    } else {
-      // Show helpful message about what's missing
-      if (!currentAmount) {
-        toast.info("Amount required", {
-          description: "Please enter the amount to verify the payment",
-        });
-      } else if (!finalBank) {
-        toast.info("Bank selection required", {
-          description: "Please select a bank account first",
-        });
-      } else if (!extractedReference || extractedReference === scannedUrl) {
-        toast.warning("Invalid QR code", {
-          description: "Could not extract transaction reference from QR code",
+      } else {
+        // Show success feedback
+        toast.success("QR code validated!", {
+          description: `Reference: ${extractedReference}`,
+          duration: 2000,
         });
       }
+
+      // Auto-verify after successful scan if amount is already entered
+      const finalBank = detectedBank;
+      const currentAmount = amount;
+      const finalReference =
+        extractedReference && extractedReference !== scannedUrl
+          ? extractedReference
+          : scannedUrl;
+
+      console.log("🔍 [SCAN] Checking auto-verify conditions:", {
+        currentAmount,
+        finalBank,
+        finalReference,
+        canAutoVerify: !!(currentAmount && finalBank && finalReference),
+      });
+
+      if (currentAmount && finalBank && finalReference) {
+        // Wait a bit for form state to update, then auto-verify
+        console.log("🚀 [SCAN] Starting auto-verification...");
+
+        // Show verification loading
+        toast.loading("Verifying payment...", {
+          description: "Sending request to server",
+          id: "verifying",
+        });
+
+        setTimeout(async () => {
+          console.log("🔄 [SCAN] Auto-verifying with:", {
+            currentAmount,
+            finalReference,
+            finalBank,
+          });
+          // Set verifying state with bank logo
+          setIsVerifyingWithBank(finalBank);
+          const formData: FormData = {
+            amount: currentAmount,
+            transactionId: finalReference,
+            tipAmount: tipAmount || "",
+            verificationMethod: "camera",
+          };
+          try {
+            await onSubmit(formData);
+            console.log("✅ [SCAN] Auto-verification completed");
+            toast.dismiss("verifying");
+          } catch (error) {
+            console.error("❌ [SCAN] Auto-verification failed:", error);
+            toast.dismiss("verifying");
+          } finally {
+            // Clear verifying state after a short delay to show result
+            setTimeout(() => {
+              setIsVerifyingWithBank(null);
+            }, 500);
+          }
+        }, 300);
+      } else {
+        // Show helpful message about what's missing
+        console.log("ℹ️ [SCAN] Cannot auto-verify - missing:", {
+          amount: !currentAmount,
+          bank: !finalBank,
+          reference: !finalReference,
+        });
+        if (!currentAmount) {
+          toast.info("Amount required", {
+            description: "Please enter the amount to verify the payment",
+            duration: 5000,
+          });
+        } else if (!finalBank) {
+          toast.info("Bank selection required", {
+            description: "Please select a bank account first",
+            duration: 5000,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("❌ [SCAN] Error in handleCameraScan:", error);
+      toast.dismiss(loadingToast);
+      toast.error("Scan error", {
+        description:
+          error instanceof Error ? error.message : "Failed to process QR code",
+        duration: 5000,
+      });
     }
   };
 
@@ -226,7 +284,10 @@ export default function ScanPage() {
   };
 
   const onSubmit = async (data: FormData) => {
+    console.log("📤 [VERIFY] onSubmit called with:", data);
+
     if (!selectedBank) {
+      console.error("❌ [VERIFY] No bank selected");
       toast.error("Please select a bank account", {
         duration: 5000,
       });
@@ -234,6 +295,7 @@ export default function ScanPage() {
     }
 
     if (!data.verificationMethod) {
+      console.error("❌ [VERIFY] No verification method selected");
       toast.error("Please select a verification method", {
         duration: 5000,
       });
@@ -241,6 +303,7 @@ export default function ScanPage() {
     }
 
     if (data.verificationMethod === "camera" && !data.transactionId) {
+      console.error("❌ [VERIFY] No transaction ID for camera method");
       toast.error("Please scan a QR code", {
         duration: 5000,
       });
@@ -256,30 +319,35 @@ export default function ScanPage() {
 
     // Set verifying state with bank logo
     setIsVerifyingWithBank(selectedBank as BankId);
+    console.log("🔄 [VERIFY] Starting verification for:", selectedBank);
 
     try {
       setVerificationResult(null);
 
       const provider = providerMap[selectedBank as BankId];
       let reference = (data.transactionId || "").trim();
+      console.log("📝 [VERIFY] Initial reference:", reference);
 
       // Extract reference from URL if it's a full URL
       if (
         reference &&
         (reference.startsWith("http") || reference.includes("://"))
       ) {
+        console.log("🔍 [VERIFY] Extracting reference from URL:", reference);
         const extracted = extractTransactionId(
           selectedBank as BankId,
           reference
         );
         if (extracted && extracted !== reference) {
           reference = extracted;
+          console.log("✅ [VERIFY] Extracted reference:", reference);
           // Update the form value with extracted reference
           setValue("transactionId", reference);
         }
       }
 
       if (!reference) {
+        console.error("❌ [VERIFY] No reference found");
         setIsVerifyingWithBank(null);
         toast.error("Transaction reference is required", {
           duration: 5000,
@@ -289,6 +357,7 @@ export default function ScanPage() {
 
       const claimedAmount = parseFloat((data.amount || "0").replace(/,/g, ""));
       if (Number.isNaN(claimedAmount) || claimedAmount <= 0) {
+        console.error("❌ [VERIFY] Invalid amount:", data.amount);
         setIsVerifyingWithBank(null);
         toast.error("Please enter a valid amount", {
           duration: 5000,
@@ -302,6 +371,13 @@ export default function ScanPage() {
           ? parseFloat((data.tipAmount || "0").replace(/,/g, ""))
           : undefined;
 
+      console.log("📤 [VERIFY] Sending verification request:", {
+        provider,
+        reference,
+        claimedAmount,
+        tipAmount,
+      });
+
       // Show loading toast
       toast.loading("Verifying payment...", {
         description: `Checking ${provider} transaction ${reference}`,
@@ -314,6 +390,8 @@ export default function ScanPage() {
         claimedAmount,
         tipAmount: tipAmount && tipAmount > 0 ? tipAmount : undefined,
       }).unwrap();
+
+      console.log("✅ [VERIFY] Verification response received:", response);
 
       const success = response.status === "VERIFIED";
 
@@ -366,6 +444,13 @@ export default function ScanPage() {
       // Clear verifying state
       setIsVerifyingWithBank(null);
 
+      console.log("📊 [VERIFY] Verification result:", {
+        success,
+        status: response.status,
+        reference: response.transaction?.reference ?? reference,
+        failureMessage: success ? undefined : failureMessage,
+      });
+
       // UNVERIFIED is an expected outcome (it means we fetched the receipt but checks didn't pass).
       // Only use an error toast for network/server errors (caught in catch below).
       toast.dismiss(); // Dismiss loading toast
@@ -392,6 +477,8 @@ export default function ScanPage() {
       // Clear verifying state
       setIsVerifyingWithBank(null);
 
+      console.error("❌ [VERIFY] Verification error:", error);
+
       const message =
         error &&
         typeof error === "object" &&
@@ -405,6 +492,8 @@ export default function ScanPage() {
           ? error.message
           : "Verification failed";
 
+      console.error("❌ [VERIFY] Error message:", message);
+
       toast.dismiss(); // Dismiss loading toast
       toast.error("Verification failed", {
         description: message,
@@ -412,19 +501,22 @@ export default function ScanPage() {
       });
 
       // Also set error result for UI display
-      setVerificationResult({
+      const errorResult = {
         success: false,
         status: "ERROR",
         reference: (data.transactionId || "").trim(),
         provider: providerMap[selectedBank as BankId],
         message: message,
-      });
+      };
+
+      console.log("📊 [VERIFY] Setting error result:", errorResult);
+      setVerificationResult(errorResult);
 
       // Scroll to results after a short delay
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({
           behavior: "smooth",
-          block: "start",
+          block: "center",
         });
       }, 300);
     }
@@ -465,7 +557,7 @@ export default function ScanPage() {
     <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">
       {/* Bank Logo Loading Spinner Overlay */}
       {isVerifyingWithBank && verifyingBankData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-4 p-8 bg-background rounded-2xl shadow-2xl border border-border">
             <div className="relative w-24 h-24">
               <Image
@@ -940,6 +1032,9 @@ export default function ScanPage() {
         open={showHistorySidebar}
         onOpenChange={setShowHistorySidebar}
       /> */}
+
+      {/* VConsole for Mobile Debugging */}
+      <VConsoleCDN />
     </div>
   );
 }

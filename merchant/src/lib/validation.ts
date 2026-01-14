@@ -78,23 +78,32 @@ export function extractTransactionId(
   }
 
   // Awash URL patterns:
+  // - https://awashpay.awashbank.com:8225/-2H1TUKXUG1-36WJ2U
   // - https://awashpay.awashbank.com:8225/-2H1NEM30Q0-32CRE9
   // - awashpay.awashbank.com/-2H1NEM30Q0-32CRE9
-  // - https://awashpay.awashbank.com/-2H1RJ8MA49-35BMW3
   if (effectiveBankId === "awash") {
     const awashPatterns = [
+      // Match: https://awashpay.awashbank.com:8225/-2H1TUKXUG1-36WJ2U
       /awashpay\.awashbank\.com[^\/]*\/([A-Z0-9\-]+)/i,
+      // Match: awashbank.com/...
       /awashbank\.com[^\/]*\/([A-Z0-9\-]+)/i,
-      // Also match URLs that might have query parameters
-      /awashpay\.awashbank\.com[^\/]*\/[^?]*([A-Z0-9\-]{8,})/i,
+      // Match any URL path ending with transaction ID (fallback)
+      /\/[^\/\?]*([A-Z0-9\-]{8,})[^\/\?]*$/i,
     ];
 
     for (const pattern of awashPatterns) {
       const match = input.match(pattern);
-      if (match) {
+      if (match && match[1]) {
         const ref = match[1].toUpperCase();
         // Validate it looks like an Awash reference (8+ chars, alphanumeric with dashes)
+        // Examples: -2H1TUKXUG1-36WJ2U, -2H1NEM30Q0-32CRE9, 251208095540328
         if (/^[A-Z0-9\-]{8,}$/i.test(ref)) {
+          console.log(
+            "✅ [VALIDATION] Awash reference extracted:",
+            ref,
+            "from:",
+            input
+          );
           return ref;
         }
       }
@@ -102,7 +111,18 @@ export function extractTransactionId(
 
     // Awash transaction ID can be numeric (e.g., 251208095540328) or alphanumeric with dashes
     // Must be at least 8 characters
-    if (/^[A-Z0-9\-]{8,}$/i.test(input)) return input.toUpperCase();
+    if (/^[A-Z0-9\-]{8,}$/i.test(input)) {
+      console.log(
+        "✅ [VALIDATION] Awash reference (direct):",
+        input.toUpperCase()
+      );
+      return input.toUpperCase();
+    }
+
+    console.warn(
+      "⚠️ [VALIDATION] Failed to extract Awash reference from:",
+      input
+    );
   }
 
   // Telebirr URL patterns:

@@ -5,11 +5,7 @@ import { X } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import {
-  validateTransactionInput,
-  detectBankFromUrl,
-  type BankId,
-} from "@/lib/validation";
+import { type BankId } from "@/lib/validation";
 
 interface CameraScannerProps {
   onScan: (url: string) => void;
@@ -121,10 +117,18 @@ export function CameraScanner({
         },
         (decodedText) => {
           // QR code scanned successfully - prevent multiple callbacks
-          if (!hasScannedRef.current) {
-            hasScannedRef.current = true;
-            handleScanSuccess(decodedText);
+          // Set flag immediately to prevent race conditions
+          if (hasScannedRef.current) {
+            return; // Already processing a scan
           }
+          hasScannedRef.current = true;
+
+          // Call handler asynchronously to prevent blocking
+          handleScanSuccess(decodedText).catch((error) => {
+            console.error("❌ [SCANNER] Error in scan handler:", error);
+            // Reset flag on error so user can try again
+            hasScannedRef.current = false;
+          });
         },
         () => {
           // Ignore scanning errors (they're frequent during scanning)
@@ -180,6 +184,7 @@ export function CameraScanner({
     startScanning();
     return () => {
       // Cleanup on unmount
+      hasScannedRef.current = false; // Reset scan flag
       if (scannerRef.current) {
         stopScanning().catch(() => {
           // Ignore cleanup errors
@@ -190,69 +195,53 @@ export function CameraScanner({
   }, []);
 
   const handleScanSuccess = async (scannedUrl: string) => {
-    // Prevent multiple calls
-    if (hasScannedRef.current) {
-      return;
-    }
-    hasScannedRef.current = true;
+    // Log the scanned URL immediately
+    console.log("📷 [SCANNER] QR Code detected:", scannedUrl);
 
-    // Log the scanned URL
-    console.log("Scanned QR URL:", scannedUrl);
-
-    // Stop scanning first
-    await stopScanning();
-
-    // Always try to detect bank from URL first (QR code contains the actual bank info)
-    const urlDetectedBank = detectBankFromUrl(scannedUrl);
-    const detectedBank = urlDetectedBank || selectedBank;
-
-    // Check for bank mismatch if bank was selected but doesn't match URL
-    if (selectedBank && urlDetectedBank && selectedBank !== urlDetectedBank) {
-      toast.error("Bank mismatch", {
-        description: `Selected ${selectedBank.toUpperCase()} but QR code is for ${urlDetectedBank.toUpperCase()}`,
+    try {
+      // Show immediate feedback
+      toast.success("QR Code detected!", {
+        description: "Processing...",
+        duration: 1000,
       });
-      // Still pass the URL to parent, but show the error
+
+      // Stop scanning first (non-blocking)
+      stopScanning().catch((err) => {
+        console.warn("⚠️ [SCANNER] Error stopping scanner:", err);
+      });
+
+      // Pass URL to parent immediately - don't wait for stop
+      // Parent will handle validation and verification
+      console.log("✅ [SCANNER] Passing URL to parent:", scannedUrl);
       onScan(scannedUrl);
-      onClose();
-      return;
-    }
 
-    // Validate the scanned URL with detected bank
-    const validation = validateTransactionInput(detectedBank, scannedUrl);
-
-    if (validation.isValid) {
-      // URL is valid - show success toast
-      const bankName = (detectedBank || "transaction") as string;
-      toast.success("QR Code scanned successfully!", {
-        description:
-          urlDetectedBank && !selectedBank
-            ? `${bankName.toUpperCase()} detected and validated`
-            : `Valid ${bankName.toUpperCase()} transaction detected`,
-      });
-      onScan(scannedUrl);
-      onClose();
-    } else {
-      // Invalid format
-      toast.error("Invalid QR code", {
-        description:
-          validation.error ||
-          "Unable to extract transaction reference from QR code",
-      });
-      // Still pass the URL to parent, but show the error
+      // Close scanner after a brief delay to show success feedback
+      setTimeout(() => {
+        onClose();
+      }, 300);
+    } catch (error) {
+      console.error("❌ [SCANNER] Error in handleScanSuccess:", error);
+      // Still pass the URL to parent even on error
       onScan(scannedUrl);
       onClose();
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+    <div className="fixed inset-0 z-[9997] flex items-center justify-center bg-black/80 p-4">
       <div className="relative w-full max-w-md rounded-lg bg-background p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Scan QR Code</h2>
+          <div>
+            <h2 className="text-xl font-semibold">Scan QR Code</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isScanning ? "Scanning..." : "Position QR code in frame"}
+            </p>
+          </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={async () => {
+              hasScannedRef.current = false; // Reset scan flag when closing manually
               await stopScanning();
               onClose();
             }}
@@ -272,9 +261,29 @@ export function CameraScanner({
           className="mb-4 rounded-lg overflow-hidden bg-muted"
         />
 
-        <p className="text-center text-sm text-muted-foreground">
-          Position the QR code within the frame to scan
-        </p>
+        {!isScanning && !error && (
+          <div className="mb-4 flex flex-col items-center justify-center space-y-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <p className="text-sm text-muted-foreground">
+              Initializing camera...
+            </p>
+          </div>
+        )}
+
+        {isScanning && (
+          <div className="mb-4 text-center">
+            <p className="text-sm font-medium text-green-600 dark:text-green-400">
+              ✓ Camera ready - Scan QR code now
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Position the QR code within the frame
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <p className="text-center text-sm text-muted-foreground">{error}</p>
+        )}
       </div>
     </div>
   );
