@@ -83,6 +83,13 @@ export const merchantUsersServiceApi = createApi({
         body,
       }),
     }),
+
+    getQRCode: builder.query<{ qrCodeImage: string; qrCodeData: string; email: string; generatedAt: string }, { merchantId: string; userId: string }>({
+      query: ({ merchantId, userId }) => ({
+        url: `/merchant-accounts/${merchantId}/users/${userId}/qr-code`,
+        method: "GET",
+      }),
+    }),
   }),
 });
 
@@ -93,4 +100,5 @@ export const {
   useUpdateMerchantUserMutation,
   useDeactivateMerchantUserMutation,
   useActivateMerchantUserMutation,
+  useGetQRCodeQuery,
 } = merchantUsersServiceApi;

@@ -29,6 +29,7 @@ import { RejectMerchantDto } from './dto/reject-merchant.dto';
 import { CreateMerchantUserDto } from './dto/create-merchant-user.dto';
 import { UpdateMerchantUserDto } from './dto/update-merchant-user.dto';
 import { SetMerchantUserStatusDto } from './dto/set-merchant-user-status.dto';
+import { QrLoginDto } from './dto/qr-login.dto';
 
 // This controller handles merchant onboarding and account provisioning. Authentication itself is handled
 // by Better Auth (see auth.ts). Routes here stay focused on merchant + staff membership records and
@@ -319,5 +320,52 @@ export class MerchantsController {
     @Body() body: SetMerchantUserStatusDto,
   ) {
     return this.merchantsService.activateUser(merchantId, userId, body);
+  }
+
+  @Get(':merchantId/users/:userId/qr-code')
+  @ApiOperation({
+    summary: 'Get QR code for merchant user login',
+    description: 'Generates or retrieves QR code for a merchant user. QR code can be scanned to auto-fill login credentials.',
+  })
+  @ApiParam({
+    name: 'merchantId',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'Merchant User ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'QR code generated successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User or merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getQRCode(
+    @Param('merchantId') merchantId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.merchantsService.generateQRCode(merchantId, userId);
+  }
+
+  @Post('qr-login')
+  @AllowAnonymous() // Public endpoint for QR login
+  @ApiOperation({
+    summary: 'Validate QR code and get login credentials',
+    description: 'Validates scanned QR code and returns email + password for auto-fill. Only works from authorized merchant app domain.',
+  })
+  @ApiBody({ type: QrLoginDto })
+  @ApiResponse({
+    status: 200,
+    description: 'QR code validated, credentials returned',
+  })
+  @ApiResponse({ status: 401, description: 'Invalid or expired QR code' })
+  @ApiResponse({ status: 400, description: 'Invalid request' })
+  async qrLogin(@Body() body: QrLoginDto, @Req() req: Request) {
+    // Get origin from request if not provided
+    const origin = body.origin || req.headers.origin || req.headers.referer || '';
+    return this.merchantsService.validateQRCodeForLogin(body.qrData, origin);
   }
 }

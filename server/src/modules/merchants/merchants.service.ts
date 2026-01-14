@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { SelfRegisterMerchantDto } from './dto/self-register-merchant.dto';
 import {
@@ -11,7 +16,9 @@ import { RejectMerchantDto } from './dto/reject-merchant.dto';
 import { CreateMerchantUserDto } from './dto/create-merchant-user.dto';
 import { UpdateMerchantUserDto } from './dto/update-merchant-user.dto';
 import { SetMerchantUserStatusDto } from './dto/set-merchant-user-status.dto';
+import { QrCodeService } from './qr-code.service';
 import { auth } from '../../../auth';
+import * as CryptoJS from 'crypto-js';
 
 type MerchantStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED';
 type MerchantUserRole =
@@ -24,7 +31,18 @@ type MerchantUserStatus = 'INVITED' | 'ACTIVE' | 'SUSPENDED';
 
 @Injectable()
 export class MerchantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly encryptionKey: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly qrCodeService: QrCodeService,
+  ) {
+    // Use same encryption key as QR service for password encryption
+    this.encryptionKey =
+      process.env.QR_CODE_SECRET ||
+      process.env.BETTER_AUTH_SECRET ||
+      'default-secret-change-in-production';
+  }
 
   async getUser(merchantId: string, merchantUserId: string) {
     const membership = await (this.prisma as any).merchantUser.findFirst({
@@ -251,7 +269,9 @@ export class MerchantsService {
     dto: CreateMerchantUserDto,
     requestHeaders?: Record<string, any>,
   ) {
-    const merchant = await (this.prisma as any).merchant.findUnique({ where: { id: merchantId } });
+    const merchant = await (this.prisma as any).merchant.findUnique({
+      where: { id: merchantId },
+    });
     if (!merchant) {
       throw new NotFoundException('Merchant not found');
     }
@@ -315,6 +335,16 @@ export class MerchantsService {
       throw new Error(details);
     }
 
+    // Generate QR code token
+    const qrCodeToken = this.qrCodeService.generateQRToken();
+
+    // Encrypt and store password temporarily (for QR code login)
+    // This is encrypted and will be cleared after first use or after expiry
+    const encryptedPassword = CryptoJS.AES.encrypt(
+      dto.password,
+      this.encryptionKey,
+    ).toString();
+
     const membership = await (this.prisma as any).merchantUser.create({
       data: {
         merchantId,
@@ -324,6 +354,9 @@ export class MerchantsService {
         email: dto.email,
         phone: dto.phone,
         name: dto.name,
+        qrCodeToken,
+        qrCodeGeneratedAt: new Date(),
+        encryptedPassword, // Store encrypted password for QR login
       },
     });
 
@@ -331,7 +364,9 @@ export class MerchantsService {
   }
 
   async listUsers(merchantId: string) {
-    const merchant = await (this.prisma as any).merchant.findUnique({ where: { id: merchantId } });
+    const merchant = await (this.prisma as any).merchant.findUnique({
+      where: { id: merchantId },
+    });
     if (!merchant) {
       throw new NotFoundException('Merchant not found');
     }
@@ -342,5 +377,145 @@ export class MerchantsService {
     });
 
     return users;
+  }
+
+  /**
+   * Generate or regenerate QR code for a merchant user
+   */
+  async generateQRCode(merchantId: string, userId: string) {
+    const user = await (this.prisma as any).merchantUser.findFirst({
+      where: {
+        id: userId,
+        merchantId,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.email) {
+      throw new BadRequestException(
+        'User email is required for QR code generation',
+      );
+    }
+
+    // Generate new token if doesn't exist or regenerate
+    let qrCodeToken = user.qrCodeToken;
+    if (!qrCodeToken) {
+      qrCodeToken = this.qrCodeService.generateQRToken();
+    }
+
+    // Generate encrypted QR data
+    const encryptedData = await this.qrCodeService.generateQRCodeData(
+      user.userId || user.id,
+      merchantId,
+      user.email,
+      qrCodeToken,
+    );
+
+    // Generate QR code image
+    const qrCodeImage =
+      await this.qrCodeService.generateQRCodeImage(encryptedData);
+
+    // Update user with new token
+    await (this.prisma as any).merchantUser.update({
+      where: { id: userId },
+      data: {
+        qrCodeToken,
+        qrCodeGeneratedAt: new Date(),
+      },
+    });
+
+    return {
+      qrCodeImage, // Data URL of QR code image
+      qrCodeData: encryptedData, // Encrypted data string (for direct scanning)
+      email: user.email,
+      generatedAt: new Date(),
+    };
+  }
+
+  /**
+   * Validate QR code and return login credentials
+   * This endpoint validates the QR code and returns email + password for auto-fill
+   */
+  async validateQRCodeForLogin(qrData: string, requestOrigin: string) {
+    try {
+      // Decrypt and validate QR code data
+      const decoded = this.qrCodeService.decryptQRCodeData(
+        qrData,
+        requestOrigin,
+      );
+
+      // Find user by token
+      const user = await (this.prisma as any).merchantUser.findFirst({
+        where: {
+          qrCodeToken: decoded.token,
+          userId: decoded.userId,
+          merchantId: decoded.merchantId,
+          status: 'ACTIVE',
+        },
+        include: {
+          merchant: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException(
+          'Invalid QR code: user not found or inactive',
+        );
+      }
+
+      // Check if merchant is active
+      if (user.merchant.status !== 'ACTIVE') {
+        throw new UnauthorizedException('Merchant account is not active');
+      }
+
+      // Decrypt password
+      if (!user.encryptedPassword) {
+        throw new BadRequestException(
+          'Password not available. Please use regular login.',
+        );
+      }
+
+      const decryptedPassword = CryptoJS.AES.decrypt(
+        user.encryptedPassword,
+        this.encryptionKey,
+      ).toString(CryptoJS.enc.Utf8);
+
+      if (!decryptedPassword) {
+        throw new BadRequestException(
+          'Failed to decrypt password. Please use regular login.',
+        );
+      }
+
+      // Optional: Clear encrypted password after first use for security
+      // Uncomment if you want one-time use QR codes
+      // await (this.prisma as any).merchantUser.update({
+      //   where: { id: user.id },
+      //   data: { encryptedPassword: null },
+      // });
+
+      return {
+        email: user.email,
+        password: decryptedPassword,
+        userId: user.userId,
+        merchantId: user.merchantId,
+      };
+    } catch (error) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new UnauthorizedException('Invalid or expired QR code');
+    }
   }
 }

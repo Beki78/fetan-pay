@@ -12,8 +12,8 @@ import { useAuth } from "@/hooks/useAuth";
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("merchantadmin@test.com");
+  const [password, setPassword] = useState("merchantadmin123");
   const [urlError, setUrlError] = useState<string | null>(null);
   const { signInWithGoogle, signInWithEmailAndPassword, isLoading, error } = useAuth();
   const router = useRouter();

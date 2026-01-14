@@ -5,11 +5,17 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Mail, Lock, LogIn } from "lucide-react";
+import { Mail, Lock, LogIn, QrCode } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { loginSchema } from "@/lib/schemas";
@@ -17,6 +23,8 @@ import { APP_CONFIG } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useSession } from "@/hooks/useSession";
+import { QRLoginScanner } from "@/components/qr-login-scanner";
+import { useValidateQRCodeMutation } from "@/lib/services/qrLoginApi";
 
 type LoginFormData = {
   email: string;
@@ -26,18 +34,22 @@ type LoginFormData = {
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
   const { isAuthenticated, isLoading: isSessionLoading } = useSession();
   const { signInWithEmailAndPassword } = useAuth();
+  const [validateQRCode, { isLoading: isQRValidating }] =
+    useValidateQRCodeMutation();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: "waiter@test.com",
+      password: "waiter123",
     },
   });
 
@@ -68,6 +80,36 @@ export default function LoginPage() {
     }
   };
 
+  const handleQRScan = async (qrData: string) => {
+    try {
+      setShowQRScanner(false);
+
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const result = await validateQRCode({
+        qrData,
+        origin,
+      }).unwrap();
+
+      // Auto-fill email and password
+      setValue("email", result.email);
+      setValue("password", result.password);
+
+      toast.success("QR code scanned successfully!", {
+        description: "Login credentials filled. Click Sign in to continue.",
+      });
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string }; message?: string })?.data
+          ?.message ||
+        (error as { message?: string })?.message ||
+        "Invalid or expired QR code. Please try again.";
+      toast.error("QR code validation failed", {
+        description: errorMessage,
+      });
+    }
+  };
+
   // If already authenticated, don't show the login form.
   if (isSessionLoading) {
     return (
@@ -90,7 +132,7 @@ export default function LoginPage() {
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-background/60 dark:bg-background/30 border border-border/60 flex items-center justify-center overflow-hidden">
               <Image
-               src="/images/logo/fetan-logo.png"
+                src="/images/logo/fetan-logo.png"
                 alt={APP_CONFIG.name}
                 width={28}
                 height={28}
@@ -190,11 +232,42 @@ export default function LoginPage() {
                   </>
                 )}
               </Button>
+
+              {/* QR Code Login Button */}
+              <div className="relative mt-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowQRScanner(true)}
+                disabled={isLoading || isQRValidating}
+                className="w-full h-12 text-base font-semibold mt-4"
+                size="lg"
+              >
+                <QrCode className="mr-2 h-5 w-5" />
+                Scan QR Code to Login
+              </Button>
             </form>
           </CardContent>
         </Card>
       </div>
+
+      {/* QR Code Scanner Modal */}
+      {showQRScanner && (
+        <QRLoginScanner
+          onScan={handleQRScan}
+          onClose={() => setShowQRScanner(false)}
+        />
+      )}
     </div>
   );
 }
-
