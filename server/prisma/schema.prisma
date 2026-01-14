@@ -212,6 +212,9 @@ model MerchantUser {
   email                String?
   phone                String?
   invitedBy            String?
+  qrCodeToken          String?            @unique
+  qrCodeGeneratedAt    DateTime?
+  encryptedPassword     String?            // Temporarily encrypted password for QR login (cleared after use/expiry)
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
   verifiedTransactions Transaction[]      @relation("MerchantUserTransactions")
@@ -219,6 +222,7 @@ model MerchantUser {
 
   @@index([merchantId])
   @@index([userId])
+  @@index([qrCodeToken])
   @@map("merchant_user")
 }
 

@@ -5,11 +5,12 @@ import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import UserTable from "@/components/users/UserTable";
 import UserModal from "@/components/users/UserModal";
+import QRCodeModal from "@/components/users/QRCodeModal";
 import Button from "@/components/ui/button/Button";
 import { PlusIcon } from "@/icons";
 import { Modal } from "@/components/ui/modal";
 import { useSession } from "@/hooks/useSession";
-import { MerchantUser, useGetMerchantUsersQuery } from "@/lib/services/merchantUsersServiceApi";
+import { useGetMerchantUsersQuery, MerchantUser } from "@/lib/services/merchantUsersServiceApi";
 
 type User = MerchantUser;
 
@@ -17,6 +18,7 @@ export default function UsersPage() {
   const router = useRouter();
   const { user } = useSession();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [qrModalUser, setQrModalUser] = useState<MerchantUser | null>(null);
 
   const handleAdd = () => {
     setIsAddModalOpen(true);
@@ -46,6 +48,10 @@ export default function UsersPage() {
 
   const handleSave = (_user?: User) => {
     refetch();
+  };
+
+  const handleShowQRCode = (user: User) => {
+    setQrModalUser(user);
   };
 
 
@@ -85,6 +91,8 @@ export default function UsersPage() {
               users={users}
               isLoading={isUsersLoading}
               onView={handleView}
+              merchantId={merchantId}
+              onShowQRCode={handleShowQRCode}
             />
           </div>
         </ComponentCard>
@@ -98,6 +106,18 @@ export default function UsersPage() {
         merchantId={merchantId}
         mode="add"
       />
+
+      {/* QR Code Modal */}
+      {qrModalUser && merchantId && (
+        <QRCodeModal
+          isOpen={!!qrModalUser}
+          onClose={() => setQrModalUser(null)}
+          merchantId={merchantId}
+          userId={qrModalUser.id}
+          userName={qrModalUser.name || undefined}
+          userEmail={qrModalUser.email || undefined}
+        />
+      )}
 
       {/* Edit + Deactivate now live in the user detail page */}
     </div>
