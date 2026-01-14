@@ -27,7 +27,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { APP_CONFIG, BANKS } from "@/lib/config";
 import { cn } from "@/lib/utils";
-import { formatNumberWithCommas, type BankId } from "@/lib/validation";
+import { formatNumberWithCommas, extractTransactionId, detectBankFromUrl, type BankId } from "@/lib/validation";
 import { createScanSchema } from "@/lib/schemas";
 import { useVerifyMerchantPaymentMutation } from "@/lib/services/paymentsServiceApi";
 import { useSession } from "@/hooks/useSession";
@@ -109,15 +109,29 @@ export default function ScanPage() {
     setShowCamera(false);
     setVerificationMethod("camera");
     setValue("verificationMethod", "camera");
-    setValue("transactionId", scannedUrl);
+    
+    // Extract transaction reference from URL if it's a full URL
+    const detectedBank = (selectedBank as BankId | null) || detectBankFromUrl(scannedUrl);
+    const extractedReference = extractTransactionId(detectedBank, scannedUrl);
+    
+    // If bank was detected from URL but not selected, auto-select it
+    if (!selectedBank && detectedBank) {
+      setSelectedBank(detectedBank);
+      toast.success("Bank detected", {
+        description: `${detectedBank.toUpperCase()} detected from QR code`,
+      });
+    }
+    
+    // Set the extracted reference (or original if extraction failed)
+    setValue("transactionId", extractedReference);
 
     // Auto-verify after successful scan if amount is already entered
-    if (amount && selectedBank) {
+    if (amount && (selectedBank || detectedBank)) {
       // Wait a bit for form state to update, then auto-verify
       setTimeout(async () => {
         const formData: FormData = {
           amount: amount,
-          transactionId: scannedUrl,
+          transactionId: extractedReference,
           tipAmount: tipAmount || "",
           verificationMethod: "camera",
         };
@@ -163,7 +177,18 @@ export default function ScanPage() {
       setVerificationResult(null);
 
       const provider = providerMap[selectedBank as BankId];
-      const reference = (data.transactionId || "").trim();
+      let reference = (data.transactionId || "").trim();
+      
+      // Extract reference from URL if it's a full URL
+      if (reference && (reference.startsWith("http") || reference.includes("://"))) {
+        const extracted = extractTransactionId(selectedBank as BankId, reference);
+        if (extracted && extracted !== reference) {
+          reference = extracted;
+          // Update the form value with extracted reference
+          setValue("transactionId", reference);
+        }
+      }
+      
       if (!reference) {
         throw new Error("Transaction reference is required");
       }

@@ -5,7 +5,11 @@ import { X } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { validateTransactionInput, type BankId } from "@/lib/validation";
+import {
+  validateTransactionInput,
+  detectBankFromUrl,
+  type BankId,
+} from "@/lib/validation";
 
 interface CameraScannerProps {
   onScan: (url: string) => void;
@@ -198,31 +202,43 @@ export function CameraScanner({
     // Stop scanning first
     await stopScanning();
 
-    // Check if scanned URL matches selected bank
-    if (selectedBank) {
-      const validation = validateTransactionInput(selectedBank, scannedUrl);
+    // Try to detect bank from URL if not selected
+    const detectedBank = selectedBank || detectBankFromUrl(scannedUrl);
 
-      if (validation.isValid) {
-        // URL matches the selected bank - show single success toast
-        toast.success("QR Code scanned successfully!", {
-          description: `Valid ${selectedBank.toUpperCase()} transaction detected`,
-        });
-        onScan(scannedUrl);
-        onClose();
-      } else {
-        // URL doesn't match the selected bank
-        toast.error("Bank mismatch", {
-          description: `The scanned QR code does not match the selected bank (${selectedBank.toUpperCase()})`,
-        });
-        // Still pass the URL to parent, but show the error
-        onScan(scannedUrl);
-        onClose();
-      }
-    } else {
-      // No bank selected, just pass the URL
-      toast.success("QR Code scanned!", {
-        description: "Processing transaction...",
+    // Validate the scanned URL
+    const validation = validateTransactionInput(detectedBank, scannedUrl);
+
+    if (validation.isValid) {
+      // URL is valid - show success toast
+      const bankName = (detectedBank ||
+        selectedBank ||
+        "transaction") as string;
+      toast.success("QR Code scanned successfully!", {
+        description:
+          detectedBank && !selectedBank
+            ? `${bankName.toUpperCase()} detected and validated`
+            : `Valid ${bankName.toUpperCase()} transaction detected`,
       });
+      onScan(scannedUrl);
+      onClose();
+    } else {
+      // URL validation failed
+      if (selectedBank && !detectedBank) {
+        // Bank mismatch
+        toast.error("Bank mismatch", {
+          description: `The scanned QR code does not match the selected bank (${(
+            selectedBank as string
+          ).toUpperCase()})`,
+        });
+      } else {
+        // Invalid format
+        toast.error("Invalid QR code", {
+          description:
+            validation.error ||
+            "Unable to extract transaction reference from QR code",
+        });
+      }
+      // Still pass the URL to parent, but show the error
       onScan(scannedUrl);
       onClose();
     }

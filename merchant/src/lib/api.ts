@@ -1,5 +1,6 @@
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3003/api/v1";
+  // process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3003/api/v1";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.fetanpay.et/api/v1";
 
 type TransactionProvider = "CBE" | "TELEBIRR" | "AWASH" | "BOA" | "DASHEN";
 

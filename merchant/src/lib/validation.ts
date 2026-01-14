@@ -12,46 +12,139 @@ interface ValidationResult {
 }
 
 /**
- * Extract transaction ID from URL or return the input if it's already an ID
+ * Detect bank from URL pattern (returns bankId or null)
  */
-function extractTransactionId(bankId: BankId, input: string): string {
+export function detectBankFromUrl(input: string): BankId | null {
+  const haystack = input.toLowerCase();
+
+  if (haystack.includes("cbe") || haystack.includes("apps.cbe.com.et")) {
+    return "cbe";
+  }
+  if (haystack.includes("awash") || haystack.includes("awashbank.com")) {
+    return "awash";
+  }
+  if (haystack.includes("telebirr") || haystack.includes("ethiotelecom.et")) {
+    return "telebirr";
+  }
+  if (
+    haystack.includes("abyssinia") ||
+    haystack.includes("bankofabyssinia.com")
+  ) {
+    return "boa";
+  }
+
+  return null;
+}
+
+/**
+ * Extract transaction ID from URL or return the input if it's already an ID
+ * Works with or without bankId - will try to detect bank from URL if bankId not provided
+ */
+export function extractTransactionId(
+  bankId: BankId | null,
+  input: string
+): string {
   // Remove whitespace
   input = input.trim();
 
-  // CBE URL pattern: https://apps.cbe.com.et:100/?id=FT253423SGLG32348645
-  if (bankId === "cbe") {
-    const cbeUrlMatch = input.match(/apps\.cbe\.com\.et.*[?&]id=([A-Z0-9]+)/i);
-    if (cbeUrlMatch) return cbeUrlMatch[1].toUpperCase();
+  // Try to detect bank from URL if not provided
+  const detectedBank = bankId || detectBankFromUrl(input);
+  const effectiveBankId = bankId || detectedBank;
+
+  // CBE URL patterns:
+  // - https://apps.cbe.com.et:100/?id=FT253423SGLG32348645
+  // - https://apps.cbe.com.et/?id=FT253423SGLG32348645
+  // - apps.cbe.com.et:100/?id=FT253423SGLG32348645
+  if (effectiveBankId === "cbe") {
+    // Try multiple CBE URL patterns
+    const cbePatterns = [
+      /apps\.cbe\.com\.et[^?]*[?&]id=([A-Z0-9]+)/i,
+      /[?&]id=([A-Z0-9]+)/i, // Fallback: any URL with id= parameter
+    ];
+
+    for (const pattern of cbePatterns) {
+      const match = input.match(pattern);
+      if (match) {
+        const ref = match[1].toUpperCase();
+        // Validate it looks like a CBE reference (FT prefix)
+        if (/^FT[A-Z0-9]{10,}$/i.test(ref)) {
+          return ref;
+        }
+      }
+    }
+
     // CBE transaction ID format: FT + numbers/letters (e.g., FT253423SGLG32348645)
     if (/^FT[A-Z0-9]+$/i.test(input)) return input.toUpperCase();
   }
 
-  // Awash URL pattern: https://awashpay.awashbank.com:8225/-2H1NEM30Q0-32CRE9
-  if (bankId === "awash") {
-    const awashUrlMatch = input.match(
-      /awashpay\.awashbank\.com[^\/]*\/([A-Z0-9\-]+)/i
-    );
-    if (awashUrlMatch) return awashUrlMatch[1].toUpperCase();
+  // Awash URL patterns:
+  // - https://awashpay.awashbank.com:8225/-2H1NEM30Q0-32CRE9
+  // - awashpay.awashbank.com/-2H1NEM30Q0-32CRE9
+  if (effectiveBankId === "awash") {
+    const awashPatterns = [
+      /awashpay\.awashbank\.com[^\/]*\/([A-Z0-9\-]+)/i,
+      /awashbank\.com[^\/]*\/([A-Z0-9\-]+)/i,
+    ];
+
+    for (const pattern of awashPatterns) {
+      const match = input.match(pattern);
+      if (match) {
+        const ref = match[1].toUpperCase();
+        // Validate it looks like an Awash reference
+        if (/^[A-Z0-9\-]{8,}$/i.test(ref)) {
+          return ref;
+        }
+      }
+    }
+
     // Awash transaction ID can be numeric (e.g., 251208095540328) or alphanumeric with dashes
     if (/^[A-Z0-9\-]+$/i.test(input)) return input.toUpperCase();
   }
 
-  // Telebirr URL pattern: https://transactioninfo.ethiotelecom.et/receipt/CL37MBRPQL
-  if (bankId === "telebirr") {
-    const telebirrUrlMatch = input.match(
-      /transactioninfo\.ethiotelecom\.et\/receipt\/([A-Z0-9]+)/i
-    );
-    if (telebirrUrlMatch) return telebirrUrlMatch[1].toUpperCase();
+  // Telebirr URL patterns:
+  // - https://transactioninfo.ethiotelecom.et/receipt/CL37MBRPQL
+  // - transactioninfo.ethiotelecom.et/receipt/CL37MBRPQL
+  if (effectiveBankId === "telebirr") {
+    const telebirrPatterns = [
+      /transactioninfo\.ethiotelecom\.et\/receipt\/([A-Z0-9]+)/i,
+      /ethiotelecom\.et\/receipt\/([A-Z0-9]+)/i,
+    ];
+
+    for (const pattern of telebirrPatterns) {
+      const match = input.match(pattern);
+      if (match) {
+        const ref = match[1].toUpperCase();
+        // Validate it looks like a Telebirr reference
+        if (/^[A-Z0-9]{6,}$/i.test(ref)) {
+          return ref;
+        }
+      }
+    }
+
     // Telebirr transaction ID format: Alphanumeric (e.g., CL37MBRPQL)
     if (/^[A-Z0-9]+$/i.test(input)) return input.toUpperCase();
   }
 
-  // BOA URL pattern: https://cs.bankofabyssinia.com/slip/?trx=FT250559L4W725858
-  if (bankId === "boa") {
-    const boaUrlMatch = input.match(
-      /bankofabyssinia\.com.*[?&]trx=([A-Z0-9]+)/i
-    );
-    if (boaUrlMatch) return boaUrlMatch[1].toUpperCase();
+  // BOA URL patterns:
+  // - https://cs.bankofabyssinia.com/slip/?trx=FT250559L4W725858
+  // - bankofabyssinia.com/slip/?trx=FT250559L4W725858
+  if (effectiveBankId === "boa") {
+    const boaPatterns = [
+      /bankofabyssinia\.com[^?]*[?&]trx=([A-Z0-9]+)/i,
+      /[?&]trx=([A-Z0-9]+)/i, // Fallback: any URL with trx= parameter
+    ];
+
+    for (const pattern of boaPatterns) {
+      const match = input.match(pattern);
+      if (match) {
+        const ref = match[1].toUpperCase();
+        // Validate it looks like a BOA reference (FT prefix)
+        if (/^FT[A-Z0-9]{10,}$/i.test(ref)) {
+          return ref;
+        }
+      }
+    }
+
     // BOA transaction ID format: FT + numbers/letters (e.g., FT250559L4W725858)
     if (/^FT[A-Z0-9]+$/i.test(input)) return input.toUpperCase();
   }
@@ -91,9 +184,10 @@ function validateTransactionIdFormat(
 
 /**
  * Validate transaction input (URL or ID) for a specific bank
+ * If bankId is null, will try to detect bank from URL
  */
 export function validateTransactionInput(
-  bankId: BankId,
+  bankId: BankId | null,
   input: string
 ): ValidationResult {
   if (!input || !input.trim()) {
@@ -104,8 +198,19 @@ export function validateTransactionInput(
     };
   }
 
+  // Try to detect bank from URL if not provided
+  const detectedBank = bankId || detectBankFromUrl(input);
+
+  if (!detectedBank) {
+    return {
+      isValid: false,
+      transactionId: "",
+      error: "Unable to detect bank from URL. Please select a bank.",
+    };
+  }
+
   // Extract transaction ID from URL or use input as-is
-  const transactionId = extractTransactionId(bankId, input);
+  const transactionId = extractTransactionId(detectedBank, input);
 
   if (!transactionId) {
     return {
@@ -116,11 +221,11 @@ export function validateTransactionInput(
   }
 
   // Validate the extracted/input transaction ID format
-  if (!validateTransactionIdFormat(bankId, transactionId)) {
+  if (!validateTransactionIdFormat(detectedBank, transactionId)) {
     return {
       isValid: false,
       transactionId,
-      error: `Invalid ${bankId.toUpperCase()} transaction ID format`,
+      error: `Invalid ${detectedBank.toUpperCase()} transaction ID format`,
     };
   }
 
