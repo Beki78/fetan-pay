@@ -3,12 +3,21 @@ import React, { useState } from "react";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
+import { useGetActiveReceiverAccountsQuery, TransactionProvider } from "@/lib/services/paymentsServiceApi";
 
 interface CreatePaymentIntentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (data: { payerName: string; amount: number; notes?: string }) => void;
+  onCreate: (data: { payerName: string; amount: number; notes?: string; provider?: TransactionProvider }) => void;
 }
+
+const providerLabels: Record<TransactionProvider, string> = {
+  CBE: "Commercial Bank of Ethiopia",
+  TELEBIRR: "Telebirr",
+  AWASH: "Awash Bank",
+  BOA: "Bank of Abyssinia",
+  DASHEN: "Dashen Bank",
+};
 
 export default function CreatePaymentIntentModal({
   isOpen,
@@ -18,19 +27,26 @@ export default function CreatePaymentIntentModal({
   const [payerName, setPayerName] = useState("");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
-  const [errors, setErrors] = useState<{ payerName?: string; amount?: string }>({});
+  const [selectedProvider, setSelectedProvider] = useState<TransactionProvider | "">("");
+  const [errors, setErrors] = useState<{ payerName?: string; amount?: string; provider?: string }>({});
+
+  const { data: receiverAccounts } = useGetActiveReceiverAccountsQuery();
+  const enabledProviders = receiverAccounts?.data?.filter(acc => acc.status === 'ACTIVE') || [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
-    const newErrors: { payerName?: string; amount?: string } = {};
+    const newErrors: { payerName?: string; amount?: string; provider?: string } = {};
     if (!payerName.trim()) {
       newErrors.payerName = "Payer name is required";
     }
     const amountNum = parseFloat(amount);
     if (!amount || isNaN(amountNum) || amountNum <= 0) {
       newErrors.amount = "Amount must be greater than 0";
+    }
+    if (!selectedProvider) {
+      newErrors.provider = "Please select a payment provider";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -42,12 +58,14 @@ export default function CreatePaymentIntentModal({
       payerName: payerName.trim(),
       amount: amountNum,
       notes: notes.trim() || undefined,
+      provider: selectedProvider as TransactionProvider,
     });
 
     // Reset form
     setPayerName("");
     setAmount("");
     setNotes("");
+    setSelectedProvider("");
     setErrors({});
     onClose();
   };
@@ -56,6 +74,7 @@ export default function CreatePaymentIntentModal({
     setPayerName("");
     setAmount("");
     setNotes("");
+    setSelectedProvider("");
     setErrors({});
     onClose();
   };
@@ -93,6 +112,39 @@ export default function CreatePaymentIntentModal({
             />
             {errors.payerName && (
               <p className="mt-1 text-sm text-red-500">{errors.payerName}</p>
+            )}
+          </div>
+
+          {/* Provider Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-800 dark:text-white mb-2">
+              Payment Provider <span className="text-red-500">*</span>
+            </label>
+            {enabledProviders.length === 0 ? (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                No payment providers enabled. Please enable at least one provider in Settings.
+              </p>
+            ) : (
+              <select
+                value={selectedProvider}
+                onChange={(e) => {
+                  setSelectedProvider(e.target.value as TransactionProvider);
+                  if (errors.provider) {
+                    setErrors({ ...errors, provider: undefined });
+                  }
+                }}
+                className={`w-full h-11 px-4 rounded-lg border ${errors.provider ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} bg-transparent text-sm text-gray-800 dark:text-white dark:bg-gray-800 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10`}
+              >
+                <option value="">Select a provider</option>
+                {enabledProviders.map((acc) => (
+                  <option key={acc.provider} value={acc.provider}>
+                    {providerLabels[acc.provider]} ({acc.receiverAccount})
+                  </option>
+                ))}
+              </select>
+            )}
+            {errors.provider && (
+              <p className="mt-1 text-sm text-red-500">{errors.provider}</p>
             )}
           </div>
 

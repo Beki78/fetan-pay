@@ -699,6 +699,7 @@ export class PaymentsService {
         merchantId: membership.merchantId,
         expectedAmount,
         currency,
+        payerName: body.payerName?.trim() || null,
       },
     });
 
@@ -713,28 +714,29 @@ export class PaymentsService {
     };
 
     const transactionRef = generateTransactionRef();
-    const paymentLink = `${this.paymentPageUrl}/payment/${transactionRef}`;
+    const paymentLink = `${this.paymentPageUrl}/pay/${transactionRef}`;
 
-    // Get active receiver account for CBE (default provider) to include in response
+    const selectedProvider = body.provider || 'CBE';
+
+    // Get active receiver account for selected provider to include in response
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const activeReceiver = await (
       this.prisma as any
     ).merchantReceiverAccount.findFirst({
       where: {
         merchantId: membership.merchantId,
-        provider: 'CBE',
-        status: 'ACTIVE',
+        provider: selectedProvider,
+        status: 'ACTIVE', //2
       },
       orderBy: { updatedAt: 'desc' },
     });
 
     // Create transaction record with PENDING status
-    // Use CBE as default provider (can be changed later when payment is made)
     // Set verifiedById to the merchant user who created this transaction (admin)
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     const transaction = await (this.prisma as any).transaction.create({
       data: {
-        provider: 'CBE', // Default provider, will be updated when payment is verified
+        provider: selectedProvider,
         reference: transactionRef,
         qrUrl: paymentLink,
         status: 'PENDING',
@@ -765,6 +767,24 @@ export class PaymentsService {
         },
       },
     });
+
+    // Create a PENDING payment record to link Order, Transaction, and ReceiverAccount
+    // This allows the transaction details page to show the expected amount and receiver info
+    if (activeReceiver) {
+      await (this.prisma as any).payment.create({
+        data: {
+          merchantId: membership.merchantId,
+          orderId: order.id,
+          transactionId: transaction.id,
+          provider: selectedProvider,
+          reference: transactionRef,
+          claimedAmount: expectedAmount,
+          status: 'PENDING',
+          receiverAccountId: activeReceiver.id,
+          verifiedById: membership.merchantUserId,
+        },
+      });
+    }
 
     return { order, transaction, receiverAccount: activeReceiver };
   }

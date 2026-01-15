@@ -13,6 +13,7 @@ import type { Request } from 'express';
 import { ListTransactionsQueryDto } from './dto/list-transactions.dto';
 import { ListVerifiedByUserQueryDto } from './dto/list-verified-by-user.dto';
 import { VerifyFromQrDto } from './dto/verify-from-qr.dto';
+import { PublicVerifyDto } from './dto/public-verify.dto';
 import { TransactionsService } from './transactions.service';
 
 @ApiTags('transactions')
@@ -96,6 +97,23 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   async getPublicPaymentDetails(@Param('id') id: string) {
     return this.transactionsService.getPublicPaymentDetails(id);
+  }
+
+  @Post('public/verify')
+  @ApiOperation({
+    summary: 'Verify a payment publicly (no auth required)',
+    description:
+      'Verifies a payment using the bank transaction reference. Called from the public payment page.',
+  })
+  @ApiBody({ type: PublicVerifyDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment verification result',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid reference or expired' })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  async publicVerify(@Body() body: PublicVerifyDto) {
+    return this.transactionsService.publicVerify(body);
   }
 
   @Get(':id')

@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import { useGetStatisticsTrendQuery } from "@/lib/services/dashboardServiceApi";
@@ -17,7 +17,30 @@ export default function StatisticsChart({ period }: StatisticsChartProps) {
     period ? { period } : undefined
   );
 
-  const options: ApexOptions = {
+  // Deep clone the data to avoid "object is not extensible" error from ApexCharts
+  // RTK Query returns frozen objects which ApexCharts tries to mutate
+  const { categories, series } = useMemo(() => {
+    const defaultSeries = [
+      { name: "Revenue", data: [] as number[] },
+      { name: "Users", data: [] as number[] },
+      { name: "Tips", data: [] as number[] },
+    ];
+    
+    if (!trendData) {
+      return { categories: [] as string[], series: defaultSeries };
+    }
+    
+    // Deep clone to make objects mutable
+    return {
+      categories: [...(trendData.categories || [])],
+      series: (trendData.series || defaultSeries).map(s => ({
+        name: s.name,
+        data: [...(s.data || [])],
+      })),
+    };
+  }, [trendData]);
+
+  const options: ApexOptions = useMemo(() => ({
     legend: {
       show: true,
       position: "top",
@@ -73,7 +96,7 @@ export default function StatisticsChart({ period }: StatisticsChartProps) {
     },
     xaxis: {
       type: "category",
-      categories: trendData?.categories || [],
+      categories: categories,
       axisBorder: {
         show: false,
       },
@@ -95,13 +118,7 @@ export default function StatisticsChart({ period }: StatisticsChartProps) {
         },
       },
     },
-  };
-
-  const series = trendData?.series || [
-    { name: "Revenue", data: [] },
-    { name: "Users", data: [] },
-    { name: "Tips", data: [] },
-  ];
+  }), [categories]);
 
   if (isLoading) {
     return (

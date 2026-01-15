@@ -139,12 +139,18 @@ export default function RecentTransactions() {
                 >
                   Created
                 </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Action
+                </TableCell>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
               {mergedRecords.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={5} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                     No transactions found
                   </TableCell>
                 </TableRow>
@@ -172,6 +178,14 @@ export default function RecentTransactions() {
                     </TableCell>
                     <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300 text-sm">
                       {record.createdAt ? new Date(record.createdAt).toLocaleString() : "—"}
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Link
+                        href={`/payments/${record.id}`}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
+                      >
+                        View
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))

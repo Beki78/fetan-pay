@@ -9,6 +9,7 @@ import { VerificationService } from '../verifier/services/verification.service';
 import { ListTransactionsQueryDto } from './dto/list-transactions.dto';
 import { ListVerifiedByUserQueryDto } from './dto/list-verified-by-user.dto';
 import { VerifyFromQrDto } from './dto/verify-from-qr.dto';
+import { PublicVerifyDto } from './dto/public-verify.dto';
 import type { Request } from 'express';
 
 @Injectable()
@@ -270,6 +271,21 @@ export class TransactionsService {
           select: {
             id: true,
             name: true,
+            branding: {
+              select: {
+                logoUrl: true,
+                primaryColor: true,
+                secondaryColor: true,
+                displayName: true,
+                tagline: true,
+                showPoweredBy: true,
+              },
+            },
+          },
+        },
+        verifiedBy: {
+          select: {
+            name: true,
           },
         },
         payments: {
@@ -280,6 +296,7 @@ export class TransactionsService {
                 expectedAmount: true,
                 currency: true,
                 status: true,
+                payerName: true,
               },
             },
             receiverAccount: {
@@ -309,6 +326,7 @@ export class TransactionsService {
     const payment = transaction.payments?.[0];
     const order = payment?.order;
     const receiverAccount = payment?.receiverAccount;
+    const branding = transaction.merchant?.branding;
 
     return {
       transactionId: transaction.id,
@@ -318,13 +336,137 @@ export class TransactionsService {
       createdAt: transaction.createdAt,
       expiresAt: expiryTime.toISOString(),
       isExpired,
-      merchantName: transaction.merchant?.name || null,
+      merchantName: branding?.displayName || transaction.merchant?.name || null,
       amount: order?.expectedAmount ? Number(order.expectedAmount) : 0,
       currency: order?.currency || 'ETB',
       receiverName: receiverAccount?.receiverName || null,
       receiverAccount: receiverAccount?.receiverAccount || null,
       receiverProvider: receiverAccount?.provider || null,
+      payerName: order?.payerName || null,
+      // Branding
+      branding: branding
+        ? {
+            logoUrl: branding.logoUrl,
+            primaryColor: branding.primaryColor,
+            secondaryColor: branding.secondaryColor,
+            displayName: branding.displayName,
+            tagline: branding.tagline,
+            showPoweredBy: branding.showPoweredBy,
+          }
+        : null,
     };
+  }
+
+  async publicVerify(body: PublicVerifyDto) {
+    // Find the transaction
+    const transaction = await (this.prisma as any).transaction.findFirst({
+      where: {
+        OR: [{ id: body.transactionId }, { reference: body.transactionId }],
+      },
+      include: {
+        payments: {
+          include: {
+            order: true,
+            receiverAccount: true,
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    // Check if already verified
+    if (transaction.status === 'VERIFIED') {
+      return {
+        success: true,
+        message: 'Payment already verified',
+        status: 'VERIFIED',
+      };
+    }
+
+    // Check if expired
+    const createdAt = new Date(transaction.createdAt);
+    const expiryTime = new Date(createdAt.getTime() + 20 * 60 * 1000);
+    if (new Date() > expiryTime || transaction.status === 'EXPIRED') {
+      throw new BadRequestException('This payment has expired');
+    }
+
+    const payment = transaction.payments?.[0];
+    if (!payment) {
+      throw new BadRequestException(
+        'No payment record found for this transaction',
+      );
+    }
+
+    const receiverAccount = payment.receiverAccount;
+    const accountSuffix = receiverAccount?.receiverAccount?.slice(-4);
+
+    // Run verification against actual bank API
+    let verificationPayload: Prisma.InputJsonValue | null = null;
+    let errorMessage: string | undefined;
+    let isVerified = false;
+
+    try {
+      verificationPayload = await this.runVerification(
+        body.provider,
+        body.reference,
+        accountSuffix,
+      );
+      const computedStatus = this.computeStatus(verificationPayload);
+      isVerified = computedStatus === TransactionStatus.VERIFIED;
+    } catch (error) {
+      // Don't change status to FAILED - keep as PENDING so user can retry
+      // Only store the error message for debugging
+      errorMessage = error instanceof Error ? error.message : String(error);
+    }
+
+    // Only update transaction/payment if verification was successful
+    if (isVerified) {
+      // Update transaction to VERIFIED
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: TransactionStatus.VERIFIED,
+          verificationPayload: verificationPayload ?? Prisma.JsonNull,
+          errorMessage: null,
+          verifiedAt: new Date(),
+        },
+      });
+
+      // Update payment record
+      const tipAmount = body.tipAmount
+        ? new Prisma.Decimal(body.tipAmount)
+        : null;
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'VERIFIED',
+          verifiedAt: new Date(),
+          tipAmount,
+          reference: body.reference,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Payment verified successfully',
+        status: 'VERIFIED',
+        tipAmount: body.tipAmount || 0,
+      };
+    } else {
+      // Verification failed - don't update status, just return error
+      // Transaction stays PENDING and will expire naturally after 20 minutes
+      return {
+        success: false,
+        message:
+          errorMessage ||
+          'Payment verification failed. Please check your reference and try again.',
+        status: 'PENDING', // Keep as PENDING so user can retry
+      };
+    }
   }
 
   async listVerifiedByUser(

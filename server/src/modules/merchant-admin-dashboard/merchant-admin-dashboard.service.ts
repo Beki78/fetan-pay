@@ -217,9 +217,8 @@ export class MerchantAdminDashboardService {
       txVerified,
       paymentTotal,
       paymentVerified,
-      totalAmountResult,
+      paymentAggregateResult,
       totalUsersCount,
-      totalTipsResult,
     ] = await Promise.all([
       // Transaction counts
       (this.prisma as any).transaction.count({ where }),
@@ -231,7 +230,7 @@ export class MerchantAdminDashboardService {
       (this.prisma as any).payment.count({
         where: { ...where, status: 'VERIFIED' },
       }),
-      // Total amount from verified payments
+      // Total amount and tips from verified payments
       (this.prisma as any).payment.aggregate({
         where: {
           merchantId: membership.merchantId,
@@ -243,24 +242,12 @@ export class MerchantAdminDashboardService {
         },
         _sum: {
           claimedAmount: true,
+          tipAmount: true,
         },
       }),
       // Total users for this merchant
       (this.prisma as any).merchantUser.count({
         where: { merchantId: membership.merchantId },
-      }),
-      // Total tips from transactions
-      (this.prisma as any).transaction.aggregate({
-        where: {
-          merchantId: membership.merchantId,
-          createdAt: {
-            gte: from,
-            lte: to,
-          },
-        },
-        _sum: {
-          tipAmount: true,
-        },
       }),
     ]);
 
@@ -274,12 +261,12 @@ export class MerchantAdminDashboardService {
         ? Math.round((verifiedCount / totalTransactions) * 100)
         : 0;
 
-    const totalAmount = totalAmountResult._sum?.claimedAmount
-      ? Number(totalAmountResult._sum.claimedAmount)
+    const totalAmount = paymentAggregateResult._sum?.claimedAmount
+      ? Number(paymentAggregateResult._sum.claimedAmount)
       : 0;
 
-    const totalTips = totalTipsResult._sum?.tipAmount
-      ? Number(totalTipsResult._sum.tipAmount)
+    const totalTips = paymentAggregateResult._sum?.tipAmount
+      ? Number(paymentAggregateResult._sum.tipAmount)
       : 0;
 
     return {

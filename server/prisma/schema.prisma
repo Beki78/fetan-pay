@@ -147,6 +147,7 @@ model Order {
   expectedAmount Decimal     @db.Decimal(10, 2)
   currency       String      @default("ETB")
   status         OrderStatus @default(OPEN)
+  payerName      String?     // Name of the person paying
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

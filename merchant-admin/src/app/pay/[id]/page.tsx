@@ -1,20 +1,20 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
-import { useGetPublicPaymentDetailsQuery } from "@/lib/services/transactionsServiceApi";
-import { CheckCircleIcon, ChevronDownIcon, LockIcon, ChevronLeftIcon } from "@/icons";
-import Button from "@/components/ui/button/Button";
+import { useParams } from "next/navigation";
+import { useGetPublicPaymentDetailsQuery, usePublicVerifyMutation } from "@/lib/services/transactionsServiceApi";
+import { CheckCircleIcon, ChevronDownIcon, LockIcon } from "@/icons";
 
 export default function PublicPaymentPage() {
   const params = useParams();
-  const router = useRouter();
   const transactionId = params?.id as string;
 
-  const { data: paymentDetails, isLoading, error } = useGetPublicPaymentDetailsQuery(transactionId, {
+  const { data: paymentDetails, isLoading, error, refetch } = useGetPublicPaymentDetailsQuery(transactionId, {
     skip: !transactionId,
     pollingInterval: 10000, // Poll every 10 seconds for status updates
   });
+
+  const [publicVerify, { isLoading: isVerifying }] = usePublicVerifyMutation();
 
   const [activeTab, setActiveTab] = useState<"reference" | "receipt">("reference");
   const [cbeReference, setCbeReference] = useState("");
@@ -23,6 +23,8 @@ export default function PublicPaymentPage() {
   const [timeRemaining, setTimeRemaining] = useState(20 * 60);
   const [showHowToPay, setShowHowToPay] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifySuccess, setVerifySuccess] = useState(false);
  
   // Calculate time remaining from expiresAt
   useEffect(() => {
@@ -72,16 +74,30 @@ export default function PublicPaymentPage() {
   };
 
   const canVerify = activeTab === "reference"
-    ? cbeReference.trim().length > 0 && cbeReference.trim().startsWith("FT")
+    ? cbeReference.trim().length > 0
     : receiptFile !== null;
 
-  const handleVerify = () => {
-    if (canVerify) {
-      console.log("Verifying payment:", {
-        transactionId,
-        reference: activeTab === "reference" ? cbeReference : "from receipt",
-      });
-      // TODO: Implement actual verification API call
+  const handleVerify = async () => {
+    if (!canVerify || !paymentDetails) return;
+    
+    setVerifyError(null);
+    
+    try {
+      const result = await publicVerify({
+        transactionId: paymentDetails.reference,
+        reference: cbeReference.trim(),
+        provider: paymentDetails.receiverProvider || paymentDetails.provider,
+      }).unwrap();
+      
+      if (result.success) {
+        setVerifySuccess(true);
+        refetch(); // Refresh payment details to show verified status
+      } else {
+        setVerifyError(result.message || "Verification failed. Please check your reference.");
+      }
+    } catch (err: unknown) {
+      const error = err as { data?: { message?: string } };
+      setVerifyError(error?.data?.message || "Verification failed. Please try again.");
     }
   };
 
@@ -171,22 +187,34 @@ export default function PublicPaymentPage() {
     );
   }
 
+  // Get branding colors with fallback
+  const primaryColor = paymentDetails.branding?.primaryColor || "#7C3AED";
+  const brandName = paymentDetails.branding?.displayName || paymentDetails.merchantName || "PAYAUTH";
+  const showPoweredBy = paymentDetails.branding?.showPoweredBy ?? true;
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-100 dark:bg-gray-900">
-      <div className="max-w-[560px] w-full rounded-2xl overflow-hidden shadow-2xl relative">
-        {/* Purple Header Section */}
-        <div className="bg-purple-600 dark:bg-purple-700 px-6 pt-6 pb-5 text-white">
-          {/* Logo and Icons - Centered */}
+      <div className="max-w-[420px] w-full rounded-2xl overflow-hidden shadow-2xl relative">
+        {/* Header Section with branding color */}
+        <div 
+          className="px-6 pt-6 pb-5 text-white"
+          style={{ backgroundColor: primaryColor }}
+        >
+          {/* Logo and Brand Name - Centered */}
           <div className="flex items-center justify-center gap-3 mb-5">
-            <span className="text-lg font-bold">FetanPay</span>
+            <span className="text-lg font-bold tracking-wide">{brandName}</span>
             <div className="flex items-center gap-2">
-              {paymentDetails.merchantName && (
-                <div className="w-8 h-8 rounded bg-white/20 flex items-center justify-center border border-white/30">
-                  <span className="text-xs font-bold text-white">
-                    {paymentDetails.merchantName.charAt(0).toUpperCase()}
-                  </span>
+              {paymentDetails.branding?.logoUrl ? (
+                <div className="w-8 h-8 rounded-lg bg-white overflow-hidden flex items-center justify-center">
+                  <Image
+                    src={paymentDetails.branding.logoUrl}
+                    alt={brandName}
+                    width={32}
+                    height={32}
+                    className="object-contain"
+                  />
                 </div>
-              )}
+              ) : null}
               <div className="w-8 h-8 rounded-lg bg-white overflow-hidden flex items-center justify-center">
                 <Image
                   src={getBankLogo(paymentDetails.receiverProvider)}
@@ -204,30 +232,23 @@ export default function PublicPaymentPage() {
             <p className="text-sm text-white/90 mb-2">Amount to Pay</p>
             <div className="flex items-baseline justify-center gap-2">
               <h1 className="text-5xl font-bold">
-                {paymentDetails.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {paymentDetails.currency}
+                {paymentDetails.amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </h1>
+              <span className="text-xl font-semibold">{paymentDetails.currency}</span>
             </div>
             <p className="text-sm text-white/80 mt-2">
               {formatTime(timeRemaining)} remaining
             </p>
           </div>
-
-          {/* Transaction Banner - Centered */}
-          <div className="bg-purple-500/30 dark:bg-purple-600/30 rounded-lg px-4 py-2.5 flex items-center justify-center gap-2">
-            <CheckCircleIcon className="w-5 h-5 text-white flex-shrink-0" />
-            <span className="text-sm font-medium">
-              {paymentDetails.merchantName || "Payment"} · {paymentDetails.reference}
-            </span>
-          </div>
         </div>
 
         {/* White Body Section */}
         <div className="bg-white dark:bg-gray-800 px-6 py-6 space-y-6">
-          {/* Transaction Details */}
+          {/* Transaction Details - Matching the image layout */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-500 dark:text-gray-400">Transaction ID</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white">{paymentDetails.reference}</span>
+              <span className="text-sm font-medium text-gray-800 dark:text-white bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded">{paymentDetails.reference}</span>
             </div>
             {paymentDetails.receiverName && (
               <div className="flex justify-between items-center">
@@ -242,17 +263,17 @@ export default function PublicPaymentPage() {
                   <span className="text-sm font-medium text-gray-800 dark:text-white">{paymentDetails.receiverAccount}</span>
                   <button
                     onClick={() => handleCopy(paymentDetails.receiverAccount!)}
-                    className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors active:scale-95"
+                    className="px-2 py-0.5 text-xs font-medium rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors active:scale-95"
                   >
                     {copied ? "Copied!" : "Copy"}
                   </button>
                 </div>
               </div>
             )}
-            {paymentDetails.merchantName && (
+            {paymentDetails.payerName && (
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Merchant</span>
-                <span className="text-sm font-medium text-gray-800 dark:text-white">{paymentDetails.merchantName}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Payer Name</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-white">{paymentDetails.payerName}</span>
               </div>
             )}
           </div>
@@ -379,19 +400,45 @@ export default function PublicPaymentPage() {
             </div>
           )}
 
+          {/* Error Message */}
+          {verifyError && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-600 dark:text-red-400">{verifyError}</p>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {verifySuccess && (
+            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+              <p className="text-sm text-green-600 dark:text-green-400">Payment verified successfully!</p>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="space-y-3">
             <button
               onClick={handleVerify}
-              disabled={!canVerify}
+              disabled={!canVerify || isVerifying}
               className={`w-full h-12 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
-                canVerify
+                canVerify && !isVerifying
                   ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg active:scale-[0.98]"
                   : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
               }`}
             >
-              {!canVerify && <LockIcon className="w-4 h-4" />}
-              <span>{activeTab === "reference" ? "Verify Payment" : "Verify from Receipt"}</span>
+              {isVerifying ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Verifying...</span>
+                </>
+              ) : (
+                <>
+                  {!canVerify && <LockIcon className="w-4 h-4" />}
+                  <span>{activeTab === "reference" ? "Verify Payment" : "Verify from Receipt"}</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -411,7 +458,7 @@ export default function PublicPaymentPage() {
             {showHowToPay && (
               <div className="mt-4 space-y-3 transition-all duration-200">
                 <div className="flex items-start gap-3">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold flex-shrink-0 mt-0.5">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold shrink-0 mt-0.5">
                     1
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
@@ -419,7 +466,7 @@ export default function PublicPaymentPage() {
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold flex-shrink-0 mt-0.5">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold shrink-0 mt-0.5">
                     2
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
@@ -427,7 +474,7 @@ export default function PublicPaymentPage() {
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold flex-shrink-0 mt-0.5">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold shrink-0 mt-0.5">
                     3
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
@@ -435,7 +482,7 @@ export default function PublicPaymentPage() {
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold flex-shrink-0 mt-0.5">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold shrink-0 mt-0.5">
                     4
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
@@ -447,11 +494,13 @@ export default function PublicPaymentPage() {
           </div>
 
           {/* Footer */}
-          <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Powered by FetanPay
-            </p>
-          </div>
+          {showPoweredBy && (
+            <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Powered by <span className="font-semibold">FetanPay</span>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
