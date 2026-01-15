@@ -12,11 +12,17 @@ export class VerifyMerchantPaymentDto {
   @IsString()
   reference!: string;
 
-  @ApiProperty({ description: 'Amount the customer claims to have paid', example: 250 })
+  @ApiProperty({
+    required: false,
+    description:
+      'Amount the customer claims to have paid. If not provided, amount from bank response will be used.',
+    example: 250,
+  })
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
-  claimedAmount!: number;
+  claimedAmount?: number;
 
   @ApiProperty({
     required: false,

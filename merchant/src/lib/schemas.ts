@@ -18,20 +18,7 @@ export const createScanSchema = (
   showTip: boolean
 ) => {
   return z.object({
-    amount: z
-      .string()
-      .min(1, "Amount is required")
-      .refine(
-        (val) => {
-          const numbers = val.replace(/,/g, "");
-          const num = parseInt(numbers, 10);
-          return !isNaN(num) && num > 0;
-        },
-        { message: "Amount must be a valid whole number greater than 0" }
-      )
-      .refine((val) => !val.includes("."), {
-        message: "Amount must be a whole number (no decimals)",
-      }),
+    // Transaction reference is the only required field for verification
     transactionId: z
       .string()
       .optional()

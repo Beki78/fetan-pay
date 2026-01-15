@@ -195,36 +195,14 @@ export function CameraScanner({
   }, []);
 
   const handleScanSuccess = async (scannedUrl: string) => {
-    // Log the scanned URL immediately
     console.log("📷 [SCANNER] QR Code detected:", scannedUrl);
 
-    try {
-      // Show immediate feedback
-      toast.success("QR Code detected!", {
-        description: "Processing...",
-        duration: 1000,
-      });
+    // Stop scanning (non-blocking)
+    stopScanning().catch(() => {});
 
-      // Stop scanning first (non-blocking)
-      stopScanning().catch((err) => {
-        console.warn("⚠️ [SCANNER] Error stopping scanner:", err);
-      });
-
-      // Pass URL to parent immediately - don't wait for stop
-      // Parent will handle validation and verification
-      console.log("✅ [SCANNER] Passing URL to parent:", scannedUrl);
-      onScan(scannedUrl);
-
-      // Close scanner after a brief delay to show success feedback
-      setTimeout(() => {
-        onClose();
-      }, 300);
-    } catch (error) {
-      console.error("❌ [SCANNER] Error in handleScanSuccess:", error);
-      // Still pass the URL to parent even on error
-      onScan(scannedUrl);
-      onClose();
-    }
+    // Pass URL to parent - parent handles everything
+    onScan(scannedUrl);
+    onClose();
   };
 
   return (
