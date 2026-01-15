@@ -61,7 +61,21 @@ export function CameraScanner({
     }
   };
 
-  const startScanning = async () => {
+  const requestCameraPermission = async (): Promise<boolean> => {
+    try {
+      // First, explicitly request camera permission
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // Stop the stream immediately - we just needed permission
+      stream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const startScanning = async (retryCount = 0) => {
+    const MAX_RETRIES = 2;
+
     // Prevent concurrent start attempts
     if (isStartingRef.current || isScanning) {
       return;
@@ -77,6 +91,15 @@ export function CameraScanner({
           "Camera API not available. Please use HTTPS or a modern browser."
         );
       }
+
+      // Request permission first before enumerating cameras
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) {
+        throw new Error("Camera permission denied");
+      }
+
+      // Small delay to ensure permission is fully processed
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Enumerate available cameras
       const cameras = await Html5Qrcode.getCameras();
@@ -138,11 +161,28 @@ export function CameraScanner({
       setIsScanning(true);
       setError(null);
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message.toLowerCase() : "";
+
+      // Retry on transient errors (camera busy, permission processing)
+      const isRetryable =
+        errMsg.includes("transition") ||
+        errMsg.includes("state") ||
+        errMsg.includes("in use") ||
+        errMsg.includes("busy") ||
+        errMsg.includes("notreadableerror");
+
+      if (isRetryable && retryCount < MAX_RETRIES) {
+        console.log(`Camera busy, retrying... (attempt ${retryCount + 2})`);
+        isStartingRef.current = false;
+        await new Promise((resolve) =>
+          setTimeout(resolve, 500 * (retryCount + 1))
+        );
+        return startScanning(retryCount + 1);
+      }
+
       let errorMessage = "Unable to access camera. Please check permissions.";
 
       if (err instanceof Error) {
-        const errMsg = err.message.toLowerCase();
-
         if (errMsg.includes("permission") || errMsg.includes("denied")) {
           errorMessage =
             "Camera permission denied. Please allow camera access in your browser settings and try again.";
@@ -161,9 +201,13 @@ export function CameraScanner({
         } else if (errMsg.includes("https") || errMsg.includes("secure")) {
           errorMessage =
             "Camera requires HTTPS. Please access this site over a secure connection.";
-        } else if (errMsg.includes("transition") || errMsg.includes("state")) {
+        } else if (
+          errMsg.includes("transition") ||
+          errMsg.includes("state") ||
+          errMsg.includes("in use")
+        ) {
           errorMessage =
-            "Camera is already in use. Please wait a moment and try again.";
+            "Camera is busy. Please close other apps using the camera and try again.";
         } else {
           errorMessage = err.message || errorMessage;
         }
@@ -260,7 +304,18 @@ export function CameraScanner({
         )}
 
         {error && (
-          <p className="text-center text-sm text-muted-foreground">{error}</p>
+          <div className="text-center space-y-3">
+            <Button
+              variant="default"
+              onClick={() => {
+                setError(null);
+                startScanning();
+              }}
+              className="w-full"
+            >
+              Try Again
+            </Button>
+          </div>
         )}
       </div>
     </div>

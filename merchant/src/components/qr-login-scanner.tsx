@@ -48,7 +48,19 @@ export function QRLoginScanner({ onScan, onClose }: QRLoginScannerProps) {
     }
   };
 
-  const startScanning = async () => {
+  const requestCameraPermission = async (): Promise<boolean> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const startScanning = async (retryCount = 0) => {
+    const MAX_RETRIES = 2;
+
     if (isStartingRef.current || isScanning) {
       return;
     }
@@ -62,6 +74,14 @@ export function QRLoginScanner({ onScan, onClose }: QRLoginScannerProps) {
           "Camera API not available. Please use HTTPS or a modern browser."
         );
       }
+
+      // Request permission first
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) {
+        throw new Error("Camera permission denied");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const cameras = await Html5Qrcode.getCameras();
 
@@ -102,6 +122,23 @@ export function QRLoginScanner({ onScan, onClose }: QRLoginScannerProps) {
       setIsScanning(true);
       setError(null);
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message.toLowerCase() : "";
+
+      // Retry on transient errors
+      const isRetryable =
+        errMsg.includes("transition") ||
+        errMsg.includes("state") ||
+        errMsg.includes("in use") ||
+        errMsg.includes("busy");
+
+      if (isRetryable && retryCount < MAX_RETRIES) {
+        isStartingRef.current = false;
+        await new Promise((resolve) =>
+          setTimeout(resolve, 500 * (retryCount + 1))
+        );
+        return startScanning(retryCount + 1);
+      }
+
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
       toast.error("Failed to start camera", {
@@ -160,9 +197,24 @@ export function QRLoginScanner({ onScan, onClose }: QRLoginScannerProps) {
           className="mb-4 rounded-lg overflow-hidden bg-muted"
         />
 
-        <p className="text-center text-sm text-muted-foreground">
-          Position the QR code within the frame to scan
-        </p>
+        {!error && (
+          <p className="text-center text-sm text-muted-foreground">
+            Position the QR code within the frame to scan
+          </p>
+        )}
+
+        {error && (
+          <Button
+            variant="default"
+            onClick={() => {
+              setError(null);
+              startScanning();
+            }}
+            className="w-full"
+          >
+            Try Again
+          </Button>
+        )}
       </div>
     </div>
   );
