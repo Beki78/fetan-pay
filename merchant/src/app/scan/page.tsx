@@ -170,9 +170,11 @@ function ScanPageContent() {
 
       console.log("✅ [SCAN] Verification response:", response);
 
+      const success = response.status === "VERIFIED";
+
       // Show result
       setVerificationResult({
-        success: response.status === "VERIFIED",
+        success,
         status: response.status,
         reference: finalReference,
         provider: finalBank,
@@ -184,11 +186,21 @@ function ScanPageContent() {
           checks: response.checks,
           raw: response.transaction?.raw,
         },
-        message:
-          response.status === "VERIFIED"
-            ? "Payment verified successfully!"
-            : response.mismatchReason || "Payment could not be verified",
+        message: success
+          ? "Payment verified successfully!"
+          : response.mismatchReason || "Payment could not be verified",
       });
+
+      // Show toast for result
+      toast[success ? "success" : "warning"](
+        success ? "Payment verified" : "Not verified",
+        {
+          description: success
+            ? `Reference ${finalReference} verified`
+            : response.mismatchReason || "Payment could not be verified",
+          duration: 5000,
+        }
+      );
 
       // Scroll to results
       setTimeout(() => {
@@ -199,9 +211,23 @@ function ScanPageContent() {
       }, 100);
     } catch (error) {
       console.error("❌ [SCAN] Verification failed:", error);
+
+      // Extract error message
+      const errorMessage =
+        error &&
+        typeof error === "object" &&
+        "data" in error &&
+        error.data &&
+        typeof error.data === "object" &&
+        "message" in error.data &&
+        typeof error.data.message === "string"
+          ? error.data.message
+          : error instanceof Error
+          ? error.message
+          : "Please try again";
+
       toast.error("Verification failed", {
-        description:
-          error instanceof Error ? error.message : "Please try again",
+        description: errorMessage,
       });
     } finally {
       setIsVerifyingWithBank(null);
