@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL } from '../config';
 
 export type TransactionProvider = 'CBE' | 'TELEBIRR' | 'AWASH' | 'BOA' | 'DASHEN';
-export type TransactionStatus = 'PENDING' | 'VERIFIED' | 'FAILED';
+export type TransactionStatus = 'PENDING' | 'VERIFIED' | 'FAILED' | 'EXPIRED';
 
 export interface TransactionRecord {
   id: string;
@@ -99,7 +99,29 @@ export const transactionsServiceApi = createApi({
         url: `/transactions/${idOrReference}`,
       }),
     }),
+
+    getPublicPaymentDetails: builder.query<PublicPaymentDetails, string>({
+      query: (idOrReference) => ({
+        url: `/transactions/public/${idOrReference}`,
+      }),
+    }),
   }),
 });
 
-export const { useListTransactionsQuery, useListVerifiedByUserQuery, useGetTransactionQuery } = transactionsServiceApi;
+export interface PublicPaymentDetails {
+  transactionId: string;
+  reference: string;
+  status: TransactionStatus;
+  provider: TransactionProvider;
+  createdAt: string;
+  expiresAt: string;
+  isExpired: boolean;
+  merchantName: string | null;
+  amount: number;
+  currency: string;
+  receiverName: string | null;
+  receiverAccount: string | null;
+  receiverProvider: TransactionProvider | null;
+}
+
+export const { useListTransactionsQuery, useListVerifiedByUserQuery, useGetTransactionQuery, useGetPublicPaymentDetailsQuery } = transactionsServiceApi;

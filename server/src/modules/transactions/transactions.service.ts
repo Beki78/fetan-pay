@@ -120,6 +120,17 @@ export class TransactionsService {
       }
     }
 
+    // Mark expired transactions before listing
+    const expiryThreshold = new Date(Date.now() - 20 * 60 * 1000);
+    await (this.prisma as any).transaction.updateMany({
+      where: {
+        status: 'PENDING',
+        createdAt: { lt: expiryThreshold },
+        ...(merchantId ? { merchantId } : {}),
+      },
+      data: { status: 'EXPIRED' },
+    });
+
     const where = {
       provider: query.provider,
       status: query.status,
@@ -243,6 +254,77 @@ export class TransactionsService {
     }
 
     return transaction;
+  }
+
+  /**
+   * Get public payment details for a transaction (no auth required)
+   * Returns limited info needed for payment page
+   */
+  async getPublicPaymentDetails(idOrReference: string) {
+    const transaction = await (this.prisma as any).transaction.findFirst({
+      where: {
+        OR: [{ id: idOrReference }, { reference: idOrReference }],
+      },
+      include: {
+        merchant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        payments: {
+          include: {
+            order: {
+              select: {
+                id: true,
+                expectedAmount: true,
+                currency: true,
+                status: true,
+              },
+            },
+            receiverAccount: {
+              select: {
+                receiverName: true,
+                receiverAccount: true,
+                provider: true,
+              },
+            },
+          },
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    // Check if expired (20 minutes from creation)
+    const createdAt = new Date(transaction.createdAt);
+    const expiryTime = new Date(createdAt.getTime() + 20 * 60 * 1000);
+    const isExpired =
+      new Date() > expiryTime || transaction.status === 'EXPIRED';
+
+    const payment = transaction.payments?.[0];
+    const order = payment?.order;
+    const receiverAccount = payment?.receiverAccount;
+
+    return {
+      transactionId: transaction.id,
+      reference: transaction.reference,
+      status: isExpired ? 'EXPIRED' : transaction.status,
+      provider: transaction.provider,
+      createdAt: transaction.createdAt,
+      expiresAt: expiryTime.toISOString(),
+      isExpired,
+      merchantName: transaction.merchant?.name || null,
+      amount: order?.expectedAmount ? Number(order.expectedAmount) : 0,
+      currency: order?.currency || 'ETB',
+      receiverName: receiverAccount?.receiverName || null,
+      receiverAccount: receiverAccount?.receiverAccount || null,
+      receiverProvider: receiverAccount?.provider || null,
+    };
   }
 
   async listVerifiedByUser(

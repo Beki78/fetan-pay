@@ -134,11 +134,11 @@ export class MerchantAdminDashboardController {
     status: 403,
     description: 'Forbidden - Merchant membership required',
   })
-  async getTransactionTrend(
+  async getStatisticsTrend(
     @Req() req: Request,
     @Query('period') period?: string,
   ) {
-    return this.dashboardService.getTransactionTrend(req, period);
+    return this.dashboardService.getStatisticsTrend(req, period);
   }
 
   @Get('analytics/status-distribution')

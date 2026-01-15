@@ -414,7 +414,7 @@ export default function TransactionDetailsPage({
                 </Button>
               </div>
               <a
-                href={paymentLink}
+                href={`/pay/${transactionId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
