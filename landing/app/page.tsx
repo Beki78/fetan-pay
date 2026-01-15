@@ -1,21 +1,46 @@
-import { Navbar } from "@/components/navbar"
-import { HeroSection } from "@/components/hero-section"
-import { FeaturesSection } from "@/components/features-section"
-import { HowItWorksSection } from "@/components/how-it-works-section"
-import { PricingSection } from "@/components/pricing-section"
-import { CTASection } from "@/components/cta-section"
-import { Footer } from "@/components/footer"
+import { Navbar, HeroBadge, HeroContent, BankOrbit } from "./components";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white overflow-hidden relative">
+      {/* Navbar with Logo */}
       <Navbar />
-      <HeroSection />
-      <FeaturesSection />
-      <HowItWorksSection />
-      <PricingSection />
-      <CTASection />
-      <Footer />
-    </main>
-  )
+
+      {/* Hero Section */}
+      <main className="relative min-h-screen">
+        {/* Background decorative ellipse */}
+        <div
+          className="absolute w-[202px] h-[234px] bg-[#fffdf8] rounded-full blur-xl opacity-80"
+          style={{ top: "140px", left: "100px" }}
+        />
+
+        {/* Main content container */}
+        <div
+          className="relative mx-auto"
+          style={{
+            maxWidth: "1728px",
+            paddingLeft: "116px",
+            paddingTop: "200px",
+          }}
+        >
+          {/* Left Content */}
+          <div
+            className="flex flex-col gap-[24px] relative z-10"
+            style={{ maxWidth: "720px" }}
+          >
+            {/* Badge */}
+            <HeroBadge />
+
+            {/* Main Content */}
+            <div className="mt-[24px]">
+              <HeroContent />
+            </div>
+          </div>
+        </div>
+
+        {/* Bank Orbit - center at bottom-right, showing only 2nd quadrant */}
+        <BankOrbit />
+      </main>
+    </div>
+  );
 }
