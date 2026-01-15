@@ -95,10 +95,14 @@ export default function ConfigureProviderModal({
 
     if (!trimmedAccountNumber) {
       newErrors.accountNumber = "Account number is required";
+    } else if (!/^\d+$/.test(trimmedAccountNumber)) {
+      newErrors.accountNumber = "Account number must contain only digits";
     }
 
     if (!trimmedAccountHolderName) {
       newErrors.accountHolderName = "Account holder name is required";
+    } else if (!/^[a-zA-Z\s\u1200-\u137F]+$/.test(trimmedAccountHolderName)) {
+      newErrors.accountHolderName = "Name must contain only letters (no numbers or special characters)";
     }
 
     // If validation errors, show them and stop
@@ -200,7 +204,9 @@ export default function ConfigureProviderModal({
               type="text"
               value={accountNumber}
               onChange={(e) => {
-                setAccountNumber(e.target.value);
+                // Only allow digits
+                const value = e.target.value.replace(/\D/g, "");
+                setAccountNumber(value);
                 if (errors.accountNumber) {
                   setErrors({ ...errors, accountNumber: undefined });
                 }
@@ -228,7 +234,9 @@ export default function ConfigureProviderModal({
               placeholder="Name as shown on account"
               value={accountHolderName}
               onChange={(e) => {
-                setAccountHolderName(e.target.value);
+                // Only allow letters, spaces, and Amharic characters
+                const value = e.target.value.replace(/[^a-zA-Z\s\u1200-\u137F]/g, "");
+                setAccountHolderName(value);
                 if (errors.accountHolderName) {
                   setErrors({ ...errors, accountHolderName: undefined });
                 }
