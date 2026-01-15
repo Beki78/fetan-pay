@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import {
   CheckCircle2,
   FileDigit,
@@ -45,7 +45,7 @@ type FormData = {
   verificationMethod: "transaction" | "camera" | null;
 };
 
-export default function ScanPage() {
+function ScanPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, isLoading: isSessionLoading } = useSession();
@@ -927,5 +927,19 @@ export default function ScanPage() {
       {/* VConsole for Mobile Debugging */}
       <VConsoleCDN />
     </div>
+  );
+}
+
+export default function ScanPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center">
+          <div className="text-sm text-muted-foreground">Loading…</div>
+        </div>
+      }
+    >
+      <ScanPageContent />
+    </Suspense>
   );
 }
