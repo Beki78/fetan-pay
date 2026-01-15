@@ -41,6 +41,12 @@ const statusMeta: Record<
     toneClass: "bg-red-500/10 border-red-500/20",
     description: "Verification failed",
   },
+  EXPIRED: {
+    label: "Expired",
+    badgeClass: "bg-red-500/10 text-red-700 dark:text-red-200",
+    toneClass: "bg-red-500/10 border-red-500/20",
+    description: "Transaction has expired",
+  },
 };
 
 function formatDate(value?: string | null) {

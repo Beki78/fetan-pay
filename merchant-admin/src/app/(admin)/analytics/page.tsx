@@ -1,8 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import TransactionMetrics from "@/components/analytics/TransactionMetrics";
-import RevenueTrendChart from "@/components/analytics/RevenueTrendChart";
-import ConfirmationChart from "@/components/analytics/ConfirmationChart";
+import StatisticsChart from "@/components/ecommerce/StatisticsChart";
 import Button from "@/components/ui/button/Button";
 import { BoltIcon } from "@/icons";
 
@@ -63,18 +62,8 @@ export default function AnalyticsPage() {
         {/* Transaction Metrics */}
         <TransactionMetrics period={selectedPeriod} />
 
-      {/* Charts Grid - One Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Transaction Trend */}
-        <div className="lg:col-span-1">
-            <RevenueTrendChart period={selectedPeriod} />
-          </div>
-
-        {/* Status Distribution */}
-        <div className="lg:col-span-1">
-            <ConfirmationChart period={selectedPeriod} />
-        </div>
-      </div>
+      {/* Statistics Chart - Full Width */}
+      <StatisticsChart period={selectedPeriod} />
     </div>
   );
 }

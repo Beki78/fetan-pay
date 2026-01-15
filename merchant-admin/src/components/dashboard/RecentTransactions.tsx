@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -8,7 +8,8 @@ import {
   TableRow,
 } from "../ui/table";
 import Link from "next/link";
-import { useListTransactionsQuery, TransactionRecord } from "@/lib/services/transactionsServiceApi";
+import { useListTransactionsQuery } from "@/lib/services/transactionsServiceApi";
+import { useListVerificationHistoryQuery } from "@/lib/services/paymentsServiceApi";
 
 const providerNames: Record<string, string> = {
   CBE: "CBE",
@@ -23,32 +24,53 @@ const statusColors: Record<string, string> = {
   VERIFIED: "bg-green-500/10 text-green-700 dark:text-green-200",
   FAILED: "bg-red-500/10 text-red-700 dark:text-red-200",
   EXPIRED: "bg-red-500/10 text-red-700 dark:text-red-200",
+  UNVERIFIED: "bg-red-500/10 text-red-700 dark:text-red-200",
 };
 
-// Helper function to get actual status (check if PENDING transactions are expired)
-const getActualStatus = (tx: TransactionRecord): string => {
-  if (tx.status !== 'PENDING') {
-    return tx.status;
-  }
-  
-  // If PENDING, check if it's actually expired (> 20 minutes old)
-  if (tx.createdAt) {
-    const createdAt = new Date(tx.createdAt);
-    const now = new Date();
-    const expiryTime = new Date(createdAt.getTime() + 20 * 60 * 1000); // 20 minutes
-    
-    if (now > expiryTime) {
-      return 'EXPIRED';
-    }
-  }
-  
-  return tx.status;
-};
+// Unified record type for display
+interface UnifiedRecord {
+  id: string;
+  reference: string;
+  provider: string;
+  status: string;
+  createdAt: string;
+  type: 'transaction' | 'payment';
+}
 
 export default function RecentTransactions() {
-  const { data, isLoading, isError } = useListTransactionsQuery({ page: 1, pageSize: 5 });
+  const { data: txData, isLoading: txLoading, isError: txError } = useListTransactionsQuery({ page: 1, pageSize: 10 });
+  const { data: paymentData, isLoading: paymentLoading, isError: paymentError } = useListVerificationHistoryQuery({ page: 1, pageSize: 10 });
 
-  const transactions = data?.data || [];
+  const isLoading = txLoading || paymentLoading;
+  const isError = txError || paymentError;
+
+  // Merge and sort both datasets
+  const mergedRecords = useMemo(() => {
+    // Map transactions - status now comes directly from backend (EXPIRED is set there)
+    const txRecords: UnifiedRecord[] = (txData?.data || []).map((tx) => ({
+      id: tx.id,
+      reference: tx.reference,
+      provider: tx.provider,
+      status: tx.status,
+      createdAt: tx.createdAt || '',
+      type: 'transaction' as const,
+    }));
+
+    // Map payments
+    const paymentRecords: UnifiedRecord[] = (paymentData?.data || []).map((p) => ({
+      id: p.id,
+      reference: p.reference,
+      provider: p.provider,
+      status: p.status,
+      createdAt: p.verifiedAt || '',
+      type: 'payment' as const,
+    }));
+
+    // Merge, sort by date desc, take first 5
+    return [...txRecords, ...paymentRecords]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5);
+  }, [txData, paymentData]);
 
   if (isLoading) {
     return (
@@ -120,42 +142,39 @@ export default function RecentTransactions() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {transactions.length === 0 ? (
+              {mergedRecords.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                     No transactions found
                   </TableCell>
                 </TableRow>
               ) : (
-                transactions.map((tx) => {
-                  const displayStatus = getActualStatus(tx);
-                  return (
-                    <TableRow
-                      key={tx.id}
-                      className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors border-b border-gray-200 dark:border-gray-700/50"
-                    >
-                      <TableCell className="px-5 py-4">
-                        <Link
-                          href={`/payments/${tx.id}`}
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
-                        >
-                          {tx.reference}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                        {providerNames[tx.provider] || tx.provider}
-                      </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <span className={`px-2 py-1 rounded-md text-xs font-semibold ${statusColors[displayStatus] || statusColors.PENDING}`}>
-                          {displayStatus}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300 text-sm">
-                        {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : "—"}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                mergedRecords.map((record) => (
+                  <TableRow
+                    key={`${record.type}-${record.id}`}
+                    className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors border-b border-gray-200 dark:border-gray-700/50"
+                  >
+                    <TableCell className="px-5 py-4">
+                      <Link
+                        href={`/payments/${record.id}`}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
+                      >
+                        {record.reference}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                      {providerNames[record.provider] || record.provider}
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className={`px-2 py-1 rounded-md text-xs font-semibold ${statusColors[record.status] || statusColors.PENDING}`}>
+                        {record.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300 text-sm">
+                      {record.createdAt ? new Date(record.createdAt).toLocaleString() : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>

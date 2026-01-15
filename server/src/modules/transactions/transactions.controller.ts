@@ -25,7 +25,8 @@ export class TransactionsController {
   @Post('verify-from-qr')
   @ApiOperation({
     summary: 'Verify a transaction by parsing its QR URL',
-    description: 'Verifies a transaction by parsing the QR code URL and extracting transaction details.',
+    description:
+      'Verifies a transaction by parsing the QR code URL and extracting transaction details.',
   })
   @ApiBody({ type: VerifyFromQrDto })
   @ApiResponse({
@@ -41,7 +42,8 @@ export class TransactionsController {
   @Get()
   @ApiOperation({
     summary: 'List stored transactions with optional filters',
-    description: 'Retrieves a paginated list of stored transactions with optional filtering by merchant, provider, status, etc.',
+    description:
+      'Retrieves a paginated list of stored transactions with optional filtering by merchant, provider, status, etc.',
   })
   @ApiResponse({
     status: 200,
@@ -76,10 +78,31 @@ export class TransactionsController {
     return this.transactionsService.listVerifiedByUser(merchantUserId, query);
   }
 
+  @Get('public/:id')
+  @ApiOperation({
+    summary: 'Get public payment details for a transaction (no auth required)',
+    description:
+      'Retrieves limited payment details needed for the public payment page.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Transaction ID or reference',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment details retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  async getPublicPaymentDetails(@Param('id') id: string) {
+    return this.transactionsService.getPublicPaymentDetails(id);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Get a single transaction by ID or reference',
-    description: 'Retrieves detailed information about a specific transaction by its ID or reference.',
+    description:
+      'Retrieves detailed information about a specific transaction by its ID or reference.',
   })
   @ApiParam({
     name: 'id',

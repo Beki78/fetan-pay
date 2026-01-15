@@ -19,34 +19,15 @@ export default function TransactionDetailsRoute() {
     skip: !transactionId,
   });
 
-  // Calculate expiresAt (20 minutes from createdAt) and determine actual status
+  // Calculate expiresAt (20 minutes from createdAt) for display
   const expiresAt = transaction?.createdAt
     ? new Date(new Date(transaction.createdAt).getTime() + 20 * 60 * 1000).toISOString()
     : undefined;
 
-  // Determine actual status: if PENDING but expired, show as expired
+  // Status now comes directly from backend (EXPIRED is set there)
   const getActualStatus = (): "pending" | "expired" | "verified" | "unconfirmed" => {
     if (!transaction) return "pending";
-    
-    const dbStatus = transaction.status.toLowerCase() as "pending" | "expired" | "verified" | "unconfirmed";
-    
-    // If status is VERIFIED or FAILED, use that
-    if (dbStatus === "verified" || dbStatus === "unconfirmed") {
-      return dbStatus;
-    }
-    
-    // If status is PENDING, check if it's actually expired
-    if (dbStatus === "pending" && transaction.createdAt) {
-      const createdAt = new Date(transaction.createdAt);
-      const now = new Date();
-      const expiryTime = new Date(createdAt.getTime() + 20 * 60 * 1000); // 20 minutes
-      
-      if (now > expiryTime) {
-        return "expired";
-      }
-    }
-    
-    return dbStatus;
+    return transaction.status.toLowerCase() as "pending" | "expired" | "verified" | "unconfirmed";
   };
   
   const actualStatus = transaction ? getActualStatus() : "pending";

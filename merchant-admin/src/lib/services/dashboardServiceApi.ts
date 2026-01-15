@@ -16,10 +16,12 @@ export interface AnalyticsMetrics {
   totalTransactions: number;
   verified: number;
   successRate: number;
-  totalAmount: number;
+  totalRevenue: number;
+  totalUsers: number;
+  totalTips: number;
 }
 
-export interface TransactionTrend {
+export interface StatisticsTrend {
   categories: string[];
   series: Array<{
     name: string;
@@ -70,8 +72,8 @@ export const dashboardServiceApi = createApi({
       },
       providesTags: [{ type: 'Analytics', id: 'METRICS' }],
     }),
-    getTransactionTrend: builder.query<
-      TransactionTrend,
+    getStatisticsTrend: builder.query<
+      StatisticsTrend,
       { period?: string } | void
     >({
       query: (params) => {
@@ -114,7 +116,7 @@ export const dashboardServiceApi = createApi({
 export const {
   useGetDashboardStatsQuery,
   useGetAnalyticsMetricsQuery,
-  useGetTransactionTrendQuery,
+  useGetStatisticsTrendQuery,
   useGetStatusDistributionQuery,
 } = dashboardServiceApi;
 
