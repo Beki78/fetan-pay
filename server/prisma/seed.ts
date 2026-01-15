@@ -358,6 +358,47 @@ async function main() {
     role: waiterRole,
     app: 'Merchant App (Mobile)',
   });
+
+  // Seed merchant receiver accounts (CBE and Awash)
+  const merchantReceiverAccounts = [
+    {
+      id: 'seed_receiver_cbe',
+      merchantId: (testMerchant as { id: string }).id,
+      provider: 'CBE',
+      accountNumber: '1000532348645',
+      accountHolderName: 'Bereket Getachew',
+      status: 'ACTIVE',
+    },
+    {
+      id: 'seed_receiver_awash',
+      merchantId: (testMerchant as { id: string }).id,
+      provider: 'AWASH',
+      accountNumber: '013201175173801',
+      accountHolderName: 'Bereket Getachew',
+      status: 'ACTIVE',
+    },
+  ];
+
+  for (const account of merchantReceiverAccounts) {
+    await (prisma as any).merchantReceiverAccount.upsert({
+      where: { id: account.id },
+      update: {
+        accountNumber: account.accountNumber,
+        accountHolderName: account.accountHolderName,
+        status: account.status,
+      },
+      create: account,
+    });
+  }
+
+  console.info('✅ Seeded merchant receiver accounts', {
+    merchantId: (testMerchant as { id: string }).id,
+    accounts: merchantReceiverAccounts.map((a) => ({
+      provider: a.provider,
+      accountNumber: a.accountNumber,
+      status: a.status,
+    })),
+  });
 }
 
 main()
