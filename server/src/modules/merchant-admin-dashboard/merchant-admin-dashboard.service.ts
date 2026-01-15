@@ -75,21 +75,21 @@ export class MerchantAdminDashboardService {
       merchant.users?.[0]?.email?.split('@')[0] ||
       merchant.name;
 
-    // Get transaction statistics
-    const transactionStats = await Promise.all([
-      // Total transactions
-      (this.prisma as any).transaction.count({
+    // Get payment statistics (verified payments are stored in Payment table)
+    const paymentStats = await Promise.all([
+      // Total payments (all verification attempts)
+      (this.prisma as any).payment.count({
         where: { merchantId: membership.merchantId },
       }),
-      // Verified transactions
-      (this.prisma as any).transaction.count({
+      // Verified payments
+      (this.prisma as any).payment.count({
         where: {
           merchantId: membership.merchantId,
           status: 'VERIFIED',
         },
       }),
-      // Pending transactions
-      (this.prisma as any).transaction.count({
+      // Pending payments
+      (this.prisma as any).payment.count({
         where: {
           merchantId: membership.merchantId,
           status: 'PENDING',
@@ -116,9 +116,9 @@ export class MerchantAdminDashboardService {
       merchantName: merchant.name,
       ownerName,
       metrics: {
-        totalTransactions: transactionStats[0],
-        verified: transactionStats[1],
-        pending: transactionStats[2],
+        totalTransactions: paymentStats[0],
+        verified: paymentStats[1],
+        pending: paymentStats[2],
         walletBalance,
       },
     };
@@ -216,8 +216,8 @@ export class MerchantAdminDashboardService {
     const membership = await this.requireMembership(req);
     const { from, to } = this.getDateRange(period);
 
-    // Get all transactions in the date range
-    const transactions = await (this.prisma as any).transaction.findMany({
+    // Get all payments in the date range (payments contain actual verification data)
+    const payments = await (this.prisma as any).payment.findMany({
       where: {
         merchantId: membership.merchantId,
         createdAt: {
@@ -237,11 +237,11 @@ export class MerchantAdminDashboardService {
     // Group by date
     const dateMap = new Map<
       string,
-      { total: number; verified: number; pending: number; failed: number }
+      { total: number; verified: number; pending: number; unverified: number }
     >();
 
-    transactions.forEach((tx: { createdAt: Date; status: string }) => {
-      const dateKey = tx.createdAt.toISOString().split('T')[0];
+    payments.forEach((payment: { createdAt: Date; status: string }) => {
+      const dateKey = payment.createdAt.toISOString().split('T')[0];
       const date = new Date(dateKey);
       const formattedDate = date.toLocaleDateString('en-US', {
         month: 'short',
@@ -253,15 +253,15 @@ export class MerchantAdminDashboardService {
           total: 0,
           verified: 0,
           pending: 0,
-          failed: 0,
+          unverified: 0,
         });
       }
 
       const counts = dateMap.get(formattedDate)!;
       counts.total++;
-      if (tx.status === 'VERIFIED') counts.verified++;
-      else if (tx.status === 'PENDING') counts.pending++;
-      else if (tx.status === 'FAILED') counts.failed++;
+      if (payment.status === 'VERIFIED') counts.verified++;
+      else if (payment.status === 'PENDING') counts.pending++;
+      else if (payment.status === 'UNVERIFIED') counts.unverified++;
     });
 
     // Convert to arrays for chart
@@ -269,7 +269,9 @@ export class MerchantAdminDashboardService {
     const totalData = Array.from(dateMap.values()).map((v) => v.total);
     const verifiedData = Array.from(dateMap.values()).map((v) => v.verified);
     const pendingData = Array.from(dateMap.values()).map((v) => v.pending);
-    const failedData = Array.from(dateMap.values()).map((v) => v.failed);
+    const unverifiedData = Array.from(dateMap.values()).map(
+      (v) => v.unverified,
+    );
 
     return {
       categories,
@@ -277,7 +279,7 @@ export class MerchantAdminDashboardService {
         { name: 'Total', data: totalData },
         { name: 'Verified', data: verifiedData },
         { name: 'Pending', data: pendingData },
-        { name: 'Failed', data: failedData },
+        { name: 'Unverified', data: unverifiedData },
       ],
     };
   }
@@ -294,23 +296,24 @@ export class MerchantAdminDashboardService {
       },
     };
 
-    const [verified, pending, failed] = await Promise.all([
-      (this.prisma as any).transaction.count({
+    // Query from Payment table (where actual verification data is stored)
+    const [verified, pending, unverified] = await Promise.all([
+      (this.prisma as any).payment.count({
         where: { ...where, status: 'VERIFIED' },
       }),
-      (this.prisma as any).transaction.count({
+      (this.prisma as any).payment.count({
         where: { ...where, status: 'PENDING' },
       }),
-      (this.prisma as any).transaction.count({
-        where: { ...where, status: 'FAILED' },
+      (this.prisma as any).payment.count({
+        where: { ...where, status: 'UNVERIFIED' },
       }),
     ]);
 
     return {
       verified,
       pending,
-      failed,
-      total: verified + pending + failed,
+      failed: unverified, // Map UNVERIFIED to failed for frontend compatibility
+      total: verified + pending + unverified,
     };
   }
 }

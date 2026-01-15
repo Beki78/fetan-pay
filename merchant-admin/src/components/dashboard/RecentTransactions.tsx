@@ -8,39 +8,77 @@ import {
   TableRow,
 } from "../ui/table";
 import Link from "next/link";
+import { useListTransactionsQuery, TransactionRecord } from "@/lib/services/transactionsServiceApi";
 
-// Mock data
-interface Transaction {
-  id: string;
-  code: string;
-  payer: string;
-  amount: number;
-  status: "pending" | "verified" | "unconfirmed";
-}
+const providerNames: Record<string, string> = {
+  CBE: "CBE",
+  TELEBIRR: "Telebirr",
+  AWASH: "Awash",
+  BOA: "BOA",
+  DASHEN: "Dashen",
+};
 
-const mockTransactions: Transaction[] = [
-  {
-    id: "1",
-    code: "TXNVMSUQ18DKW",
-    payer: "full name",
-    amount: 1000.00,
-    status: "pending",
-  },
-];
+const statusColors: Record<string, string> = {
+  PENDING: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-200",
+  VERIFIED: "bg-green-500/10 text-green-700 dark:text-green-200",
+  FAILED: "bg-red-500/10 text-red-700 dark:text-red-200",
+  EXPIRED: "bg-red-500/10 text-red-700 dark:text-red-200",
+};
+
+// Helper function to get actual status (check if PENDING transactions are expired)
+const getActualStatus = (tx: TransactionRecord): string => {
+  if (tx.status !== 'PENDING') {
+    return tx.status;
+  }
+  
+  // If PENDING, check if it's actually expired (> 20 minutes old)
+  if (tx.createdAt) {
+    const createdAt = new Date(tx.createdAt);
+    const now = new Date();
+    const expiryTime = new Date(createdAt.getTime() + 20 * 60 * 1000); // 20 minutes
+    
+    if (now > expiryTime) {
+      return 'EXPIRED';
+    }
+  }
+  
+  return tx.status;
+};
 
 export default function RecentTransactions() {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "verified":
-        return "text-green-600 dark:text-green-400";
-      case "pending":
-        return "text-orange-600 dark:text-orange-400";
-      case "unconfirmed":
-        return "text-red-600 dark:text-red-400";
-      default:
-        return "text-gray-600 dark:text-gray-400";
-    }
-  };
+  const { data, isLoading, isError } = useListTransactionsQuery({ page: 1, pageSize: 5 });
+
+  const transactions = data?.data || [];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Recent Transactions</h3>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-8">
+          <div className="animate-pulse space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Recent Transactions</h3>
+        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20">
+          <p className="text-red-600 dark:text-red-400">Failed to load transactions.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -59,62 +97,65 @@ export default function RecentTransactions() {
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  CODE
+                  Reference
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  PAYER
+                  Provider
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  AMOUNT
+                  Status
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  STATUS
+                  Created
                 </TableCell>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {mockTransactions.length === 0 ? (
+              {transactions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                     No transactions found
                   </TableCell>
                 </TableRow>
               ) : (
-                mockTransactions.map((transaction) => (
-                  <TableRow
-                    key={transaction.id}
-                    className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors border-b border-gray-200 dark:border-gray-700/50"
-                  >
-                    <TableCell className="px-5 py-4">
-                      <Link
-                        href={`/payments/${transaction.id}`}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
-                      >
-                        {transaction.code}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
-                      {transaction.payer}
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300 font-medium">
-                      {transaction.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB
-                    </TableCell>
-                    <TableCell className="px-5 py-4">
-                      <span className={`font-medium ${getStatusColor(transaction.status)}`}>
-                        {transaction.status}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))
+                transactions.map((tx) => {
+                  const displayStatus = getActualStatus(tx);
+                  return (
+                    <TableRow
+                      key={tx.id}
+                      className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors border-b border-gray-200 dark:border-gray-700/50"
+                    >
+                      <TableCell className="px-5 py-4">
+                        <Link
+                          href={`/payments/${tx.id}`}
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
+                        >
+                          {tx.reference}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                        {providerNames[tx.provider] || tx.provider}
+                      </TableCell>
+                      <TableCell className="px-5 py-4">
+                        <span className={`px-2 py-1 rounded-md text-xs font-semibold ${statusColors[displayStatus] || statusColors.PENDING}`}>
+                          {displayStatus}
+                        </span>
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300 text-sm">
+                        {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
