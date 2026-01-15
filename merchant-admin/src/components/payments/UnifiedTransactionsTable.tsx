@@ -35,6 +35,7 @@ interface UnifiedRecord {
   provider: string;
   status: string;
   amount?: number;
+  tipAmount?: number;
   createdAt: string;
   verifiedAt?: string | null;
   verifiedBy?: string | null;
@@ -71,6 +72,7 @@ export default function UnifiedTransactionsTable() {
       provider: p.provider,
       status: p.status,
       amount: p.claimedAmount ? Number(p.claimedAmount) : undefined,
+      tipAmount: p.tipAmount ? Number(p.tipAmount) : undefined,
       createdAt: p.verifiedAt || "",
       verifiedAt: p.verifiedAt,
       verifiedBy: p.verifiedBy?.name || p.verifiedBy?.email || null,
@@ -165,6 +167,9 @@ export default function UnifiedTransactionsTable() {
                   Amount
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
+                  Tip
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
                   Provider
                 </TableCell>
                 <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
@@ -184,7 +189,7 @@ export default function UnifiedTransactionsTable() {
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
               {paginatedRecords.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={8} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                     No records found
                   </TableCell>
                 </TableRow>
@@ -205,6 +210,11 @@ export default function UnifiedTransactionsTable() {
                     <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
                       {record.amount
                         ? `${record.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300">
+                      {record.tipAmount
+                        ? <span className="text-green-600 dark:text-green-400">{`+${record.tipAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB`}</span>
                         : "—"}
                     </TableCell>
                     <TableCell className="px-5 py-4">

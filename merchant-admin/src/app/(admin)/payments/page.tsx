@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import UnifiedTransactionsTable from "@/components/payments/UnifiedTransactionsTable";
 import CreatePaymentIntentModal from "@/components/payments/CreatePaymentIntentModal";
-import { useCreateOrderMutation } from "@/lib/services/paymentsServiceApi";
+import { useCreateOrderMutation, TransactionProvider } from "@/lib/services/paymentsServiceApi";
 import { transactionsServiceApi } from "@/lib/services/transactionsServiceApi";
 import { useAppDispatch } from "@/lib/store";
 import Button from "@/components/ui/button/Button";
@@ -18,11 +18,13 @@ export default function PaymentsPage() {
   const [createOrder] = useCreateOrderMutation();
   const { showToast } = useToast();
 
-  const handleCreateTransaction = async (data: { payerName: string; amount: number; notes?: string }) => {
+  const handleCreateTransaction = async (data: { payerName: string; amount: number; notes?: string; provider?: TransactionProvider }) => {
     try {
       const result = await createOrder({
         expectedAmount: data.amount,
         currency: "ETB",
+        provider: data.provider,
+        payerName: data.payerName,
       }).unwrap();
 
       // Close modal

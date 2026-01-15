@@ -7,11 +7,11 @@ export default function DashboardMetrics() {
   const { data: dashboardStats, isLoading, isError } = useGetDashboardStatsQuery();
 
   // Use real data from API or fallback to 0
-  const metrics = dashboardStats?.metrics || {
-    totalTransactions: 0,
-    verified: 0,
-    pending: 0,
-    walletBalance: 0,
+  const metrics = {
+    totalTransactions: dashboardStats?.metrics?.totalTransactions ?? 0,
+    verified: dashboardStats?.metrics?.verified ?? 0,
+    pending: dashboardStats?.metrics?.pending ?? 0,
+    walletBalance: 0, // Detached from API - hardcoded to 0
   };
 
   if (isLoading) {

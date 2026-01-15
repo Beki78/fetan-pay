@@ -105,8 +105,27 @@ export const transactionsServiceApi = createApi({
         url: `/transactions/public/${idOrReference}`,
       }),
     }),
+
+    publicVerify: builder.mutation<
+      PublicVerifyResponse,
+      { transactionId: string; reference: string; provider: TransactionProvider; tipAmount?: number }
+    >({
+      query: (body) => ({
+        url: '/transactions/public/verify',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [{ type: 'Transaction', id: 'LIST' }],
+    }),
   }),
 });
+
+export interface PublicVerifyResponse {
+  success: boolean;
+  message: string;
+  status: string;
+  tipAmount?: number;
+}
 
 export interface PublicPaymentDetails {
   transactionId: string;
@@ -122,6 +141,21 @@ export interface PublicPaymentDetails {
   receiverName: string | null;
   receiverAccount: string | null;
   receiverProvider: TransactionProvider | null;
+  payerName: string | null;
+  branding: {
+    logoUrl: string | null;
+    primaryColor: string;
+    secondaryColor: string;
+    displayName: string | null;
+    tagline: string | null;
+    showPoweredBy: boolean;
+  } | null;
 }
 
-export const { useListTransactionsQuery, useListVerifiedByUserQuery, useGetTransactionQuery, useGetPublicPaymentDetailsQuery } = transactionsServiceApi;
+export const { 
+  useListTransactionsQuery, 
+  useListVerifiedByUserQuery, 
+  useGetTransactionQuery, 
+  useGetPublicPaymentDetailsQuery,
+  usePublicVerifyMutation,
+} = transactionsServiceApi;

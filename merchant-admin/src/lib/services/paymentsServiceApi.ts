@@ -223,7 +223,7 @@ export const paymentsServiceApi = createApi({
           receiverAccount: string;
         } | null;
       },
-      { expectedAmount: number; currency?: string }
+      { expectedAmount: number; currency?: string; provider?: TransactionProvider; payerName?: string }
     >({
       query: (body) => ({
         url: '/payments/orders',

@@ -1,7 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import QRCode from "qrcode";
+import Image from "next/image";
 import Button from "../ui/button/Button";
-import Badge from "../ui/badge/Badge";
 import Input from "../form/input/InputField";
 import { ChevronLeftIcon } from "@/icons";
 import { PAYMENT_PAGE_URL } from "@/lib/config";
@@ -42,8 +43,26 @@ export default function TransactionDetailsPage({
   onBack,
 }: TransactionDetailsPageProps) {
   const [copied, setCopied] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  
   // Use the transaction ID (which is the reference) to construct payment link
-  const paymentLink = `${PAYMENT_PAGE_URL}/payment/${transactionId}`;
+  const paymentLink = `${PAYMENT_PAGE_URL}/pay/${transactionId}`;
+
+  // Generate QR code on mount
+  useEffect(() => {
+    if (transactionId) {
+      QRCode.toDataURL(paymentLink, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      })
+        .then((url) => setQrCodeDataUrl(url))
+        .catch((err) => console.error('QR Code generation failed:', err));
+    }
+  }, [transactionId, paymentLink]);
 
   // Calculate dates using lazy initialization
   const [createdAt] = useState(() => {
@@ -441,9 +460,26 @@ export default function TransactionDetailsPage({
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
                 QR Code
               </h3>
-              <div className="flex items-center justify-center w-full aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg">
-                <p className="text-gray-500 dark:text-gray-400">QR Code</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Scan to open the payment page
+              </p>
+              <div className="flex items-center justify-center w-full bg-white rounded-lg p-4">
+                {qrCodeDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img 
+                    src={qrCodeDataUrl} 
+                    alt="Payment QR Code" 
+                    className="w-full max-w-[200px] h-auto"
+                  />
+                ) : (
+                  <div className="w-[200px] h-[200px] bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse flex items-center justify-center">
+                    <p className="text-gray-400 text-sm">Generating...</p>
+                  </div>
+                )}
               </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
+                {transactionId}
+              </p>
             </div>
           </div>
         )}

@@ -803,128 +803,105 @@ function ScanPageContent() {
                     )}
                   </Button>
 
-                  {/* Verification Results */}
+                  {/* Verification Results - Minimalist Design */}
                   {verificationResult && (
                     <div
                       ref={resultsRef}
-                      className={cn(
-                        "mt-6 p-1 rounded-xl border-2 shadow-lg animate-in fade-in slide-in-from-bottom-4",
-                        verificationResult.success
-                          ? "bg-green-50 border-green-500 dark:bg-green-900/20 dark:border-green-600"
-                          : "bg-red-50 border-red-500 dark:bg-red-900/20 dark:border-red-600"
-                      )}
+                      className="mt-6 animate-in fade-in slide-in-from-bottom-4"
                     >
-                      <div className="p-6 space-y-6">
-                        {/* Header Status */}
-                        <div className="text-center space-y-2">
-                          <div className="flex justify-center">
-                            {verificationResult.success ? (
-                              <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center dark:bg-green-900/20">
-                                <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
-                              </div>
-                            ) : (
-                              <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center dark:bg-red-900/20">
-                                <XCircle className="h-10 w-10 text-red-600 dark:text-red-400" />
-                              </div>
-                            )}
+                      {/* Status Header */}
+                      <div className={cn(
+                        "flex items-center justify-between p-4 rounded-t-xl",
+                        verificationResult.success
+                          ? "bg-green-500 dark:bg-green-600"
+                          : "bg-red-500 dark:bg-red-600"
+                      )}>
+                        <div className="flex items-center gap-3">
+                          {verificationResult.success ? (
+                            <CheckCircle2 className="h-6 w-6 text-white" />
+                          ) : (
+                            <XCircle className="h-6 w-6 text-white" />
+                          )}
+                          <span className="text-white font-semibold text-lg">
+                            {verificationResult.success ? "Verified" : "Failed"}
+                          </span>
+                        </div>
+                        <span className="text-white/90 text-2xl font-bold">
+                          {formatNumberWithCommas((verificationResult.amount ?? 0).toString())} ETB
+                        </span>
+                      </div>
+
+                      {/* Main Content - Single Row Layout */}
+                      <div className="bg-card border border-t-0 border-border rounded-b-xl">
+                        <div className="flex items-stretch">
+                          {/* Bank Logo Column - Compact on mobile */}
+                          <div className="flex items-center justify-center p-3 sm:p-5 border-r border-border bg-muted/30 shrink-0">
+                            {(() => {
+                              const bankData = BANKS.find(b => b.id === verificationResult.provider.toLowerCase());
+                              return bankData ? (
+                                <div className="relative w-10 h-10 sm:w-14 sm:h-14">
+                                  <Image
+                                    src={bankData.icon}
+                                    alt={bankData.name}
+                                    fill
+                                    className="object-contain"
+                                    sizes="(max-width: 640px) 40px, 56px"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-10 h-10 sm:w-14 sm:h-14 bg-muted rounded-lg flex items-center justify-center">
+                                  <Building className="h-5 w-5 sm:h-7 sm:w-7 text-muted-foreground" />
+                                </div>
+                              );
+                            })()}
                           </div>
-                          <h3
-                            className={cn(
-                              "text-xl font-bold tracking-tight",
-                              verificationResult.success
-                                ? "text-green-700 dark:text-green-400"
-                                : "text-red-700 dark:text-red-400"
+
+                          {/* Transaction Details Column - More space on mobile */}
+                          <div className="flex-1 p-3 sm:p-4 space-y-2 sm:space-y-3 min-w-0">
+                            {/* Reference */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">Ref</span>
+                              <span className="font-mono text-xs sm:text-sm font-medium text-foreground truncate">{verificationResult.reference}</span>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-border/50" />
+
+                            {/* Sender */}
+                            {verificationResult.senderName && (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">From</span>
+                                <span className="text-xs sm:text-sm font-medium text-foreground capitalize truncate">
+                                  {verificationResult.senderName}
+                                </span>
+                              </div>
                             )}
-                          >
-                            {verificationResult.success
-                              ? "Payment Verified"
-                              : "Verification Failed"}
-                          </h3>
-                          {verificationResult.message && (
-                            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+
+                            {/* Receiver */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">To</span>
+                              <div className="text-right min-w-0 flex-1">
+                                <p className="text-xs sm:text-sm font-medium text-foreground truncate">
+                                  {verificationResult.receiverName || "Merchant"}
+                                </p>
+                                {verificationResult.receiverAccount && (
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">
+                                    {verificationResult.receiverAccount}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Error Message (only for failed) */}
+                        {!verificationResult.success && verificationResult.message && (
+                          <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+                            <p className="text-sm sm:text-base font-medium text-red-600 dark:text-red-400 text-center">
                               {verificationResult.message}
                             </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-4">
-                          {/* Amount */}
-                          <div className="bg-background/50 rounded-lg p-4 text-center border border-border/50">
-                            <p className="text-sm font-medium text-muted-foreground mb-1">
-                              Amount Paid
-                            </p>
-                            <div className="text-3xl font-extrabold text-foreground tracking-tight">
-                              {formatNumberWithCommas(
-                                (verificationResult.amount ?? 0).toString()
-                              )}{" "}
-                              <span className="text-lg text-muted-foreground font-semibold">
-                                ETB
-                              </span>
-                            </div>
                           </div>
-
-                          {/* Flow Details */}
-                          <div className="bg-background/50 rounded-lg border border-border/50 divide-y divide-border/50">
-                            {/* Sent To */}
-                            <div className="p-3 flex items-start gap-3">
-                              <div className="mt-1 h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
-                                <Building className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                  Sent To (Merchant)
-                                </p>
-                                <p className="font-semibold text-foreground truncate">
-                                  {verificationResult.receiverName ||
-                                    "Unknown Merchant"}
-                                </p>
-                                <p className="text-xs text-muted-foreground font-mono truncate">
-                                  {verificationResult.receiverAccount}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Sent From */}
-                            {verificationResult.senderName && (
-                              <div className="p-3 flex items-start gap-3">
-                                <div className="mt-1 h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
-                                  <User className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-muted-foreground">
-                                    Sent From (Payer)
-                                  </p>
-                                  <p className="font-semibold text-foreground truncate capitalize">
-                                    {verificationResult.senderName}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Tech Details */}
-                          <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div className="bg-muted p-3 rounded-lg border border-border/50">
-                              <p className="text-xs text-muted-foreground mb-1">
-                                Provider
-                              </p>
-                              <p className="font-medium font-mono">
-                                {verificationResult.provider}
-                              </p>
-                            </div>
-                            <div className="bg-muted p-3 rounded-lg border border-border/50">
-                              <p className="text-xs text-muted-foreground mb-1">
-                                Reference
-                              </p>
-                              <p
-                                className="font-medium font-mono truncate"
-                                title={verificationResult.reference}
-                              >
-                                {verificationResult.reference}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                   )}
