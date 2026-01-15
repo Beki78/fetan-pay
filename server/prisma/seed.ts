@@ -365,16 +365,16 @@ async function main() {
       id: 'seed_receiver_cbe',
       merchantId: (testMerchant as { id: string }).id,
       provider: 'CBE',
-      accountNumber: '1000532348645',
-      accountHolderName: 'Bereket Getachew',
+      receiverAccount: '1000532348645',
+      receiverName: 'Bereket Getachew',
       status: 'ACTIVE',
     },
     {
       id: 'seed_receiver_awash',
       merchantId: (testMerchant as { id: string }).id,
       provider: 'AWASH',
-      accountNumber: '013201175173801',
-      accountHolderName: 'Bereket Getachew',
+      receiverAccount: '013201175173801',
+      receiverName: 'Bereket Getachew',
       status: 'ACTIVE',
     },
   ];
@@ -383,8 +383,8 @@ async function main() {
     await (prisma as any).merchantReceiverAccount.upsert({
       where: { id: account.id },
       update: {
-        accountNumber: account.accountNumber,
-        accountHolderName: account.accountHolderName,
+        receiverAccount: account.receiverAccount,
+        receiverName: account.receiverName,
         status: account.status,
       },
       create: account,
@@ -395,7 +395,7 @@ async function main() {
     merchantId: (testMerchant as { id: string }).id,
     accounts: merchantReceiverAccounts.map((a) => ({
       provider: a.provider,
-      accountNumber: a.accountNumber,
+      receiverAccount: a.receiverAccount,
       status: a.status,
     })),
   });
