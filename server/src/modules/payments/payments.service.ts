@@ -201,7 +201,6 @@ export class PaymentsService {
   async verifyMerchantPayment(body: VerifyMerchantPaymentDto, req: Request) {
     const membership = await this.requireMembership(req);
 
-    const claimedAmount = this.toDecimal(body.claimedAmount, 'claimedAmount');
     const tipAmount =
       body.tipAmount === undefined
         ? null
@@ -226,17 +225,6 @@ export class PaymentsService {
         `Transaction already verified at ${existingPayment.verifiedAt?.toLocaleString() ?? 'an earlier time'}`,
       );
     }
-
-    const order = existingPayment
-      ? null
-      : await this.prisma.order.create({
-          data: {
-            merchantId: membership.merchantId,
-            expectedAmount: claimedAmount,
-            currency: 'ETB',
-            status: 'OPEN',
-          },
-        });
 
     // Require ACTIVE receiver to verify (disabled means merchant intentionally paused).
     const activeReceiver = await this.prisma.merchantReceiverAccount.findFirst({
@@ -299,10 +287,20 @@ export class PaymentsService {
       }
     }
 
+    // Use claimed amount if provided, otherwise use amount from bank response
+    const claimedAmount =
+      body.claimedAmount !== undefined
+        ? this.toDecimal(body.claimedAmount, 'claimedAmount')
+        : txAmount !== undefined
+          ? this.toDecimal(txAmount, 'txAmount')
+          : new Prisma.Decimal(0);
+
+    // Amount matches if: no claimed amount provided (trust bank), or claimed matches bank response
     const amountMatches =
-      txAmount !== undefined &&
-      this.normalizeAmountToCents(txAmount) ===
-        this.normalizeAmountToCents(body.claimedAmount);
+      body.claimedAmount === undefined ||
+      (txAmount !== undefined &&
+        this.normalizeAmountToCents(txAmount) ===
+          this.normalizeAmountToCents(body.claimedAmount));
 
     const receiverMatches = this.receiverAccountMatches(
       txReceiverAccount,
@@ -318,10 +316,24 @@ export class PaymentsService {
       );
     }
 
+    // Verify if: reference found AND receiver matches (amount check only if claimed amount provided)
     const status =
-      referenceFound && amountMatches && receiverMatches
+      referenceFound && receiverMatches && amountMatches
         ? PaymentStatus.VERIFIED
         : PaymentStatus.UNVERIFIED;
+
+    // Create order only if we need to save a verified payment
+    const order =
+      status === PaymentStatus.VERIFIED && !existingPayment
+        ? await this.prisma.order.create({
+            data: {
+              merchantId: membership.merchantId,
+              expectedAmount: claimedAmount,
+              currency: 'ETB',
+              status: 'OPEN',
+            },
+          })
+        : null;
 
     // Only save payment record if status is VERIFIED
     let payment: any = null;
@@ -704,7 +716,7 @@ export class PaymentsService {
     const paymentLink = `${this.paymentPageUrl}/payment/${transactionRef}`;
 
     // Get active receiver account for CBE (default provider) to include in response
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const activeReceiver = await (
       this.prisma as any
     ).merchantReceiverAccount.findFirst({

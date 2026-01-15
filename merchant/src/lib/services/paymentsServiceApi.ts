@@ -21,7 +21,7 @@ export type MerchantVerifyMismatchReason =
 export interface VerifyMerchantPaymentRequest {
   provider: TransactionProvider;
   reference: string;
-  claimedAmount: number;
+  claimedAmount?: number; // Optional - if not provided, uses amount from bank response
   qrData?: string;
   tipAmount?: number;
 }
