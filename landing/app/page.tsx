@@ -1,4 +1,16 @@
-import { Navbar, HeroBadge, HeroContent, BankOrbit } from "./components";
+import {
+  Navbar,
+  HeroBadge,
+  HeroContent,
+  BankOrbit,
+  HowItWorks,
+  CoreFeatures,
+  SupportedBanks,
+  Integration,
+  CallToAction,
+  Footer,
+} from "./components";
+import Business from "./components/Business";
 
 export default function Home() {
   return (
@@ -7,7 +19,7 @@ export default function Home() {
       <Navbar />
 
       {/* Hero Section */}
-      <main className="relative min-h-screen">
+      <main className="relative min-h-screen overflow-hidden">
         {/* Background decorative ellipse */}
         <div
           className="absolute w-[202px] h-[234px] bg-[#fffdf8] rounded-full blur-xl opacity-80"
@@ -41,6 +53,29 @@ export default function Home() {
         {/* Bank Orbit - center at bottom-right, showing only 2nd quadrant */}
         <BankOrbit />
       </main>
+
+      {/* How It Works Section */}
+      <HowItWorks />
+
+      {/* Core Features Section */}
+      <CoreFeatures />
+
+      {/* Business Section */}
+      <Business />
+
+      {/* Supported Banks Section */}
+      <SupportedBanks />
+
+      {/* Integration Section */}
+      <Integration />
+
+      {/* Call to Action Section */}
+      <div className="px-4 py-16">
+        <CallToAction />
+      </div>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }
