@@ -21,7 +21,7 @@ export default function HeroContent() {
 
       {/* Subtitle - fontSize 23, lineHeight 30, maxWidth 720 */}
       <p
-        className="text-[23px] leading-[30px] text-[#171717] font-normal opacity-0 animate-fade-in-up animation-delay-400"
+        className="text-xl leading-[30px] text-[#4d4d4d] font-normal animate-fade-in-up animation-delay-400 "
         style={{
           fontFamily: "var(--font-geist)",
           maxWidth: "720px",

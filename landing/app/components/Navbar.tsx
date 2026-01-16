@@ -15,12 +15,12 @@ export default function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 animate-fade-in animation-delay-100">
       <div className="max-w-[1728px] mx-auto px-8 py-6 flex items-center relative">
         {/* Logo */}
-        <Link href="/" className="flex items-center">
+        <Link href="/" className="flex items-center ml-20">
           <Image
-            src="/logo/fetan-logo.png"
+            src="/logo/headerlogo.svg"
             alt="Fetan Pay"
-            width={90}
-            height={90}
+            width={150}
+            height={150}
             priority
             className="object-contain"
           />
@@ -28,12 +28,12 @@ export default function Navbar() {
 
         {/* Centered Nav Pill */}
         <div className="absolute left-1/2 -translate-x-1/2">
-          <nav className="flex items-center px-3 py-3 bg-white border border-[#174686]/40 rounded-full shadow-lg">
+          <nav className="flex items-center px-3 py-2 bg-white border border-[#174686]/40 rounded-full shadow-lg">
             {navLinks.map((link, index) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`px-6 py-3 rounded-full text-[#174686] text-[18px] leading-[26px] transition-all duration-300 hover:bg-[#eafcfd] ${
+                className={`px-6 py-2 rounded-full text-[#174686] text-[18px] leading-[26px] transition-all duration-300 hover:bg-[#eafcfd] ${
                   index === 0 ? "bg-[#eafcfd]" : ""
                 }`}
                 style={{ fontFamily: "var(--font-geist)" }}
@@ -45,7 +45,7 @@ export default function Navbar() {
             {/* Get Started Button - 171x54, border-radius 40, stroke #899cfd */}
             <Link
               href="/get-started"
-              className="flex items-center ml-3 bg-[#174686] text-[#f6f7fa] transition-all duration-300 hover:bg-[#0d3463] group"
+              className="flex items-center ml-3 bg-[#174686] text-[#f6f7fa] transition-all duration-300 hover:bg-[#0d3463] group "
               style={{
                 fontFamily: "var(--font-inter)",
                 height: "54px",
@@ -56,7 +56,7 @@ export default function Navbar() {
                 paddingRight: "8px",
               }}
             >
-              <span className="flex-1 text-center text-[16px] font-medium leading-[27px]">
+              <span className="flex-1 text-center text-[16px] font-medium leading-[27px] ">
                 Get Started
               </span>
               <span className="w-[38px] h-[38px] bg-white rounded-full flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
