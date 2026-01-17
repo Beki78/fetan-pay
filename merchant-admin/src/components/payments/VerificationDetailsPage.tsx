@@ -26,6 +26,7 @@ interface VerificationDetailsPageProps {
   onBack?: () => void;
 }
 
+
 const providerLabels: Record<string, string> = {
   CBE: "Commercial Bank of Ethiopia",
   TELEBIRR: "Telebirr",
