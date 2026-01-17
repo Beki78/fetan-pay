@@ -35,7 +35,7 @@ import {
   type BankId,
 } from "@/lib/validation";
 import { createScanSchema } from "@/lib/schemas";
-import { useVerifyMerchantPaymentMutation } from "@/lib/services/paymentsServiceApi";
+import { useVerifyMerchantPaymentMutation, useGetActiveReceiverAccountsQuery } from "@/lib/services/paymentsServiceApi";
 import { useSession } from "@/hooks/useSession";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -71,6 +71,7 @@ function ScanPageContent() {
   } | null>(null);
   const [verifyMerchantPayment, { isLoading: isVerifying }] =
     useVerifyMerchantPaymentMutation();
+  const { data: receiverAccountsData } = useGetActiveReceiverAccountsQuery();
   const [isVerifyingWithBank, setIsVerifyingWithBank] = useState<BankId | null>(
     null
   );
@@ -136,10 +137,52 @@ function ScanPageContent() {
 
     // Extract transaction reference
     const extractedReference = extractTransactionId(detectedBank, scannedUrl);
-    const finalReference =
+    let finalReference =
       extractedReference && extractedReference !== scannedUrl
         ? extractedReference
         : scannedUrl;
+
+    // For CBE: Detect reference type and append suffix if needed
+    // CBE has two reference formats:
+    // 1. Short: FT26017MLDG7 (needs suffix appended)
+    // 2. Full: FT26017MLDG7755415774 (already has suffix, ready to verify)
+    if (detectedBank === "cbe" && finalReference.toUpperCase().startsWith("FT")) {
+      // Check if it's a short reference (FT + reference without suffix)
+      // Full reference typically has more characters (FT + reference + 5-digit suffix)
+      // Short reference is usually shorter (e.g., FT26017MLDG7)
+      // Full reference is longer (e.g., FT26017MLDG7755415774)
+      const ftReference = finalReference.toUpperCase();
+      
+      // Heuristic: If FT reference is relatively short (less than ~18 chars), it might need suffix
+      // Full references with suffix are typically longer
+      // But we can't rely on length alone, so check if it ends with 5 digits (suffix pattern)
+      const endsWith5Digits = /\d{5}$/.test(ftReference);
+      const isLikelyFull = endsWith5Digits && ftReference.length >= 18;
+      
+      if (!isLikelyFull) {
+        // Likely a short reference - need to append receiver account suffix
+        const activeAccounts = (receiverAccountsData?.data ?? []).filter(
+          (account) => account.status === "ACTIVE" && account.provider === "CBE"
+        );
+
+        if (activeAccounts.length > 0) {
+          const cbeAccount = activeAccounts[0];
+          const accountSuffix = cbeAccount.receiverAccount.slice(-5);
+          
+          if (accountSuffix.length === 5 && /^\d{5}$/.test(accountSuffix)) {
+            // Append suffix to make it a full reference
+            finalReference = `${finalReference}${accountSuffix}`;
+            console.log(`🔧 [CBE] Short reference detected (${ftReference}), appended suffix: ${finalReference}`);
+          } else {
+            console.warn("⚠️ [CBE] Could not extract valid suffix from receiver account");
+          }
+        } else {
+          console.warn("⚠️ [CBE] No active CBE receiver account found for suffix");
+        }
+      } else {
+        console.log(`✅ [CBE] Full reference detected (already has suffix): ${ftReference}`);
+      }
+    }
 
     // Set form values (but don't trigger form submission)
     setVerificationMethod("camera");
@@ -310,6 +353,42 @@ function ScanPageContent() {
           console.log("✅ [VERIFY] Extracted reference:", reference);
           // Update the form value with extracted reference
           setValue("transactionId", reference);
+        }
+      }
+
+      // For CBE: Detect reference type and append suffix if needed (same as QR scan)
+      // CBE has two reference formats:
+      // 1. Short: FT26017MLDG7 (needs suffix appended)
+      // 2. Full: FT26017MLDG7755415774 (already has suffix, ready to verify)
+      if (selectedBank === "cbe" && reference && reference.toUpperCase().startsWith("FT")) {
+        const ftReference = reference.toUpperCase();
+        
+        // Check if it ends with 5 digits (suffix pattern) - indicates full reference
+        const endsWith5Digits = /\d{5}$/.test(ftReference);
+        const isLikelyFull = endsWith5Digits && ftReference.length >= 18;
+        
+        if (!isLikelyFull) {
+          // Likely a short reference - need to append receiver account suffix
+          const activeAccounts = (receiverAccountsData?.data ?? []).filter(
+            (account) => account.status === "ACTIVE" && account.provider === "CBE"
+          );
+
+          if (activeAccounts.length > 0) {
+            const cbeAccount = activeAccounts[0];
+            const accountSuffix = cbeAccount.receiverAccount.slice(-5);
+            
+            if (accountSuffix.length === 5 && /^\d{5}$/.test(accountSuffix)) {
+              // Append suffix to make it a full reference
+              reference = `${reference}${accountSuffix}`;
+              console.log(`🔧 [CBE] Short reference detected (${ftReference}), appended suffix: ${reference}`);
+            } else {
+              console.warn("⚠️ [CBE] Could not extract valid suffix from receiver account");
+            }
+          } else {
+            console.warn("⚠️ [CBE] No active CBE receiver account found for suffix");
+          }
+        } else {
+          console.log(`✅ [CBE] Full reference detected (already has suffix): ${ftReference}`);
         }
       }
 

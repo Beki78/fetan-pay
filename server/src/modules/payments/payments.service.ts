@@ -196,43 +196,36 @@ export class PaymentsService {
   ) {
     switch (provider) {
       case PrismaClient.TransactionProvider.CBE: {
-        // CBE has two reference types:
-        // 1. Full reference (FT26017MLDG7) - can verify with smart (no suffix)
-        // 2. Short reference (755415774 - 8 digits) - needs account suffix
-        const isFullReference = /^FT[A-Z0-9]{10,}$/i.test(reference);
-        const isShortReference = /^\d{8}$/.test(reference);
+        // CBE has two reference types (both start with FT):
+        // 1. Short: FT26017MLDG7 (needs suffix appended) -> frontend should append
+        // 2. Full: FT26017MLDG7755415774 (already has suffix, ready to verify)
+        // Frontend handles suffix appending, so backend receives:
+        // - FT... ending with 5 digits (full reference) -> use smart
+        // - FT... without suffix (fallback) -> use verifyCbe with suffix from receiver account
+        const ftReference = reference.toUpperCase();
+        const endsWith5Digits = /\d{5}$/.test(ftReference);
+        const isFullReference =
+          ftReference.startsWith('FT') &&
+          endsWith5Digits &&
+          ftReference.length >= 18;
+        const isShortFTReference =
+          ftReference.startsWith('FT') && !endsWith5Digits;
 
+        // Fast path: Full reference (FT... ending with 5-digit suffix)
         if (isFullReference) {
-          // Full reference - try smart verification (no suffix needed)
           return this.verificationService.verifyCbeSmart(reference);
-        } else if (isShortReference && receiverAccount) {
-          // Short reference (8 digits) - extract last 5 digits as suffix
+        }
+
+        // Short FT reference - extract suffix from receiver account
+        if (isShortFTReference && receiverAccount) {
           const accountSuffix = receiverAccount.slice(-5);
           if (accountSuffix.length === 5 && /^\d{5}$/.test(accountSuffix)) {
+            // Use verifyCbe with reference and suffix
             return this.verificationService.verifyCbe(reference, accountSuffix);
           }
         }
 
-        // Fallback: try smart first, then with suffix if available
-        try {
-          const smartResult =
-            await this.verificationService.verifyCbeSmart(reference);
-          if (smartResult.success) {
-            return smartResult;
-          }
-        } catch {
-          // Smart verification failed, continue to suffix method
-        }
-
-        // If smart failed and we have receiver account, try with suffix
-        if (receiverAccount) {
-          const accountSuffix = receiverAccount.slice(-5);
-          if (accountSuffix.length === 5 && /^\d{5}$/.test(accountSuffix)) {
-            return this.verificationService.verifyCbe(reference, accountSuffix);
-          }
-        }
-
-        // Last resort: try smart (might work for some edge cases)
+        // Default: try smart verification (might work for some formats)
         return this.verificationService.verifyCbeSmart(reference);
       }
 
