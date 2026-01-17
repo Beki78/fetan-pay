@@ -192,43 +192,11 @@ export class PaymentsService {
   private async runCoreVerifier(
     provider: PrismaClient.TransactionProvider,
     reference: string,
-    receiverAccount?: string | null,
   ) {
     switch (provider) {
-      case PrismaClient.TransactionProvider.CBE: {
-        // CBE has two reference types (both start with FT):
-        // 1. Short: FT26017MLDG7 (needs suffix appended) -> frontend should append
-        // 2. Full: FT26017MLDG7755415774 (already has suffix, ready to verify)
-        // Frontend handles suffix appending, so backend receives:
-        // - FT... ending with 5 digits (full reference) -> use smart
-        // - FT... without suffix (fallback) -> use verifyCbe with suffix from receiver account
-        const ftReference = reference.toUpperCase();
-        const endsWith5Digits = /\d{5}$/.test(ftReference);
-        const isFullReference =
-          ftReference.startsWith('FT') &&
-          endsWith5Digits &&
-          ftReference.length >= 18;
-        const isShortFTReference =
-          ftReference.startsWith('FT') && !endsWith5Digits;
-
-        // Fast path: Full reference (FT... ending with 5-digit suffix)
-        if (isFullReference) {
-          return this.verificationService.verifyCbeSmart(reference);
-        }
-
-        // Short FT reference - extract suffix from receiver account
-        if (isShortFTReference && receiverAccount) {
-          const accountSuffix = receiverAccount.slice(-5);
-          if (accountSuffix.length === 5 && /^\d{5}$/.test(accountSuffix)) {
-            // Use verifyCbe with reference and suffix
-            return this.verificationService.verifyCbe(reference, accountSuffix);
-          }
-        }
-
-        // Default: try smart verification (might work for some formats)
+      case PrismaClient.TransactionProvider.CBE:
+        // Smart-only, no suffix required
         return this.verificationService.verifyCbeSmart(reference);
-      }
-
       case PrismaClient.TransactionProvider.TELEBIRR:
         return this.verificationService.verifyTelebirr(reference);
       case PrismaClient.TransactionProvider.AWASH:
@@ -307,13 +275,9 @@ export class PaymentsService {
       }
     }
 
-    // Get receiver account for CBE suffix extraction if needed
-    const receiverAccountForVerification = activeReceiver?.receiverAccount || null;
-
     const verifierResult = await this.runCoreVerifier(
       body.provider,
       body.reference,
-      receiverAccountForVerification,
     );
     const normalizedPayload = JSON.parse(
       JSON.stringify(verifierResult ?? null),

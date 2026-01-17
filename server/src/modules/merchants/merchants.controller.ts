@@ -34,6 +34,7 @@ import { SetMerchantUserStatusDto } from './dto/set-merchant-user-status.dto';
 import { QrLoginDto } from './dto/qr-login.dto';
 import { WalletService } from '../wallet/wallet.service';
 import { UpdateMerchantWalletConfigDto } from '../wallet/dto/update-merchant-wallet-config.dto';
+import { UpdateMerchantProfileDto } from './dto/update-merchant-profile.dto';
 
 // This controller handles merchant onboarding and account provisioning. Authentication itself is handled
 // by Better Auth (see auth.ts). Routes here stay focused on merchant + staff membership records and
@@ -162,6 +163,33 @@ export class MerchantsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getOne(@Param('id') id: string) {
     return this.merchantsService.findOne(id);
+  }
+
+  @Patch(':id/profile')
+  @ApiOperation({
+    summary: 'Update merchant profile',
+    description: 'Updates merchant profile information (name, contactEmail, contactPhone, tin). Only active members of the merchant can update.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiBody({ type: UpdateMerchantProfileDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Merchant profile updated successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 404, description: 'Merchant not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not a member of this merchant' })
+  async updateProfile(
+    @Param('id') id: string,
+    @Body() body: UpdateMerchantProfileDto,
+    @Req() req: Request,
+  ) {
+    return this.merchantsService.updateProfile(id, body, req);
   }
 
   @Get(':id/users')

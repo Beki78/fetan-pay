@@ -123,6 +123,7 @@ type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
+  external?: boolean; // Flag to indicate external links
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
@@ -204,7 +205,8 @@ const resourcesItems: NavItem[] = [
   {
     icon: <ApiDocsIcon />,
     name: "API Docs",
-    path: "/api-keys?tab=docs",
+    path: "https://docs.fetanpay.et/",
+    external: true,
   },
   {
     icon: <SettingsIcon />,
@@ -264,25 +266,41 @@ const AppSidebar: React.FC = () => {
             </button>
           ) : (
             nav.path && (
-              <Link
-                href={nav.path}
-                className={`menu-item group ${
-                  isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
-                }`}
-              >
-                <span
-                  className={`${
-                    isActive(nav.path)
-                      ? "menu-item-icon-active"
-                      : "menu-item-icon-inactive"
+              nav.external ? (
+                <a
+                  href={nav.path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`menu-item group menu-item-inactive`}
+                >
+                  <span className="menu-item-icon-inactive">
+                    {nav.icon}
+                  </span>
+                  {(isExpanded || isHovered || isMobileOpen) && (
+                    <span className={`menu-item-text`}>{nav.name}</span>
+                  )}
+                </a>
+              ) : (
+                <Link
+                  href={nav.path}
+                  className={`menu-item group ${
+                    isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                   }`}
                 >
-                  {nav.icon}
-                </span>
-                {(isExpanded || isHovered || isMobileOpen) && (
-                  <span className={`menu-item-text`}>{nav.name}</span>
-                )}
-              </Link>
+                  <span
+                    className={`${
+                      isActive(nav.path)
+                        ? "menu-item-icon-active"
+                        : "menu-item-icon-inactive"
+                    }`}
+                  >
+                    {nav.icon}
+                  </span>
+                  {(isExpanded || isHovered || isMobileOpen) && (
+                    <span className={`menu-item-text`}>{nav.name}</span>
+                  )}
+                </Link>
+              )
             )
           )}
           {nav.subItems && (isExpanded || isHovered || isMobileOpen) && (

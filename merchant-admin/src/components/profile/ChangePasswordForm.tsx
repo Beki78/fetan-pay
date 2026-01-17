@@ -6,9 +6,13 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import { EyeCloseIcon, EyeIcon } from "@/icons";
+import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
+import { useSession } from "@/hooks/useSession";
 
 export default function ChangePasswordForm() {
   const { isOpen, openModal, closeModal } = useModal();
+  const { user } = useSession();
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -22,10 +26,17 @@ export default function ChangePasswordForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // Check if user has password set
+  const hasPassword = Boolean(
+    (user as any)?.accounts?.some?.((acc: any) => acc.providerId === "credential") ||
+    (user as any)?.metadata?.passwordSet
+  );
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.currentPassword) {
+    // Only require current password if user already has a password
+    if (hasPassword && !formData.currentPassword) {
       newErrors.currentPassword = "Current password is required";
     }
 
@@ -41,7 +52,7 @@ export default function ChangePasswordForm() {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    if (formData.currentPassword === formData.newPassword) {
+    if (hasPassword && formData.currentPassword === formData.newPassword) {
       newErrors.newPassword = "New password must be different from current";
     }
 
@@ -53,9 +64,31 @@ export default function ChangePasswordForm() {
     if (!validateForm()) return;
 
     setIsSaving(true);
-    // Mock API call
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      let result;
+      
+      if (hasPassword) {
+        // User has password - use changePassword
+        result = await authClient.changePassword({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword,
+        });
+      } else {
+        // User doesn't have password (Google user) - try to set password
+        // Better Auth might allow changePassword without currentPassword for first-time setup
+        // Or we might need to use a different endpoint
+        result = await authClient.changePassword({
+          currentPassword: "", // Empty for first-time password setup
+          newPassword: formData.newPassword,
+        });
+      }
+
+      if (result.error) {
+        throw new Error(result.error.message || "Failed to change password");
+      }
+
+      // Success
+      toast.success(hasPassword ? "Password changed successfully" : "Password set successfully");
       setFormData({
         currentPassword: "",
         newPassword: "",
@@ -63,8 +96,22 @@ export default function ChangePasswordForm() {
       });
       setErrors({});
       closeModal();
-      console.log("Password changed successfully");
-    }, 1000);
+      
+      // Refresh page to update password status
+      if (typeof window !== "undefined") {
+        setTimeout(() => window.location.reload(), 1000);
+      }
+    } catch (error: any) {
+      console.error("Error changing password:", error);
+      const errorMessage = error?.message || "Failed to change password. Please try again.";
+      toast.error(errorMessage);
+      setErrors({
+        currentPassword: errorMessage.includes("current") || errorMessage.includes("incorrect") ? errorMessage : undefined,
+        newPassword: errorMessage.includes("new") ? errorMessage : undefined,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getPasswordStrength = (password: string) => {
@@ -138,32 +185,36 @@ export default function ChangePasswordForm() {
         <div className="no-scrollbar relative w-full max-w-[600px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-              Change Password
+              {hasPassword ? "Change Password" : "Set Password"}
             </h4>
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
-              Enter your current password and choose a new one.
+              {hasPassword 
+                ? "Enter your current password and choose a new one."
+                : "Set a password to enable email/password sign-in. Leave current password empty if you don't have one yet."
+              }
             </p>
           </div>
           <form className="flex flex-col">
             <div className="custom-scrollbar max-h-[500px] overflow-y-auto px-2 pb-3">
               <div className="space-y-5">
-                <div>
-                  <Label>
-                    Current Password <span className="text-error-500">*</span>
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type={showPasswords.current ? "text" : "password"}
-                      placeholder="Enter current password"
-                      value={formData.currentPassword}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          currentPassword: e.target.value,
-                        })
-                      }
-                      error={!!errors.currentPassword}
-                    />
+                {hasPassword && (
+                  <div>
+                    <Label>
+                      Current Password <span className="text-error-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type={showPasswords.current ? "text" : "password"}
+                        placeholder="Enter current password"
+                        value={formData.currentPassword}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            currentPassword: e.target.value,
+                          })
+                        }
+                        error={!!errors.currentPassword}
+                      />
                     <button
                       type="button"
                       onClick={() =>
@@ -180,13 +231,14 @@ export default function ChangePasswordForm() {
                         <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
                       )}
                     </button>
+                    </div>
+                    {errors.currentPassword && (
+                      <p className="mt-1.5 text-xs text-error-500">
+                        {errors.currentPassword}
+                      </p>
+                    )}
                   </div>
-                  {errors.currentPassword && (
-                    <p className="mt-1.5 text-xs text-error-500">
-                      {errors.currentPassword}
-                    </p>
-                  )}
-                </div>
+                )}
 
                 <div>
                   <Label>
@@ -304,7 +356,7 @@ export default function ChangePasswordForm() {
                 Cancel
               </Button>
               <Button size="sm" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? "Changing..." : "Change Password"}
+                {isSaving ? (hasPassword ? "Changing..." : "Setting...") : (hasPassword ? "Change Password" : "Set Password")}
               </Button>
             </div>
           </form>
