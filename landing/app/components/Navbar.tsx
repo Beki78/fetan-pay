@@ -10,7 +10,6 @@ const navLinks = [
   { name: "Features", href: "#features", smoothScroll: true },
   { name: "Integration", href: "#integration", smoothScroll: true },
   { name: "Pricing", href: "#pricing", smoothScroll: true },
-  { name: "Bekele", href: "#pricing", smoothScroll: true },
   { name: "Docs", href: "https://docs.fetanpay.et/", smoothScroll: false },
 ];
 
