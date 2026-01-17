@@ -70,6 +70,20 @@ enum MerchantUserStatus {
   SUSPENDED
 }
 
+enum WalletTransactionType {
+  DEPOSIT
+  CHARGE
+  REFUND
+  ADJUSTMENT
+}
+
+enum WalletDepositStatus {
+  PENDING
+  VERIFIED
+  UNVERIFIED
+  EXPIRED
+}
+
 model Merchant {
   id           String         @id @default(uuid())
   name         String
@@ -89,6 +103,17 @@ model Merchant {
   orders           Order[]
   payments         Payment[]
   branding         MerchantBranding?
+
+  // Wallet System
+  walletBalance        Decimal   @default(0) @db.Decimal(12, 2)
+  walletEnabled        Boolean   @default(false)
+  walletChargeType     String?   // "PERCENTAGE" | "FIXED" | null
+  walletChargeValue    Decimal?  @db.Decimal(10, 4)
+  walletMinBalance     Decimal?  @db.Decimal(10, 2)
+
+  // Wallet Relations
+  walletTransactions   WalletTransaction[]
+  walletDeposits       WalletDeposit[]
 
   // Provider catalog is global (admin-managed), so no relation here.
 
@@ -192,6 +217,12 @@ model Payment {
 
   mismatchReason      String?
   verificationPayload Json?
+
+  // Wallet integration
+  walletCharged        Boolean   @default(false)
+  walletChargeAmount   Decimal?  @db.Decimal(10, 2)
+  walletTransactionId  String?   @unique
+  walletTransaction    WalletTransaction? @relation(fields: [walletTransactionId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -345,4 +376,98 @@ model MerchantBranding {
   updatedAt     DateTime @updatedAt
 
   @@map("merchant_branding")
+}
+
+model WalletTransaction {
+  id              String   @id @default(uuid())
+  merchantId      String
+  merchant        Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  // Transaction details
+  type            WalletTransactionType
+  amount          Decimal  @db.Decimal(12, 2)  // Positive for deposits, negative for charges
+  balanceBefore   Decimal  @db.Decimal(12, 2)
+  balanceAfter    Decimal  @db.Decimal(12, 2)
+
+  // Related entities
+  payment         Payment?
+  walletDeposit   WalletDeposit?
+  orderId         String?
+
+  // Metadata
+  description     String?
+  metadata        Json?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([merchantId])
+  @@index([createdAt])
+  @@map("wallet_transaction")
+}
+
+model WalletDepositReceiverAccount {
+  id              String   @id @default(uuid())
+
+  // Admin-configured receiver account for wallet deposits
+  provider        TransactionProvider
+  receiverAccount String
+  receiverName    String?
+  receiverLabel   String?
+
+  // Status
+  status          String   @default("ACTIVE")  // "ACTIVE" | "INACTIVE"
+
+  // Metadata
+  meta            Json?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  verifiedDeposits WalletDeposit[]
+
+  @@unique([provider, receiverAccount], name: "wallet_deposit_receiver_unique")
+  @@index([provider, status])
+  @@map("wallet_deposit_receiver_account")
+}
+
+model WalletDeposit {
+  id              String   @id @default(uuid())
+  merchantId      String
+  merchant        Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  // Deposit verification details
+  provider        TransactionProvider
+  reference       String
+  amount          Decimal  @db.Decimal(12, 2)
+
+  // Receiver account used
+  receiverAccountId String
+  receiverAccount   WalletDepositReceiverAccount @relation(fields: [receiverAccountId], references: [id], onDelete: Restrict)
+
+  // Verification status
+  status          WalletDepositStatus @default(PENDING)
+  verifiedAt      DateTime?
+  verifiedBy      String?
+
+  // Verification payload from bank API
+  verificationPayload Json?
+
+  // Related wallet transaction (created after verification)
+  walletTransactionId String?   @unique
+  walletTransaction   WalletTransaction? @relation(fields: [walletTransactionId], references: [id], onDelete: SetNull)
+
+  // Metadata
+  description     String?
+  errorMessage    String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([merchantId, provider, reference], name: "wallet_deposit_unique")
+  @@index([merchantId])
+  @@index([provider, reference])
+  @@index([status])
+  @@map("wallet_deposit")
 }

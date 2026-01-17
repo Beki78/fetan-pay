@@ -2,19 +2,21 @@
 import React from "react";
 import { BoxIcon, CheckCircleIcon, TimeIcon, DollarLineIcon } from "@/icons";
 import { useGetDashboardStatsQuery } from "@/lib/services/dashboardServiceApi";
+import { useGetWalletBalanceQuery } from "@/lib/services/walletServiceApi";
 
 export default function DashboardMetrics() {
   const { data: dashboardStats, isLoading, isError } = useGetDashboardStatsQuery();
+  const { data: walletBalance, isLoading: isWalletLoading } = useGetWalletBalanceQuery();
 
   // Use real data from API or fallback to 0
   const metrics = {
     totalTransactions: dashboardStats?.metrics?.totalTransactions ?? 0,
     verified: dashboardStats?.metrics?.verified ?? 0,
     pending: dashboardStats?.metrics?.pending ?? 0,
-    walletBalance: 0, // Detached from API - hardcoded to 0
+    walletBalance: walletBalance?.balance ?? 0,
   };
 
-  if (isLoading) {
+  if (isLoading || isWalletLoading) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
