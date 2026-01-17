@@ -62,11 +62,13 @@ export default function WalletPage() {
   // Calculate statistics from transactions
   const totalFeesPaid = recentTransactions
     .filter((t) => t.type === "CHARGE")
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
 
-  const totalTopUps = recentTransactions
-    .filter((t) => t.type === "DEPOSIT")
-    .reduce((sum, t) => sum + t.amount, 0);
+  const totalTopUps = Number(
+    recentTransactions
+      .filter((t) => t.type === "DEPOSIT")
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+  ) || 0;
 
   // Get verification fee from merchant wallet configuration
   const getVerificationFee = () => {
@@ -353,7 +355,7 @@ export default function WalletPage() {
           ) : (
             <>
               <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">
-                {totalTopUps.toFixed(2)} ETB
+                {typeof totalTopUps === 'number' ? totalTopUps.toFixed(2) : '0.00'} ETB
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 All time
@@ -573,7 +575,9 @@ export default function WalletPage() {
                       {formatAmount(transaction.amount, transaction.type)}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Balance: {transaction.balanceAfter.toFixed(2)} ETB
+                      Balance: {typeof transaction.balanceAfter === 'number' 
+                        ? transaction.balanceAfter.toFixed(2) 
+                        : (Number(transaction.balanceAfter) || 0).toFixed(2)} ETB
                     </p>
                   </div>
                 </div>
