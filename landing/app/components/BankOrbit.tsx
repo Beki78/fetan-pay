@@ -9,31 +9,26 @@ const banks = [
   { name: "CBE", logo: "/banks/CBE.png", initialAngle: 210 },
   { name: "BOA", logo: "/banks/BOA.png", initialAngle: 240 },
   { name: "Awash", logo: "/banks/Awash.png", initialAngle: 270 },
+  { name: "Dashen", logo: "/banks/Dashen.png", initialAngle: 300 },
 ];
 
 const ORBIT_DURATION = 30000;
 const LOGO_SIZE = 110;
 const ORBIT_RADIUS = 750;
+const FETAN_LOGO_ANGLE = 150; // Position of Fetan logo in degrees (10 o'clock)
+const INITIAL_ROTATION = -90; // Start animation at -90° so first bank icon appears at 270° position
+const RESTART_ROTATION = 60; // When rotation reaches 60°, Awash (270°) is at 210°
 
-// Verified checkmark SVG component
+// Verified checkmark SVG component - using the provided verifyicon.svg
 function VerifiedIcon({ size }: { size: number }) {
   return (
-    <svg
+    <Image
+      src="/icons/hero/verifyicon.svg"
+      alt="Verified"
       width={size}
       height={size}
-      viewBox="0 0 66 66"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="33" cy="33" r="30" fill="#22c55e" />
-      <path
-        d="M20 33L29 42L46 25"
-        stroke="white"
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      className="object-contain"
+    />
   );
 }
 
@@ -50,8 +45,10 @@ function BankLogo({
 }) {
   const currentAngle = initialAngle - currentRotation;
   const normalizedAngle = ((currentAngle % 360) + 360) % 360;
-  // Verify when passing the 9 o'clock position (180 degrees)
-  const isNearFetanLogo = normalizedAngle > 170 && normalizedAngle < 190;
+  // Show verify icon from 150° (Fetan logo position) to 210°
+  // Bank icons rotate counterclockwise, so they reach 150° first, then continue to 210°
+  const isVerified =
+    normalizedAngle >= FETAN_LOGO_ANGLE && normalizedAngle < 210;
 
   const angleRad = (initialAngle * Math.PI) / 180;
   const x = Math.cos(angleRad) * ORBIT_RADIUS;
@@ -71,17 +68,17 @@ function BankLogo({
           width: LOGO_SIZE,
           height: LOGO_SIZE,
           background:
-            "linear-gradient(to bottom, #ffffff, rgba(255, 255, 255, 0.6))",
+            "linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.6) 100%)",
           border: "1px solid rgba(255, 255, 255, 0.38)",
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)",
-          transform: `rotate(${currentRotation}deg)`,
+          backdropFilter: "blur(14.365782737731934px)",
         }}
       >
         <div
           className="transition-all duration-300"
           style={{
-            opacity: isNearFetanLogo ? 0 : 1,
-            transform: isNearFetanLogo ? "scale(0.8)" : "scale(1)",
+            opacity: isVerified ? 0 : 1,
+            transform: isVerified ? "scale(0.8)" : "scale(1)",
           }}
         >
           <Image
@@ -96,8 +93,8 @@ function BankLogo({
         <div
           className="absolute inset-0 flex items-center justify-center transition-all duration-300"
           style={{
-            opacity: isNearFetanLogo ? 1 : 0,
-            transform: isNearFetanLogo ? "scale(1)" : "scale(0.8)",
+            opacity: isVerified ? 1 : 0,
+            transform: isVerified ? "scale(1)" : "scale(0.8)",
           }}
         >
           <VerifiedIcon size={LOGO_SIZE * 0.55} />
@@ -108,15 +105,31 @@ function BankLogo({
 }
 
 export default function BankOrbit() {
-  const [rotation, setRotation] = useState(0);
+  const [rotation, setRotation] = useState(INITIAL_ROTATION);
 
   useEffect(() => {
-    const startTime = Date.now();
+    let startTime = Date.now();
+    let lastRotation = INITIAL_ROTATION;
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
-      const newRotation = (elapsed / ORBIT_DURATION) * 360;
-      setRotation(newRotation % 360);
+      // Calculate rotation from -90° and loop continuously
+      let newRotation = INITIAL_ROTATION + (elapsed / ORBIT_DURATION) * 360;
+
+      // When the last verification icon (Awash at 270°) reaches 210°, restart from -90°
+      // Awash reaches 210° when: 270° - rotation = 210°, so rotation = 60°
+      // Check if we've crossed the restart threshold (60°)
+      if (newRotation >= RESTART_ROTATION && lastRotation < RESTART_ROTATION) {
+        // Reset to -90° when last verify icon reaches 210°
+        newRotation = INITIAL_ROTATION;
+        startTime = Date.now();
+      }
+
+      lastRotation = newRotation;
+
+      // Normalize to 0-360 range for display
+      const normalizedRotation = ((newRotation % 360) + 360) % 360;
+      setRotation(normalizedRotation);
       requestAnimationFrame(animate);
     };
 
@@ -190,7 +203,7 @@ export default function BankOrbit() {
         ))}
       </div>
 
-      {/* Fetan Pay logo - positioned at ~150° (10 o'clock position) */}
+      {/* Fetan Pay logo - positioned at 150° (10 o'clock position) */}
       <div
         className="absolute z-10"
         style={{
@@ -198,25 +211,26 @@ export default function BankOrbit() {
           top: `calc(50% - ${ORBIT_RADIUS * 0.5}px - 140px)`,
         }}
       >
-        {/* Outer container */}
+        {/* Outer container - glassy background with opacity */}
         <div
           className="w-[280px] h-[280px] rounded-full flex items-center justify-center"
           style={{
             background:
-              "linear-gradient(to bottom, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.1))",
-            border: "1px solid rgba(255, 255, 255, 0.4)",
+              "linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.12) 100%)",
+            border: "1px solid rgba(255, 255, 255, 0.38)",
             boxShadow: "0 20px 80px rgba(0, 0, 0, 0.06)",
-            backdropFilter: "blur(8px)",
+            backdropFilter: "blur(14.365782737731934px)",
           }}
         >
-          {/* Inner container */}
+          {/* Inner container - glassy background matching bank icons */}
           <div
             className="w-[200px] h-[200px] rounded-full flex items-center justify-center"
             style={{
               background:
-                "linear-gradient(to bottom, #ffffff, rgba(255, 255, 255, 0.95))",
-              border: "1px solid rgba(255, 255, 255, 0.5)",
+                "linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.6) 100%)",
+              border: "1px solid rgba(255, 255, 255, 0.38)",
               boxShadow: "0 8px 40px rgba(0, 0, 0, 0.05)",
+              backdropFilter: "blur(14.365782737731934px)",
             }}
           >
             <Image

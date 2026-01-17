@@ -11,20 +11,19 @@ interface FeatureCardProps {
 function FeatureCard({ icon, iconAlt }: FeatureCardProps) {
   return (
     <div
-      className="rounded-[28px] h-full w-full flex flex-col"
-      style={{ height: "400px", padding: 0, margin: 0 }}
+      className="rounded-[20px] sm:rounded-[24px] lg:rounded-[28px] h-full w-full flex flex-col"
+      style={{ padding: 0, margin: 0 }}
     >
       <div
-        className="h-full w-full flex items-center justify-center"
-        style={{ height: "100%", padding: 0, margin: 0 }}
+        className="h-full w-full flex items-center justify-center p-2 sm:p-4"
+        style={{ height: "100%", margin: 0 }}
       >
         <Image
           src={icon}
           alt={iconAlt}
           width={300}
           height={300}
-          className="w-full h-full object-contain"
-          style={{ maxHeight: "100%", width: "auto", height: "auto" }}
+          className="w-full h-auto object-contain max-h-[200px] sm:max-h-[250px] md:max-h-[300px] lg:max-h-[350px]"
         />
       </div>
     </div>
@@ -73,10 +72,11 @@ export default function CoreFeatures() {
   ];
 
   return (
-    <section className="py-16 px-4 relative z-10 bg-white">
+    <section className="py-8 sm:py-12 md:py-16 px-4 relative z-10 bg-white">
       <div
-        className="max-w-7xl mx-auto rounded-[50px] py-16 px-8"
+        className="mx-auto rounded-[30px] sm:rounded-[40px] lg:rounded-[50px] py-8 sm:py-12 md:py-16 px-4 sm:px-6 md:px-8"
         style={{
+          maxWidth: "1450px",
           background: "linear-gradient(180deg, #FAFEFF 0%, #EAFCFD 100%)",
         }}
       >
@@ -91,12 +91,11 @@ export default function CoreFeatures() {
           </Badge>
         </div>
 
-        {/* Title */}
+        {/* Title - Responsive */}
         <h2
-          className="text-[72px] leading-[75px] font-normal opacity-0 animate-fade-in-up animation-delay-300 text-center mx-auto"
+          className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-tight sm:leading-[48px] md:leading-[60px] lg:leading-[75px] font-normal opacity-0 animate-fade-in-up animation-delay-300 text-center mx-auto tracking-tight lg:tracking-[-2.16px] px-4"
           style={{
             fontFamily: "var(--font-geist)",
-            letterSpacing: "-2.16px",
             background: "linear-gradient(to right, #061a32, #0d3463)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
@@ -107,9 +106,9 @@ export default function CoreFeatures() {
           Built for real-world business needs
         </h2>
 
-        {/* Subtitle */}
+        {/* Subtitle - Responsive */}
         <p
-          className="text-xl py-8 leading-[35px] text-[#4d4d4d] font-normal animate-fade-in-up animation-delay-400 text-center mx-auto"
+          className="text-base sm:text-lg md:text-xl lg:text-xl py-4 sm:py-6 md:py-8 leading-6 sm:leading-7 md:leading-8 lg:leading-[35px] text-[#4d4d4d] font-normal animate-fade-in-up animation-delay-400 text-center mx-auto px-4"
           style={{
             fontFamily: "var(--font-geist)",
             maxWidth: "820px",
@@ -121,44 +120,38 @@ export default function CoreFeatures() {
 
         {/* Feature Cards - Bento Grid 2x3 */}
         <div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[repeat(11,1fr)] max-w-[1400px] mx-auto mt-12"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[repeat(11,1fr)] max-w-[1400px] mx-auto mt-12 core-features-grid"
           style={{
-            gridTemplateRows: "400px 400px",
             gap: "16px",
-            rowGap: "0px",
+            rowGap: "16px",
           }}
         >
-          {features.map((feature, index) => {
-            // First row: 40%, 30%, 40% = 4fr, 3fr, 4fr
-            // Second row: 30%, 40%, 30% = 3fr, 4fr, 3fr
-            let colSpan = "";
-            if (index === 0) {
-              // First card - 40% (4 out of 11)
-              colSpan = "4";
-            } else if (index === 1) {
-              // Second card - 30% (3 out of 11)
-              colSpan = "3";
-            } else if (index === 2) {
-              // Third card - 40% (4 out of 11)
-              colSpan = "4";
-            } else if (index === 3) {
-              // Fourth card - 30% (3.3 out of 11, use 3) - Second row first
-              colSpan = "3";
-            } else if (index === 4) {
-              // Fifth card - 40% (4.4 out of 11, use 5 to get closer) - Second row middle
-              colSpan = "5";
-            } else if (index === 5) {
-              // Sixth card - 30% (3.3 out of 11, use 3) - Second row last
-              colSpan = "3";
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+            @media (min-width: 1024px) {
+              .core-features-grid {
+                grid-template-rows: 400px 400px !important;
+                row-gap: 0px !important;
+              }
+              .feature-card-0 { grid-column: span 4 !important; }
+              .feature-card-1 { grid-column: span 3 !important; }
+              .feature-card-2 { grid-column: span 4 !important; }
+              .feature-card-3 { grid-column: span 3 !important; }
+              .feature-card-4 { grid-column: span 5 !important; }
+              .feature-card-5 { grid-column: span 3 !important; }
             }
-
+          `,
+            }}
+          />
+          {features.map((feature, index) => {
             return (
               <div
                 key={feature.title}
-                className="opacity-0 animate-fade-in-up"
+                className={`opacity-0 animate-fade-in-up feature-card-${index} w-full`}
                 style={{
-                  gridColumn: `span ${colSpan}`,
-                  height: "400px",
+                  minHeight: "250px",
+                  height: "auto",
                   padding: 0,
                   margin: 0,
                   animationDelay: `${500 + index * 100}ms`,

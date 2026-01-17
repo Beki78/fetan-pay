@@ -27,13 +27,10 @@ export default function Badge({
         animationDelay: `${animationDelay}ms`,
       }}
     >
-      {/* Badge - 478x58, border-radius 100, stroke #d0f8fb */}
+      {/* Badge - 478x58, border-radius 100, stroke #d0f8fb - Responsive */}
       <div
-        className="inline-flex items-center gap-[10px]"
+        className="inline-flex items-center gap-2 sm:gap-[10px] h-8 sm:h-9 lg:h-[40px] px-4 sm:px-5 lg:px-6"
         style={{
-          height: "40px",
-          paddingLeft: "24px",
-          paddingRight: "24px",
           borderRadius: "100px",
           border: "1px solid #d0f8fb",
           background:
@@ -48,14 +45,13 @@ export default function Badge({
             height={iconHeight}
           />
         )}
-        {/* Text - Geist Regular 400, fontSize 20, lineHeight 26, color #174686 */}
+        {/* Text - Geist Regular 400, fontSize 20, lineHeight 26, color #174686 - Responsive */}
         <span
+          className="text-sm sm:text-base lg:text-[20px] leading-5 sm:leading-6 lg:leading-[26px]"
           style={{
             fontFamily: "var(--font-geist)",
-            lineHeight: "26px",
             fontWeight: 400,
             color: "#174686",
-            fontSize: "20px",
           }}
         >
           {children}
