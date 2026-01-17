@@ -82,6 +82,7 @@ export interface PaymentRecord {
   verifiedAt?: string | null;
   mismatchReason?: string | null;
   verifiedById?: string | null;
+  verificationPayload?: unknown;
   verifiedBy?: {
     id: string;
     name?: string | null;
@@ -305,6 +306,32 @@ export const paymentsServiceApi = createApi({
             ]
           : [{ type: 'Payment' as const, id: 'LIST' }],
     }),
+
+    logTransaction: builder.mutation<
+      {
+        payment: PaymentRecord;
+        order: OrderRecord;
+      },
+      {
+        paymentMethod: 'cash' | 'bank';
+        amount: number;
+        tipAmount?: number;
+        note?: string;
+        provider?: TransactionProvider;
+        otherBankName?: string;
+      }
+    >({
+      query: (body) => ({
+        url: '/payments/log-transaction',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [
+        { type: 'Payment', id: 'LIST' },
+        { type: 'Order', id: 'LIST' },
+        { type: 'Tips', id: 'SUMMARY' },
+      ],
+    }),
   }),
 });
 
@@ -319,4 +346,5 @@ export const {
   useGetTipsSummaryQuery,
   useListTipsQuery,
   useListVerificationHistoryQuery,
+  useLogTransactionMutation,
 } = paymentsServiceApi;

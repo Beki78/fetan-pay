@@ -68,6 +68,7 @@ export interface VerificationHistoryItem {
   verifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  verificationPayload?: unknown;
 }
 
 export interface ListVerificationHistoryResponse {
@@ -136,11 +137,48 @@ export interface GetActiveReceiverAccountsResponse {
   data: MerchantReceiverAccount[];
 }
 
+export interface LogTransactionRequest {
+  paymentMethod: 'cash' | 'bank';
+  amount: number;
+  tipAmount?: number;
+  note?: string;
+  provider?: TransactionProvider;
+  otherBankName?: string;
+  receipt?: File;
+}
+
+export interface LogTransactionResponse {
+  payment: {
+    id: string;
+    reference: string;
+    provider: TransactionProvider;
+    claimedAmount: string;
+    tipAmount: string | null;
+    status: PaymentVerificationStatus;
+    verifiedAt: string;
+    createdAt: string;
+  };
+  order: {
+    id: string;
+    expectedAmount: string;
+    status: string;
+    createdAt: string;
+  };
+}
+
 export const paymentsServiceApi = createApi({
   reducerPath: "paymentsServiceApi",
   baseQuery: fetchBaseQuery({
     baseUrl: API_BASE_URL,
     credentials: "include",
+    prepareHeaders: (headers, { endpoint }) => {
+      // Don't set Content-Type for FormData - browser will set it with boundary
+      if (endpoint === 'logTransaction') {
+        // Remove Content-Type header to let browser set it for FormData
+        headers.delete('Content-Type');
+      }
+      return headers;
+    },
   }),
   endpoints: (builder) => ({
     verifyMerchantPayment: builder.mutation<
@@ -244,6 +282,38 @@ export const paymentsServiceApi = createApi({
         };
       },
     }),
+
+    logTransaction: builder.mutation<
+      LogTransactionResponse,
+      LogTransactionRequest
+    >({
+      query: (body) => {
+        const formData = new FormData();
+        formData.append('paymentMethod', body.paymentMethod);
+        formData.append('amount', body.amount.toString());
+        if (body.tipAmount !== undefined) {
+          formData.append('tipAmount', body.tipAmount.toString());
+        }
+        if (body.note) {
+          formData.append('note', body.note);
+        }
+        if (body.provider) {
+          formData.append('provider', body.provider);
+        }
+        if (body.otherBankName) {
+          formData.append('otherBankName', body.otherBankName);
+        }
+        if (body.receipt) {
+          formData.append('receipt', body.receipt);
+        }
+
+        return {
+          url: "/payments/log-transaction",
+          method: "POST",
+          body: formData,
+        };
+      },
+    }),
   }),
 });
 
@@ -253,4 +323,5 @@ export const {
   useGetTipsSummaryQuery,
   useListTipsQuery,
   useGetActiveReceiverAccountsQuery,
+  useLogTransactionMutation,
 } = paymentsServiceApi;

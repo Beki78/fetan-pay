@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { useSession } from "@/hooks/useSession";
 import { formatNumberWithCommas } from "@/lib/validation";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ import { BANKS } from "@/lib/config";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   useGetActiveReceiverAccountsQuery,
+  useLogTransactionMutation,
   type TransactionProvider,
 } from "@/lib/services/paymentsServiceApi";
 
@@ -45,6 +47,8 @@ export default function LogTransactionPage() {
   const { isAuthenticated, isLoading: isSessionLoading } = useSession();
   const { data: receiverAccountsData, isLoading: isLoadingAccounts } =
     useGetActiveReceiverAccountsQuery();
+  const [logTransaction, { isLoading: isLogging }] =
+    useLogTransactionMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -58,6 +62,8 @@ export default function LogTransactionPage() {
   );
   const [showDetails, setShowDetails] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTip, setShowTip] = useState<boolean>(false);
+  const [tipAmount, setTipAmount] = useState("");
 
   // Get active receiver accounts
   const activeAccounts = (receiverAccountsData?.data ?? []).filter(
@@ -86,6 +92,11 @@ export default function LogTransactionPage() {
   const handleAmountChange = (value: string) => {
     const formatted = formatNumberWithCommas(value);
     setAmount(formatted);
+  };
+
+  const handleTipChange = (value: string) => {
+    const formatted = formatNumberWithCommas(value);
+    setTipAmount(formatted);
   };
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,25 +142,69 @@ export default function LogTransactionPage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Implement API call to log transaction
+      const amountValue = parseFloat(amount.replace(/,/g, ""));
+      const tipAmountValue =
+        showTip && tipAmount
+          ? parseFloat(tipAmount.replace(/,/g, ""))
+          : undefined;
+
+      // Map selected bank to provider
+      let provider: TransactionProvider | undefined;
+      let otherBankNameValue: string | undefined;
+
+      if (paymentMethod === "bank") {
+        if (selectedBank === "other") {
+          otherBankNameValue = otherBankName.trim();
+        } else {
+          // Find the provider from active accounts
+          const selectedBankAccount = activeAccounts.find(
+            (account) => {
+              const bankId = providerToBankId[account.provider];
+              return bankId === selectedBank;
+            }
+          );
+          if (selectedBankAccount) {
+            provider = selectedBankAccount.provider;
+          }
+        }
+      }
+
       const transactionData = {
         paymentMethod,
-        amount: parseFloat(amount.replace(/,/g, "")),
-        bank: selectedBank === "other" ? otherBankName : selectedBank,
-        note,
-        screenshot,
+        amount: amountValue,
+        tipAmount: tipAmountValue,
+        note: note.trim() || undefined,
+        provider,
+        otherBankName: otherBankNameValue,
+        receipt: paymentMethod === "bank" && screenshot ? screenshot : undefined,
       };
 
-      console.log("Logging transaction:", transactionData);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await logTransaction(transactionData).unwrap();
 
       toast.success("Transaction logged successfully!");
-      router.push("/scan");
-    } catch (error) {
+      
+      // Reset form
+      setAmount("");
+      setTipAmount("");
+      setShowTip(false);
+      setNote("");
+      setSelectedBank(null);
+      setOtherBankName("");
+      setScreenshot(null);
+      setScreenshotPreview(null);
+      setShowDetails(false);
+
+      // Navigate to scan page after a short delay
+      setTimeout(() => {
+        router.push("/scan");
+      }, 500);
+    } catch (error: unknown) {
       console.error("Error logging transaction:", error);
-      toast.error("Failed to log transaction");
+      const errorMessage =
+        (error && typeof error === 'object' && 'data' in error && error.data && typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string')
+          ? error.data.message
+          : (error instanceof Error ? error.message : "Failed to log transaction");
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -203,6 +258,8 @@ export default function LogTransactionPage() {
                   onClick={() => {
                     setPaymentMethod("cash");
                     setSelectedBank(null);
+                    setShowTip(false);
+                    setTipAmount("");
                   }}
                   className={cn(
                     "flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all",
@@ -216,7 +273,11 @@ export default function LogTransactionPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod("bank")}
+                  onClick={() => {
+                    setPaymentMethod("bank");
+                    setShowTip(false);
+                    setTipAmount("");
+                  }}
                   className={cn(
                     "flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all",
                     paymentMethod === "bank"
@@ -340,6 +401,44 @@ export default function LogTransactionPage() {
               </div>
             </div>
 
+            {/* Tip Input with Switch */}
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium text-foreground">
+                    Include Tip
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Add tip amount for this transaction
+                  </p>
+                </div>
+                <Switch
+                  checked={showTip}
+                  onCheckedChange={(checked) => {
+                    setShowTip(checked);
+                    if (!checked) {
+                      setTipAmount("");
+                    }
+                  }}
+                />
+              </div>
+              {showTip && (
+                <div className="space-y-3 pt-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Tip Amount (ETB)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Enter tip amount"
+                    value={tipAmount}
+                    onChange={(e) => handleTipChange(e.target.value)}
+                    className="h-12 focus-visible:ring-1"
+                    inputMode="numeric"
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Add Details Toggle */}
             <button
               type="button"
@@ -435,10 +534,10 @@ export default function LogTransactionPage() {
         {/* Submit Button */}
         <Button
           onClick={handleSubmit}
-          disabled={isSubmitting || !amount}
+          disabled={isSubmitting || isLogging || !amount}
           className="w-full h-14 text-lg font-semibold"
         >
-          {isSubmitting ? (
+          {isSubmitting || isLogging ? (
             <span className="flex items-center gap-2">
               <div className="size-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
               Logging...
