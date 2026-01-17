@@ -2,6 +2,7 @@
 import React from "react";
 import Button from "../ui/button/Button";
 import { ChevronLeftIcon, CheckCircleIcon } from "@/icons";
+import { ExternalLink } from "lucide-react";
 
 interface VerificationDetailsPageProps {
   reference: string;
@@ -21,6 +22,7 @@ interface VerificationDetailsPageProps {
       email?: string;
     } | null;
   } | null;
+  receiptUrl?: string;
   onBack?: () => void;
 }
 
@@ -42,6 +44,7 @@ export default function VerificationDetailsPage({
   receiverName,
   receiverAccount,
   verifiedBy,
+  receiptUrl,
   onBack,
 }: VerificationDetailsPageProps) {
   const isVerified = status === "VERIFIED";
@@ -150,6 +153,20 @@ export default function VerificationDetailsPage({
                     <p className="text-base font-semibold text-purple-600 dark:text-purple-400">
                       +{tipAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB
                     </p>
+                  </div>
+                )}
+                {receiptUrl && (
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Receipt</p>
+                    <a
+                      href={receiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      View Receipt
+                      <ExternalLink className="size-3" />
+                    </a>
                   </div>
                 )}
               </div>

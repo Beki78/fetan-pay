@@ -9,6 +9,8 @@ import { ConfigService } from '@nestjs/config';
 import * as PrismaClient from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../../../database/prisma.service';
 import { MerchantUsersService } from '../merchant-users/merchant-users.service';
 import { VerificationService } from '../verifier/services/verification.service';
@@ -17,6 +19,7 @@ import { DisableReceiverDto } from './dto/disable-receiver.dto';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
 import { SubmitPaymentClaimDto } from './dto/submit-payment-claim.dto';
 import { VerifyMerchantPaymentDto } from './dto/verify-merchant-payment.dto';
+import { LogTransactionDto } from './dto/log-transaction.dto';
 import {
   ListVerificationHistoryDto,
   type PaymentVerificationStatus,
@@ -27,6 +30,7 @@ type TipsRange = { from?: string; to?: string };
 @Injectable()
 export class PaymentsService {
   private readonly paymentPageUrl: string;
+  private readonly receiptsDir: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -42,6 +46,12 @@ export class PaymentsService {
       (process.env.NODE_ENV === 'production'
         ? 'https://fetanpay.et'
         : 'http://localhost:3000');
+
+    // Setup receipts directory
+    this.receiptsDir = path.join(process.cwd(), 'public', 'receipts');
+    if (!fs.existsSync(this.receiptsDir)) {
+      fs.mkdirSync(this.receiptsDir, { recursive: true });
+    }
   }
 
   private paymentStatusEnum():
@@ -1066,6 +1076,167 @@ export class PaymentsService {
       total,
       totalPages: Math.ceil(total / pageSize),
       data,
+    };
+  }
+
+  /**
+   * Log a transaction (cash or bank payment)
+   * Creates an order and payment record for manual transaction logging
+   */
+  async logTransaction(
+    body: LogTransactionDto,
+    req: Request,
+    receiptFile?: Express.Multer.File,
+  ) {
+    const membership = await this.requireMembership(req);
+
+    const amount = this.toDecimal(body.amount, 'amount');
+    const tipAmount =
+      body.tipAmount !== undefined && body.tipAmount > 0
+        ? this.toDecimal(body.tipAmount, 'tipAmount')
+        : null;
+
+    // Generate unique reference for the transaction
+    const generateReference = (prefix: string) => {
+      const timestamp = Date.now().toString(36).toUpperCase();
+      const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+      return `${prefix}-${timestamp}-${random}`;
+    };
+
+    // Create order
+    const order = await this.prisma.order.create({
+      data: {
+        merchantId: membership.merchantId,
+        expectedAmount: amount,
+        currency: 'ETB',
+        status: 'PAID', // Mark as paid immediately for logged transactions
+        payerName: null,
+      },
+    });
+
+    let provider: PrismaClient.TransactionProvider;
+    let reference: string;
+    let receiverAccountId: string | null = null;
+
+    if (body.paymentMethod === 'cash') {
+      // For cash transactions, use a special reference format
+      reference = generateReference('CASH');
+      // Cash doesn't have a provider in the enum, so we'll use CBE as a placeholder
+      // but store the payment method in verificationPayload
+      provider = 'CBE' as PrismaClient.TransactionProvider;
+    } else {
+      // For bank transactions
+      if (!body.provider && !body.otherBankName) {
+        throw new BadRequestException(
+          'Provider or otherBankName is required for bank transactions',
+        );
+      }
+
+      if (body.provider) {
+        provider = body.provider;
+        reference = generateReference(provider);
+      } else {
+        // For other banks, use CBE as placeholder but store bank name in payload
+        provider = 'CBE' as PrismaClient.TransactionProvider;
+        reference = generateReference('BANK');
+      }
+
+      // Try to get active receiver account for the provider
+      if (body.provider) {
+        const activeReceiver =
+          await this.prisma.merchantReceiverAccount.findFirst({
+            where: {
+              merchantId: membership.merchantId,
+              provider: body.provider,
+              status: 'ACTIVE',
+            },
+            orderBy: { updatedAt: 'desc' },
+          });
+        receiverAccountId = activeReceiver?.id ?? null;
+      }
+    }
+
+    // Handle receipt upload for bank transactions
+    let receiptUrl: string | undefined;
+    if (receiptFile && body.paymentMethod === 'bank') {
+      // Generate unique filename
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 8);
+      const ext = path.extname(receiptFile.originalname) || '.jpg';
+      const filename = `receipt-${timestamp}-${random}${ext}`;
+      const filePath = path.join(this.receiptsDir, filename);
+
+      // Save file
+      fs.writeFileSync(
+        filePath,
+        receiptFile.buffer || fs.readFileSync(receiptFile.path),
+      );
+
+      // Clean up temp file if it exists
+      if (receiptFile.path && fs.existsSync(receiptFile.path)) {
+        fs.unlinkSync(receiptFile.path);
+      }
+
+      receiptUrl = `/receipts/${filename}`;
+    } else if (receiptFile && body.paymentMethod === 'cash') {
+      // Reject receipt for cash transactions
+      throw new BadRequestException(
+        'Receipt upload is only allowed for bank transactions',
+      );
+    }
+
+    // Build verification payload with metadata
+    const verificationPayload: Record<string, unknown> = {
+      paymentMethod: body.paymentMethod,
+      loggedAt: new Date().toISOString(),
+    };
+
+    if (body.note) {
+      verificationPayload.note = body.note;
+    }
+
+    if (receiptUrl) {
+      verificationPayload.receiptUrl = receiptUrl;
+    }
+
+    if (body.paymentMethod === 'cash') {
+      verificationPayload.isCash = true;
+    } else if (body.otherBankName) {
+      verificationPayload.otherBankName = body.otherBankName;
+    }
+
+    // Create payment record
+    const payment = await this.prisma.payment.create({
+      data: {
+        merchantId: membership.merchantId,
+        orderId: order.id,
+        provider,
+        reference,
+        claimedAmount: amount,
+        tipAmount,
+        receiverAccountId,
+        status: 'VERIFIED', // Logged transactions are considered verified
+        verifiedAt: new Date(),
+        verifiedById: membership.merchantUserId,
+        verificationPayload: verificationPayload as Prisma.InputJsonValue,
+      },
+      include: {
+        order: true,
+        receiverAccount: true,
+        verifiedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return {
+      payment,
+      order,
     };
   }
 

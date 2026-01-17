@@ -5,10 +5,44 @@ import { useParams, useRouter } from "next/navigation";
 import TransactionDetailsPage from "@/components/payments/TransactionDetailsPage";
 import VerificationDetailsPage from "@/components/payments/VerificationDetailsPage";
 import { useGetTransactionQuery } from "@/lib/services/transactionsServiceApi";
-import { useGetPaymentClaimQuery } from "@/lib/services/paymentsServiceApi";
+import { useGetPaymentClaimQuery, type TransactionProvider } from "@/lib/services/paymentsServiceApi";
 import Button from "@/components/ui/button/Button";
 import Skeleton from "@/components/ui/skeleton/Skeleton";
 import { ChevronLeftIcon } from "@/icons";
+import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
+
+/**
+ * Generate bank receipt URL based on provider and transaction reference
+ * Returns undefined if provider is not supported or if it's a cash transaction
+ */
+function getBankReceiptUrl(
+  provider: TransactionProvider | null | undefined,
+  reference: string | null | undefined,
+  paymentMethod: string | undefined
+): string | undefined {
+  // Only generate URL for bank transactions
+  if (paymentMethod === 'cash' || !provider || !reference) {
+    return undefined;
+  }
+
+  const ref = reference.trim();
+  if (!ref) return undefined;
+
+  switch (provider) {
+    case 'CBE':
+      return `https://apps.cbe.com.et/?id=${encodeURIComponent(ref)}`;
+    case 'TELEBIRR':
+      return `https://transactioninfo.ethiotelecom.et/receipt/${encodeURIComponent(ref)}`;
+    case 'BOA':
+      return `https://cs.bankofabyssinia.com/slip/?trx=${encodeURIComponent(ref)}`;
+    case 'AWASH':
+      return `https://awashpay.awashbank.com:8225/${encodeURIComponent(ref)}`;
+    case 'DASHEN':
+      return `https://receipt.dashensuperapp.com/receipt/${encodeURIComponent(ref)}`;
+    default:
+      return undefined;
+  }
+}
 
 export default function TransactionDetailsRoute() {
   const params = useParams();
@@ -118,6 +152,30 @@ export default function TransactionDetailsRoute() {
 
   // Show different detail page based on record type
   if (hasPayment) {
+    // Extract receipt URL from verificationPayload
+    let receiptUrl: string | undefined;
+    let paymentMethod: string | undefined;
+    
+    if (payment!.verificationPayload && typeof payment!.verificationPayload === 'object') {
+      const payload = payment!.verificationPayload as Record<string, unknown>;
+      paymentMethod = payload.paymentMethod as string | undefined;
+      
+      // Check for uploaded receipt (manually logged transactions)
+      if (payload.receiptUrl && typeof payload.receiptUrl === 'string') {
+        receiptUrl = `${STATIC_ASSETS_BASE_URL}${payload.receiptUrl}`;
+      }
+    }
+
+    // If no uploaded receipt, try to generate bank receipt URL from provider + reference
+    // Only for bank transactions (not cash)
+    if (!receiptUrl && paymentMethod !== 'cash') {
+      receiptUrl = getBankReceiptUrl(
+        payment!.provider as TransactionProvider | null | undefined,
+        payment!.reference,
+        paymentMethod
+      );
+    }
+
     return (
       <VerificationDetailsPage
         reference={displayData.reference}
@@ -129,6 +187,7 @@ export default function TransactionDetailsRoute() {
         receiverName={displayData.receiverName}
         receiverAccount={displayData.receiverAccount}
         verifiedBy={displayData.verifiedBy}
+        receiptUrl={receiptUrl}
         onBack={() => router.push("/payments")}
       />
     );
