@@ -7,6 +7,13 @@ export interface WalletBalance {
   balance: number;
 }
 
+export interface WalletConfig {
+  walletEnabled: boolean;
+  walletChargeType: 'PERCENTAGE' | 'FIXED' | null;
+  walletChargeValue: number | null;
+  walletMinBalance: number | null;
+}
+
 export interface WalletDepositReceiverAccount {
   id: string;
   provider: TransactionProvider;
@@ -60,6 +67,22 @@ export interface VerifyDepositResponse {
   error?: string;
 }
 
+export interface PendingDeposit {
+  id: string;
+  provider: TransactionProvider;
+  amount: number;
+  receiverAccount: WalletDepositReceiverAccount;
+  expiresAt: string;
+  createdAt: string;
+  isExpired: boolean;
+}
+
+export interface CreateDepositInput {
+  amount: number;
+  provider: TransactionProvider;
+  receiverAccountId: string;
+}
+
 export const walletServiceApi = createApi({
   reducerPath: 'walletServiceApi',
   baseQuery: fetchBaseQuery({
@@ -68,8 +91,14 @@ export const walletServiceApi = createApi({
   }),
   refetchOnFocus: true,
   refetchOnReconnect: true,
-  tagTypes: ['WalletBalance', 'WalletTransaction', 'DepositReceiver'],
+  tagTypes: ['WalletBalance', 'WalletTransaction', 'DepositReceiver', 'WalletConfig', 'PendingDeposit'],
   endpoints: (builder) => ({
+    // Wallet Configuration
+    getWalletConfig: builder.query<WalletConfig, void>({
+      query: () => '/wallet/config',
+      providesTags: [{ type: 'WalletConfig', id: 'CURRENT' }],
+    }),
+
     // Wallet Balance
     getWalletBalance: builder.query<WalletBalance, void>({
       query: () => '/wallet/balance',
@@ -108,13 +137,34 @@ export const walletServiceApi = createApi({
       },
       providesTags: [{ type: 'WalletTransaction', id: 'LIST' }],
     }),
+
+    // Pending Deposits
+    getPendingDeposits: builder.query<PendingDeposit[], void>({
+      query: () => '/wallet/pending-deposits',
+      providesTags: [{ type: 'PendingDeposit', id: 'LIST' }],
+    }),
+
+    // Create Pending Deposit
+    createPendingDeposit: builder.mutation<any, CreateDepositInput>({
+      query: (body) => ({
+        url: '/wallet/create-deposit',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [
+        { type: 'PendingDeposit', id: 'LIST' },
+      ],
+    }),
   }),
 });
 
 export const {
+  useGetWalletConfigQuery,
   useGetWalletBalanceQuery,
   useGetDepositReceiversQuery,
   useVerifyDepositMutation,
   useGetWalletTransactionsQuery,
+  useGetPendingDepositsQuery,
+  useCreatePendingDepositMutation,
 } = walletServiceApi;
 

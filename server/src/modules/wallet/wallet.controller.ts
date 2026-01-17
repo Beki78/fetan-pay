@@ -26,6 +26,7 @@ import { ManualDepositDto } from './dto/manual-deposit.dto';
 import { AdjustBalanceDto } from './dto/adjust-balance.dto';
 import { WalletTransactionHistoryDto } from './dto/wallet-transaction-history.dto';
 import { UpdateMerchantWalletConfigDto } from './dto/update-merchant-wallet-config.dto';
+import { CreateWalletDepositDto } from './dto/create-wallet-deposit.dto';
 import type { Request } from 'express';
 
 @ApiTags('wallet')
@@ -34,6 +35,31 @@ import type { Request } from 'express';
 @Controller('wallet')
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
+
+  @Get('config')
+  @ApiOperation({
+    summary: 'Get merchant wallet configuration',
+    description: 'Returns the wallet configuration (charge type, charge value, etc.) for the authenticated merchant',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Wallet configuration retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        walletEnabled: { type: 'boolean' },
+        walletChargeType: { type: 'string', enum: ['PERCENTAGE', 'FIXED'], nullable: true },
+        walletChargeValue: { type: 'number', nullable: true },
+        walletMinBalance: { type: 'number', nullable: true },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getWalletConfig(@Req() req: Request) {
+    // Access private method via type assertion
+    const membership = await (this.walletService as any).requireMembership(req);
+    return this.walletService.getMerchantWalletConfig(membership.merchantId);
+  }
 
   @Get('balance')
   @ApiOperation({
@@ -90,6 +116,36 @@ export class WalletController {
   })
   async getDepositReceiverAccounts() {
     return this.walletService.getDepositReceiverAccounts();
+  }
+
+  @Get('pending-deposits')
+  @ApiOperation({
+    summary: 'Get pending wallet deposits',
+    description: 'Returns all pending wallet deposits for the authenticated merchant',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Pending deposits retrieved successfully',
+  })
+  async getPendingDeposits(@Req() req: Request) {
+    const membership = await (this.walletService as any).requireMembership(req);
+    return this.walletService.getPendingDeposits(membership.merchantId);
+  }
+
+  @Post('create-deposit')
+  @ApiOperation({
+    summary: 'Create a pending wallet deposit',
+    description: 'Creates a pending deposit request that expires after 30 minutes',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Pending deposit created successfully',
+  })
+  async createPendingDeposit(
+    @Body() body: CreateWalletDepositDto,
+    @Req() req: Request,
+  ) {
+    return this.walletService.createPendingDeposit(body, req);
   }
 
   @Post('verify-deposit')

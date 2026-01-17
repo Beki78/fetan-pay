@@ -1,11 +1,12 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/button/Button";
 import AlertBanner from "@/components/ui/alert/AlertBanner";
 import TopUpModal from "@/components/wallet/TopUpModal";
 import CompletePaymentModal from "@/components/wallet/CompletePaymentModal";
-import { useGetWalletBalanceQuery, useGetWalletTransactionsQuery, useGetDepositReceiversQuery, useVerifyDepositMutation } from "@/lib/services/walletServiceApi";
+import BankSelectionModal from "@/components/wallet/BankSelectionModal";
+import { useGetWalletBalanceQuery, useGetWalletTransactionsQuery, useGetDepositReceiversQuery, useVerifyDepositMutation, useGetWalletConfigQuery, useGetPendingDepositsQuery, useCreatePendingDepositMutation } from "@/lib/services/walletServiceApi";
 import { DollarLineIcon } from "@/icons";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import type { WalletDepositReceiverAccount } from "@/lib/services/walletServiceA
 export default function WalletPage() {
   const router = useRouter();
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
+  const [isBankSelectionModalOpen, setIsBankSelectionModalOpen] = useState(false);
   const [isCompletePaymentModalOpen, setIsCompletePaymentModalOpen] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [selectedReceiver, setSelectedReceiver] = useState<WalletDepositReceiverAccount | null>(null);
@@ -24,12 +26,34 @@ export default function WalletPage() {
   } | null>(null);
 
   const { data: walletBalance, isLoading: isBalanceLoading } = useGetWalletBalanceQuery();
+  const { data: walletConfig, isLoading: isConfigLoading } = useGetWalletConfigQuery();
   const { data: transactionsData, isLoading: isTransactionsLoading } = useGetWalletTransactionsQuery({
     page: 1,
     pageSize: 5, // Show only recent 5 transactions
   });
   const { data: depositReceivers } = useGetDepositReceiversQuery();
+  const { data: pendingDeposits, refetch: refetchPendingDeposits } = useGetPendingDepositsQuery(undefined, {
+    pollingInterval: 30000, // Poll every 30 seconds to refresh data
+  });
   const [verifyDeposit, { isLoading: isVerifying }] = useVerifyDepositMutation();
+  const [createPendingDeposit, { isLoading: isCreatingDeposit }] = useCreatePendingDepositMutation();
+
+  // Real-time countdown timer - updates every second
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    // Only start the timer if there are pending deposits
+    if (!pendingDeposits || pendingDeposits.length === 0) {
+      return;
+    }
+
+    // Update time every second for real-time countdown
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pendingDeposits]);
 
   const balance = walletBalance?.balance ?? 0;
   const recentTransactions = transactionsData?.transactions ?? [];
@@ -44,18 +68,32 @@ export default function WalletPage() {
     .filter((t) => t.type === "DEPOSIT")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Get charge rate from first charge transaction metadata, or default to 2 ETB
-  const verificationFee = recentTransactions.find((t) => t.type === "CHARGE")?.metadata?.chargeValue 
-    ? (recentTransactions.find((t) => t.type === "CHARGE")?.metadata?.chargeType === "PERCENTAGE"
-        ? "Variable"
-        : `${recentTransactions.find((t) => t.type === "CHARGE")?.metadata?.chargeValue} ETB`)
-    : "2 ETB";
+  // Get verification fee from merchant wallet configuration
+  const getVerificationFee = () => {
+    if (!walletConfig) {
+      return "0 ETB"; // Not configured
+    }
 
-  const verificationsRemaining = verificationFee === "Variable" 
-    ? "N/A" 
-    : Math.floor(balance / (typeof verificationFee === "string" && verificationFee.includes("ETB") 
-        ? parseFloat(verificationFee.replace(" ETB", "")) 
-        : 2));
+    if (!walletConfig.walletChargeType || walletConfig.walletChargeValue === null) {
+      return "0 ETB"; // Not configured
+    }
+
+    if (walletConfig.walletChargeType === "PERCENTAGE") {
+      return "Variable"; // Percentage-based charges vary by payment amount
+    } else {
+      // Fixed amount
+      return `${walletConfig.walletChargeValue.toFixed(2)} ETB`;
+    }
+  };
+
+  const verificationFee = getVerificationFee();
+  const feeAmount = walletConfig?.walletChargeType === "FIXED" && walletConfig?.walletChargeValue !== null && walletConfig.walletChargeValue > 0
+    ? walletConfig.walletChargeValue
+    : 0; // 0 when not configured or percentage
+
+  const verificationsRemaining = walletConfig?.walletChargeType === "PERCENTAGE" || feeAmount === 0
+    ? "N/A"
+    : Math.floor(balance / feeAmount);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -109,18 +147,44 @@ export default function WalletPage() {
       return;
     }
 
-    // Use first active receiver, or allow selection if multiple
-    const receiver = activeReceivers[0];
+    // If only one receiver, create deposit directly; otherwise show selection modal
+    if (activeReceivers.length === 1) {
+      const receiver = activeReceivers[0];
+      handleBankSelect(receiver);
+      setIsTopUpModalOpen(false);
+    } else {
+      // Multiple receivers - show selection modal
+      setSelectedAmount(amount);
+      setIsTopUpModalOpen(false);
+      setIsBankSelectionModalOpen(true);
+    }
+  };
+
+  const handleBankSelect = async (receiver: WalletDepositReceiverAccount) => {
+    if (!selectedAmount) return;
     
-    setSelectedAmount(amount);
-    setSelectedReceiver(receiver);
-    setPendingTopUp({
-      amount,
-      receiver,
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
-    });
-    setIsTopUpModalOpen(false);
-    setIsCompletePaymentModalOpen(true);
+    try {
+      // Create pending deposit in backend
+      const deposit = await createPendingDeposit({
+        amount: selectedAmount,
+        provider: receiver.provider,
+        receiverAccountId: receiver.id,
+      }).unwrap();
+
+      setSelectedReceiver(receiver);
+      setPendingTopUp({
+        amount: selectedAmount,
+        receiver,
+        expiresAt: new Date(deposit.expiresAt || Date.now() + 30 * 60 * 1000),
+      });
+      setIsBankSelectionModalOpen(false);
+      setIsCompletePaymentModalOpen(true);
+      refetchPendingDeposits();
+    } catch (error: any) {
+      toast.error("Failed to create deposit request", {
+        description: error?.data?.message || error?.message || "Please try again",
+      });
+    }
   };
 
   const handleVerifyPayment = async (reference: string) => {
@@ -143,6 +207,7 @@ export default function WalletPage() {
         setSelectedAmount(null);
         setSelectedReceiver(null);
         setIsCompletePaymentModalOpen(false);
+        refetchPendingDeposits();
       } else {
         toast.error("Deposit verification failed", {
           description: result.error || "The transaction reference could not be verified",
@@ -166,13 +231,28 @@ export default function WalletPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">
-          Wallet
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Manage your verification credits.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+              Wallet
+            </h1>
+            {walletConfig && (
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  walletConfig.walletEnabled
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {walletConfig.walletEnabled ? "Enabled" : "Disabled"}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Manage your verification credits.
+          </p>
+        </div>
       </div>
 
       {/* Current Balance Card */}
@@ -210,10 +290,23 @@ export default function WalletPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Verification Fee */}
         <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-            Your Verification Fee
-          </p>
-          {isTransactionsLoading ? (
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Your Verification Fee
+            </p>
+            {walletConfig && (
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-medium ${
+                  walletConfig.walletEnabled
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {walletConfig.walletEnabled ? "Active" : "Inactive"}
+              </span>
+            )}
+          </div>
+          {isConfigLoading || isTransactionsLoading ? (
             <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
           ) : (
             <>
@@ -221,7 +314,11 @@ export default function WalletPage() {
                 {verificationFee}
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Standard rate
+                {walletConfig?.walletEnabled
+                  ? walletConfig.walletChargeType === "PERCENTAGE"
+                    ? "Percentage-based"
+                    : "Fixed rate"
+                  : "Wallet disabled"}
               </p>
             </>
           )}
@@ -279,12 +376,98 @@ export default function WalletPage() {
         />
       )}
 
+      {/* Pending Deposits */}
+      {pendingDeposits && pendingDeposits.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+            Pending Deposits
+          </h3>
+          <div className="space-y-3">
+            {pendingDeposits.map((deposit) => {
+              const expiresAt = new Date(deposit.expiresAt);
+              // Use currentTime state for real-time countdown
+              const timeRemaining = Math.max(0, Math.floor((expiresAt.getTime() - currentTime.getTime()) / 1000));
+              const isExpired = timeRemaining <= 0;
+              const minutes = Math.floor(timeRemaining / 60);
+              const seconds = timeRemaining % 60;
+              const timeString = isExpired ? "Expired" : `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+              return (
+                <div
+                  key={deposit.id}
+                  onClick={() => {
+                    setSelectedReceiver(deposit.receiverAccount);
+                    setSelectedAmount(deposit.amount);
+                    setPendingTopUp({
+                      amount: deposit.amount,
+                      receiver: deposit.receiverAccount,
+                      expiresAt,
+                    });
+                    setIsCompletePaymentModalOpen(true);
+                  }}
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    isExpired
+                      ? "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30"
+                      : "border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-gray-800 dark:text-white">
+                          {deposit.amount.toFixed(2)} ETB - {deposit.provider}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            isExpired
+                              ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                              : "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                          }`}
+                        >
+                          {isExpired ? "Expired" : "Pending"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {deposit.receiverAccount.receiverLabel || deposit.receiverAccount.receiverName || deposit.receiverAccount.receiverAccount}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-lg font-semibold mb-1 ${
+                        isExpired ? "text-red-600 dark:text-red-400" : "text-orange-600 dark:text-orange-400"
+                      }`}>
+                        {timeString}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {isExpired ? "Click to see details" : "Click to complete"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       <TopUpModal
         isOpen={isTopUpModalOpen}
         onClose={() => setIsTopUpModalOpen(false)}
         onContinue={handleContinueToPayment}
       />
+
+      {selectedAmount && depositReceivers && (
+        <BankSelectionModal
+          isOpen={isBankSelectionModalOpen}
+          onClose={() => {
+            setIsBankSelectionModalOpen(false);
+            setSelectedAmount(null);
+          }}
+          receivers={depositReceivers}
+          selectedAmount={selectedAmount}
+          onSelect={handleBankSelect}
+        />
+      )}
 
       {pendingTopUp && selectedReceiver && (
         <CompletePaymentModal

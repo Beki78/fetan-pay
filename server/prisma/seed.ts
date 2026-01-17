@@ -399,6 +399,77 @@ async function main() {
       status: a.status,
     })),
   });
+
+  // Seed wallet deposit receiver accounts for testing
+  console.info('🌱 Seeding wallet deposit receiver accounts...');
+  
+  const walletDepositReceivers = [
+    {
+      provider: 'CBE' as const,
+      receiverAccount: '1000675169601',
+      receiverName: 'FetanPay Wallet Deposits - CBE',
+      receiverLabel: 'CBE Test Account',
+      status: 'ACTIVE',
+    },
+    {
+      provider: 'AWASH' as const,
+      receiverAccount: '0131234567890',
+      receiverName: 'FetanPay Wallet Deposits - Awash',
+      receiverLabel: 'Awash Test Account',
+      status: 'ACTIVE',
+    },
+    {
+      provider: 'BOA' as const,
+      receiverAccount: '1234567890123',
+      receiverName: 'FetanPay Wallet Deposits - BOA',
+      receiverLabel: 'BOA Test Account',
+      status: 'ACTIVE',
+    },
+    {
+      provider: 'TELEBIRR' as const,
+      receiverAccount: '0912345678',
+      receiverName: 'FetanPay Wallet Deposits - Telebirr',
+      receiverLabel: 'Telebirr Test Account',
+      status: 'ACTIVE',
+    },
+    {
+      provider: 'DASHEN' as const,
+      receiverAccount: '1234567890123',
+      receiverName: 'FetanPay Wallet Deposits - Dashen',
+      receiverLabel: 'Dashen Test Account',
+      status: 'ACTIVE',
+    },
+  ];
+
+  for (const receiver of walletDepositReceivers) {
+    try {
+      await (prisma as any).walletDepositReceiverAccount.upsert({
+        where: {
+          wallet_deposit_receiver_unique: {
+            provider: receiver.provider,
+            receiverAccount: receiver.receiverAccount,
+          },
+        },
+        update: {
+          receiverName: receiver.receiverName,
+          receiverLabel: receiver.receiverLabel,
+          status: receiver.status,
+        },
+        create: {
+          provider: receiver.provider,
+          receiverAccount: receiver.receiverAccount,
+          receiverName: receiver.receiverName,
+          receiverLabel: receiver.receiverLabel,
+          status: receiver.status,
+        },
+      });
+      console.info(`✅ Created/updated ${receiver.provider} wallet deposit receiver: ${receiver.receiverAccount}`);
+    } catch (error) {
+      console.error(`❌ Failed to seed ${receiver.provider} wallet receiver:`, error);
+    }
+  }
+  
+  console.info('✅ Wallet deposit receiver accounts seeded successfully!');
 }
 
 main()

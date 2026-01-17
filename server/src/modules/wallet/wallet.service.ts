@@ -14,6 +14,7 @@ import { SetDepositReceiverDto } from './dto/set-deposit-receiver.dto';
 import { ManualDepositDto } from './dto/manual-deposit.dto';
 import { AdjustBalanceDto } from './dto/adjust-balance.dto';
 import { WalletTransactionHistoryDto } from './dto/wallet-transaction-history.dto';
+import { CreateWalletDepositDto } from './dto/create-wallet-deposit.dto';
 
 @Injectable()
 export class WalletService {
@@ -211,6 +212,84 @@ export class WalletService {
   }
 
   /**
+   * Create a pending wallet deposit (merchant-initiated)
+   */
+  async createPendingDeposit(
+    body: CreateWalletDepositDto,
+    req: Request,
+  ): Promise<any> {
+    const membership = await this.requireMembership(req);
+
+    // Verify receiver account exists and is active
+    const receiverAccount = await this.prisma.walletDepositReceiverAccount.findUnique({
+      where: { id: body.receiverAccountId },
+    });
+
+    if (!receiverAccount) {
+      throw new NotFoundException('Receiver account not found');
+    }
+
+    if (receiverAccount.status !== 'ACTIVE') {
+      throw new BadRequestException('Receiver account is not active');
+    }
+
+    if (receiverAccount.provider !== body.provider) {
+      throw new BadRequestException('Provider mismatch with receiver account');
+    }
+
+    // Generate a temporary reference (will be replaced with actual reference on verification)
+    const tempReference = `PENDING_${Date.now()}_${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+    // Create pending deposit
+    const deposit = await this.prisma.walletDeposit.create({
+      data: {
+        merchantId: membership.merchantId,
+        provider: body.provider,
+        reference: tempReference,
+        amount: new Prisma.Decimal(body.amount),
+        receiverAccountId: body.receiverAccountId,
+        status: 'PENDING',
+        expiresAt,
+        description: `Pending deposit of ${body.amount} ETB via ${body.provider}`,
+      },
+      include: {
+        receiverAccount: true,
+      },
+    });
+
+    return deposit;
+  }
+
+  /**
+   * Get pending deposits for merchant
+   */
+  async getPendingDeposits(merchantId: string) {
+    const deposits = await this.prisma.walletDeposit.findMany({
+      where: {
+        merchantId,
+        status: 'PENDING',
+      },
+      include: {
+        receiverAccount: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return deposits.map((deposit) => ({
+      id: deposit.id,
+      provider: deposit.provider,
+      amount: deposit.amount.toNumber(),
+      receiverAccount: deposit.receiverAccount,
+      expiresAt: deposit.expiresAt?.toISOString() || null,
+      createdAt: deposit.createdAt.toISOString(),
+      isExpired: deposit.expiresAt ? new Date() > deposit.expiresAt : false,
+    }));
+  }
+
+  /**
    * Verify wallet deposit (merchant-initiated)
    */
   async verifyWalletDeposit(
@@ -225,14 +304,12 @@ export class WalletService {
   }> {
     const membership = await this.requireMembership(req);
 
-    // Check for existing deposit
-    const existingDeposit = await this.prisma.walletDeposit.findUnique({
+    // Check for existing deposit by reference
+    const existingDeposit = await this.prisma.walletDeposit.findFirst({
       where: {
-        wallet_deposit_unique: {
-          merchantId: membership.merchantId,
-          provider: body.provider,
-          reference: body.reference,
-        },
+        merchantId: membership.merchantId,
+        provider: body.provider,
+        reference: body.reference,
       },
     });
 
@@ -242,13 +319,44 @@ export class WalletService {
       );
     }
 
+    // Check if there's a pending deposit that matches (by provider)
+    // This allows updating a pending deposit with the actual reference
+    const pendingDeposit = existingDeposit?.status === 'PENDING' 
+      ? existingDeposit 
+      : await this.prisma.walletDeposit.findFirst({
+          where: {
+            merchantId: membership.merchantId,
+            provider: body.provider,
+            status: 'PENDING',
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+    // Check expiration for pending deposits
+    if (pendingDeposit?.expiresAt && new Date() > pendingDeposit.expiresAt) {
+      // Update status to EXPIRED
+      await this.prisma.walletDeposit.update({
+        where: { id: pendingDeposit.id },
+        data: { status: 'EXPIRED' },
+      });
+      throw new BadRequestException('This deposit request has expired. Please create a new deposit request.');
+    }
+
     // Get active wallet deposit receiver account
-    const receiverAccount = await this.prisma.walletDepositReceiverAccount.findFirst({
-      where: {
-        provider: body.provider,
-        status: 'ACTIVE',
-      },
-    });
+    // If we have a pending deposit, use its receiver account, otherwise find one
+    let receiverAccount;
+    if (pendingDeposit) {
+      receiverAccount = await this.prisma.walletDepositReceiverAccount.findUnique({
+        where: { id: pendingDeposit.receiverAccountId },
+      });
+    } else {
+      receiverAccount = await this.prisma.walletDepositReceiverAccount.findFirst({
+        where: {
+          provider: body.provider,
+          status: 'ACTIVE',
+        },
+      });
+    }
 
     if (!receiverAccount) {
       throw new BadRequestException(
@@ -300,36 +408,34 @@ export class WalletService {
     if (status === 'VERIFIED') {
       // Use transaction for atomicity
       const result = await this.prisma.$transaction(async (tx) => {
-        // Create or update deposit
-        const deposit = await tx.walletDeposit.upsert({
-          where: {
-            wallet_deposit_unique: {
-              merchantId: membership.merchantId,
-              provider: body.provider,
-              reference: body.reference,
-            },
-          },
-          update: {
-            amount: depositAmount,
-            status: 'VERIFIED',
-            verifiedAt: new Date(),
-            verifiedBy: membership.merchantUserId,
-            verificationPayload: normalizedPayload as Prisma.InputJsonValue,
-            errorMessage: null,
-          },
-          create: {
-            merchantId: membership.merchantId,
-            provider: body.provider,
-            reference: body.reference,
-            amount: depositAmount,
-            receiverAccountId: receiverAccount.id,
-            status: 'VERIFIED',
-            verifiedAt: new Date(),
-            verifiedBy: membership.merchantUserId,
-            verificationPayload: normalizedPayload as Prisma.InputJsonValue,
-            description: `Wallet deposit via ${body.provider}`,
-          },
-        });
+        // Update existing pending deposit or create new one
+        const deposit = pendingDeposit
+          ? await tx.walletDeposit.update({
+              where: { id: pendingDeposit.id },
+              data: {
+                reference: body.reference, // Update with actual reference
+                amount: depositAmount,
+                status: 'VERIFIED',
+                verifiedAt: new Date(),
+                verifiedBy: membership.merchantUserId,
+                verificationPayload: normalizedPayload as Prisma.InputJsonValue,
+                errorMessage: null,
+              },
+            })
+          : await tx.walletDeposit.create({
+              data: {
+                merchantId: membership.merchantId,
+                provider: body.provider,
+                reference: body.reference,
+                amount: depositAmount,
+                receiverAccountId: receiverAccount.id,
+                status: 'VERIFIED',
+                verifiedAt: new Date(),
+                verifiedBy: membership.merchantUserId,
+                verificationPayload: normalizedPayload as Prisma.InputJsonValue,
+                description: `Wallet deposit via ${body.provider}`,
+              },
+            });
 
         // Get current balance
         const merchant = await tx.merchant.findUnique({
@@ -532,6 +638,32 @@ export class WalletService {
     });
 
     return result;
+  }
+
+  /**
+   * Get merchant wallet configuration
+   */
+  async getMerchantWalletConfig(merchantId: string) {
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: {
+        walletEnabled: true,
+        walletChargeType: true,
+        walletChargeValue: true,
+        walletMinBalance: true,
+      },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    return {
+      walletEnabled: merchant.walletEnabled,
+      walletChargeType: merchant.walletChargeType,
+      walletChargeValue: merchant.walletChargeValue?.toNumber() ?? null,
+      walletMinBalance: merchant.walletMinBalance?.toNumber() ?? null,
+    };
   }
 
   /**

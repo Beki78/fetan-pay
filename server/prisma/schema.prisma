@@ -448,6 +448,7 @@ model WalletDeposit {
 
   // Verification status
   status          WalletDepositStatus @default(PENDING)
+  expiresAt       DateTime?  // 30 minutes from creation
   verifiedAt      DateTime?
   verifiedBy      String?
 
