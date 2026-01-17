@@ -132,6 +132,7 @@ export default function SupportedBanks() {
             `,
               }}
             />
+            
             {banks.map((bank, index) => {
               const isCenter = bank.name === "CBE";
               const flowerAngle =
