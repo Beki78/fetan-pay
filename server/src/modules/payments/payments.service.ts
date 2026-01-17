@@ -254,6 +254,27 @@ export class PaymentsService {
       );
     }
 
+    // Check wallet balance before verification if wallet is enabled
+    const merchant = await (this.prisma as any).merchant.findUnique({
+      where: { id: membership.merchantId },
+      select: {
+        walletEnabled: true,
+        walletBalance: true,
+        walletChargeType: true,
+        walletChargeValue: true,
+        walletMinBalance: true,
+      },
+    });
+
+    if (merchant?.walletEnabled) {
+      // If wallet is enabled and balance is 0, reject immediately
+      if (merchant.walletBalance.lte(0)) {
+        throw new BadRequestException(
+          'Wallet balance is insufficient. Please top up your wallet before verifying payments.',
+        );
+      }
+    }
+
     const verifierResult = await this.runCoreVerifier(
       body.provider,
       body.reference,
@@ -313,6 +334,35 @@ export class PaymentsService {
       (txAmount !== undefined &&
         this.normalizeAmountToCents(txAmount) ===
           this.normalizeAmountToCents(body.claimedAmount));
+
+    // Check wallet balance after getting payment amount (before marking as verified)
+    if (merchant?.walletEnabled && claimedAmount.gt(0)) {
+      const chargeAmount = await this.walletService.calculateCharge(
+        membership.merchantId,
+        claimedAmount,
+      );
+
+      if (chargeAmount && chargeAmount.gt(0)) {
+        const currentBalance = merchant.walletBalance;
+        const newBalance = currentBalance.sub(chargeAmount);
+
+        // Check minimum balance if set
+        if (merchant.walletMinBalance) {
+          if (newBalance.lt(merchant.walletMinBalance)) {
+            throw new BadRequestException(
+              `Insufficient wallet balance. Required: ${chargeAmount.toFixed(2)} ETB, Available: ${currentBalance.toFixed(2)} ETB, Minimum balance: ${merchant.walletMinBalance.toFixed(2)} ETB. Please top up your wallet.`,
+            );
+          }
+        } else {
+          // No minimum balance set, but still check if balance goes negative
+          if (newBalance.lt(0)) {
+            throw new BadRequestException(
+              `Insufficient wallet balance. Required: ${chargeAmount.toFixed(2)} ETB, Available: ${currentBalance.toFixed(2)} ETB. Please top up your wallet.`,
+            );
+          }
+        }
+      }
+    }
 
     const receiverMatches = this.receiverAccountMatches(
       txReceiverAccount,
