@@ -16,9 +16,11 @@ import { RejectMerchantDto } from './dto/reject-merchant.dto';
 import { CreateMerchantUserDto } from './dto/create-merchant-user.dto';
 import { UpdateMerchantUserDto } from './dto/update-merchant-user.dto';
 import { SetMerchantUserStatusDto } from './dto/set-merchant-user-status.dto';
+import { UpdateMerchantProfileDto } from './dto/update-merchant-profile.dto';
 import { QrCodeService } from './qr-code.service';
 import { auth } from '../../../auth';
 import * as CryptoJS from 'crypto-js';
+import type { Request } from 'express';
 
 type MerchantStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED';
 type MerchantUserRole =
@@ -168,6 +170,48 @@ export class MerchantsService {
       throw new NotFoundException('Merchant not found');
     }
     return merchant;
+  }
+
+  async updateProfile(merchantId: string, dto: UpdateMerchantProfileDto, req: Request) {
+    // Verify merchant exists
+    const merchant = await this.findOne(merchantId);
+
+    // Get authenticated user from request
+    const authUser = (req as any)?.user;
+    const authUserId: string | undefined = authUser?.id;
+
+    if (!authUserId) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+
+    // Verify user is a member of this merchant
+    const membership = await (this.prisma as any).merchantUser.findFirst({
+      where: {
+        merchantId,
+        userId: authUserId,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (!membership) {
+      throw new UnauthorizedException(
+        'You do not have permission to update this merchant profile',
+      );
+    }
+
+    // Update merchant profile
+    const updated = await (this.prisma as any).merchant.update({
+      where: { id: merchantId },
+      data: {
+        name: dto.name,
+        contactEmail: dto.contactEmail,
+        contactPhone: dto.contactPhone,
+        tin: dto.tin,
+      },
+      include: { users: true },
+    });
+
+    return updated;
   }
 
   /**

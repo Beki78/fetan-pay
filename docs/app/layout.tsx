@@ -7,6 +7,11 @@ import { APP_CONFIG } from "@/libs/config";
 export const metadata = {
   // Define your metadata here
   // For more information on metadata API, see: https://nextjs.org/docs/app/building-your-application/optimizing/metadata
+  icons: {
+    icon: '/fetan-logo.png',
+    shortcut: '/fetan-logo.png',
+    apple: '/fetan-logo.png',
+  },
 };
 
 const banner = <Banner storageKey="some-key">{APP_CONFIG.name} 1.0 is released 🎉</Banner>;
@@ -31,7 +36,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <Head
       // ... Your additional head options
       >
-        {/* Your additional tags should be passed as `children` of `<Head>` element */}
+        {/* Remove default favicon and use custom logo */}
+        <link rel="icon" href="/fetan-logo.png" type="image/png" />
+        <link rel="shortcut icon" href="/fetan-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/fetan-logo.png" />
       </Head>
       <body>
         <Layout
