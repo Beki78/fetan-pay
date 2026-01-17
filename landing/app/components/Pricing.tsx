@@ -130,6 +130,8 @@ function PricingTier({
 
       <Link
         href={buttonHref}
+        target={buttonHref.startsWith("http") ? "_blank" : undefined}
+        rel={buttonHref.startsWith("http") ? "noopener noreferrer" : undefined}
         className={`flex items-center justify-center py-3 px-6 rounded-full font-medium transition-all duration-300 group ${
           isPopular
             ? "bg-[#174686] text-white hover:bg-[#0d3463]"
@@ -180,7 +182,7 @@ export default function Pricing() {
       ],
       isPopular: false,
       buttonText: "Get Started",
-      buttonHref: "#get-started",
+      buttonHref: "https://merchant.fetanpay.et/signup",
     },
     {
       name: "Professional",
@@ -197,7 +199,7 @@ export default function Pricing() {
       ],
       isPopular: true,
       buttonText: "Get Started",
-      buttonHref: "#get-started",
+      buttonHref: "https://merchant.fetanpay.et/signup",
     },
     {
       name: "Enterprise",
@@ -215,7 +217,7 @@ export default function Pricing() {
       ],
       isPopular: false,
       buttonText: "Contact Sales",
-      buttonHref: "#contact",
+      buttonHref: "mailto:fetanpay@gmail.com",
     },
   ];
 
@@ -287,4 +289,3 @@ export default function Pricing() {
     </section>
   );
 }
-

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Badge from "./Badge";
 
@@ -60,7 +62,9 @@ export default function CallToAction() {
             }}
           >
             <Link
-              href="/get-started"
+              href="https://merchant.fetanpay.et/signup"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center bg-[#174686] text-[#f6f7fa] transition-all duration-300 hover:bg-[#0d3463] group"
               style={{
                 fontFamily: "var(--font-inter)",

@@ -373,9 +373,23 @@ export default function TermsOfService() {
               <p className="text-gray-700 mb-2">
                 <strong>Fetan Pay</strong>
               </p>
-              <p className="text-gray-700 mb-2">Email: legal@fetanpay.com</p>
               <p className="text-gray-700 mb-2">
-                Support: support@fetanpay.com
+                Email:{" "}
+                <Link
+                  href="mailto:fetanpay@gmail.com"
+                  className="text-[#174686] hover:underline"
+                >
+                  fetanpay@gmail.com
+                </Link>
+              </p>
+              <p className="text-gray-700 mb-2">
+                Support:{" "}
+                <Link
+                  href="mailto:fetanpay@gmail.com"
+                  className="text-[#174686] hover:underline"
+                >
+                  fetanpay@gmail.com
+                </Link>
               </p>
               <p className="text-gray-700">
                 Website:{" "}

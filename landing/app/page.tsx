@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect } from "react";
 import {
   Navbar,
   HeroBadge,
@@ -15,6 +18,25 @@ import Business from "./components/Business";
 import StructuredData from "./components/StructuredData";
 
 export default function Home() {
+  useEffect(() => {
+    // Handle hash scrolling when page loads
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      if (hash) {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+          const element = document.getElementById(hash.substring(1));
+          if (element) {
+            element.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        }, 100);
+      }
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-white overflow-hidden relative">
       <StructuredData />
