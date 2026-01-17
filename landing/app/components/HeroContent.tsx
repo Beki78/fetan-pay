@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 export default function HeroContent() {
@@ -34,7 +36,9 @@ export default function HeroContent() {
       <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-[12px] mt-[24px] opacity-0 animate-fade-in-up animation-delay-500">
         {/* Primary Button - 171x54, border-radius 40, stroke #899cfd - Responsive */}
         <Link
-          href="/get-started"
+          href="https://merchant.fetanpay.et/signup"
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center bg-[#174686] text-[#f6f7fa] transition-all duration-300 hover:bg-[#0d3463] group w-full sm:w-auto"
           style={{
             fontFamily: "var(--font-inter)",
@@ -67,7 +71,9 @@ export default function HeroContent() {
 
         {/* Secondary Button - 125x54, border-radius 100 - Responsive */}
         <Link
-          href="/docs"
+          href="https://docs.fetanpay.et/"
+          target="_blank"
+          rel="noopener noreferrer"
           className="bg-white font-medium text-[#191d4d] text-[16px] leading-[27px] transition-all duration-300 hover:bg-gray-50 flex items-center justify-center w-full sm:w-auto"
           style={{
             fontFamily: "var(--font-inter)",

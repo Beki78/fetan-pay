@@ -1,14 +1,43 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function Footer() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const isHomePage = pathname === "/";
+
   const productLinks = [
     { name: "How it works", href: "#how-it-works" },
     { name: "Features", href: "#features" },
     { name: "Integration", href: "#integration" },
     { name: "Pricing", href: "#pricing" },
-    { name: "Docs", href: "https://docs.fetanpay.com" },
+    { name: "Docs", href: "https://docs.fetanpay.et/" },
   ];
+
+  const handleLinkClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    if (href.startsWith("#")) {
+      if (!isHomePage) {
+        e.preventDefault();
+        router.push(`/${href}`);
+        return;
+      }
+      e.preventDefault();
+      const targetId = href.substring(1);
+      const element = document.getElementById(targetId);
+      if (element) {
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    }
+  };
 
   return (
     <footer
@@ -62,24 +91,30 @@ export default function Footer() {
               Product
             </h3>
             <ul className="flex flex-col gap-3">
-              {productLinks.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    style={{
-                      fontFamily: "var(--font-geist)",
-                      fontSize: "14px",
-                      lineHeight: "21px",
-                      color: "#eafcfd",
-                      fontWeight: 400,
-                      transition: "color 0.3s ease",
-                    }}
-                    className="hover:opacity-80"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
+              {productLinks.map((link) => {
+                const isDocs = link.href.startsWith("http");
+                return (
+                  <li key={link.name}>
+                    <Link
+                      href={link.href}
+                      onClick={(e) => !isDocs && handleLinkClick(e, link.href)}
+                      target={isDocs ? "_blank" : undefined}
+                      rel={isDocs ? "noopener noreferrer" : undefined}
+                      style={{
+                        fontFamily: "var(--font-geist)",
+                        fontSize: "14px",
+                        lineHeight: "21px",
+                        color: "#eafcfd",
+                        fontWeight: 400,
+                        transition: "color 0.3s ease",
+                      }}
+                      className="hover:opacity-80"
+                    >
+                      {link.name}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>

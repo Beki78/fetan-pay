@@ -3,17 +3,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 const navLinks = [
   { name: "How it works", href: "#how-it-works", smoothScroll: true },
   { name: "Features", href: "#features", smoothScroll: true },
   { name: "Integration", href: "#integration", smoothScroll: true },
   { name: "Pricing", href: "#pricing", smoothScroll: true },
-  { name: "Docs", href: "https://docs.fetanpay.com", smoothScroll: false },
+  { name: "Docs", href: "https://docs.fetanpay.et/", smoothScroll: false },
 ];
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const isHomePage = pathname === "/";
 
   // Close mobile menu when clicking outside or on link
   useEffect(() => {
@@ -34,6 +38,13 @@ export default function Navbar() {
   ) => {
     if (link.smoothScroll && link.href.startsWith("#")) {
       e.preventDefault();
+
+      if (!isHomePage) {
+        // Navigate to home page first, then scroll
+        router.push(`/${link.href}`);
+        return;
+      }
+
       const targetId = link.href.substring(1);
       const element = document.getElementById(targetId);
       if (element) {
@@ -47,15 +58,7 @@ export default function Navbar() {
     setIsMobileMenuOpen(false);
   };
 
-  const handleGetStarted = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    const element = document.getElementById("get-started");
-    if (element) {
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
+  const handleGetStarted = () => {
     setIsMobileMenuOpen(false);
   };
 
@@ -78,12 +81,19 @@ export default function Navbar() {
           {/* Desktop Nav Pill - Hidden on mobile */}
           <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2">
             <nav className="flex items-center px-3 py-2 bg-white border border-[#174686]/40 rounded-full shadow-lg">
-              {navLinks.map((link, index) => {
+              {navLinks.map((link) => {
                 const handleClick = (
                   e: React.MouseEvent<HTMLAnchorElement>
                 ) => {
                   if (link.smoothScroll && link.href.startsWith("#")) {
                     e.preventDefault();
+
+                    if (!isHomePage) {
+                      // Navigate to home page first, then scroll
+                      router.push(`/${link.href}`);
+                      return;
+                    }
+
                     const targetId = link.href.substring(1);
                     const element = document.getElementById(targetId);
                     if (element) {
@@ -106,8 +116,6 @@ export default function Navbar() {
                     target={isDocs ? "_blank" : undefined}
                     rel={isDocs ? "noopener noreferrer" : undefined}
                     className={`px-6 py-2 rounded-full text-[#174686] text-[18px] leading-[26px] transition-all duration-300 ${
-                      index === 0 ? "bg-[#eafcfd]" : ""
-                    } ${
                       isDocs
                         ? "border border-[rgba(59,59,59,0.12)] hover:bg-gray-50"
                         : "hover:bg-[#eafcfd]"
@@ -127,8 +135,10 @@ export default function Navbar() {
           {/* Get Started Button - Desktop only, positioned on right */}
           <div className="hidden lg:flex items-center z-10 mr-20">
             <Link
-              href="#get-started"
+              href="https://merchant.fetanpay.et/signup"
               onClick={handleGetStarted}
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center bg-[#174686] text-[#f6f7fa] transition-all duration-300 hover:bg-[#0d3463] group"
               style={{
                 fontFamily: "var(--font-inter)",
@@ -279,8 +289,10 @@ export default function Navbar() {
               {/* Bottom Action Button */}
               <div className="p-6 border-t border-gray-200">
                 <Link
-                  href="#get-started"
+                  href="https://merchant.fetanpay.et/signup"
                   onClick={handleGetStarted}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center justify-center w-full py-3 px-6 rounded-full bg-[#174686] text-white font-medium hover:bg-[#0d3463] transition-colors group"
                   style={{
                     fontFamily: "var(--font-inter)",
