@@ -173,6 +173,15 @@ const mainItems: NavItem[] = [
   path: "/users",
   },
   {
+    icon: <WalletIcon />,
+    name: "Wallet",
+    subItems: [
+      { name: "Deposit Receivers", path: "/wallet/receivers" },
+      { name: "Merchant Wallets", path: "/wallet/merchants" },
+      { name: "Transactions", path: "/wallet/transactions" },
+    ],
+  },
+  {
     icon: <PieChartIcon />,
     name: "Plan Stats",
     path: "/plan-stats",

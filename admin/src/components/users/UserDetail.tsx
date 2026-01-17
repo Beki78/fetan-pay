@@ -1,6 +1,7 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Button from "../ui/button/Button";
 import { ChevronLeftIcon } from "@/icons";
 import { Modal } from "../ui/modal";
@@ -16,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import MerchantStatsCard from "./MerchantStatsCard";
 
 interface UserDetailProps {
   userId: string;
@@ -42,16 +44,17 @@ const InfoItem = ({ label, value }: { label: string; value?: string | null }) =>
 );
 
 export default function UserDetail({ userId }: UserDetailProps) {
+  const router = useRouter();
   const shouldSkip = !userId;
   const { data: merchant, isLoading, isError, refetch } = useGetMerchantQuery(userId, { skip: shouldSkip });
   const [approve, { isLoading: approving }] = useApproveMerchantMutation();
   const [reject, { isLoading: rejecting }] = useRejectMerchantMutation();
   const [error, setError] = useState<string | null>(null);
-  const [confirmAction, setConfirmAction] = useState<null | "approve" | "reject">(null);
+  const [confirmAction, setConfirmAction] = useState<null | "approve" | "reject" | "ban">(null);
 
   const owner = useMemo(
-    () => merchant?.users.find((u) => u.role === "MERCHANT_OWNER"),
-    [merchant]
+    () => merchant?.users?.find((u) => u.role === "MERCHANT_OWNER") || null,
+    [merchant?.users]
   );
 
   const handleApprove = async () => {
@@ -78,6 +81,46 @@ export default function UserDetail({ userId }: UserDetailProps) {
     }
   };
 
+  const handleBanMerchant = async () => {
+    if (!merchant) return;
+    setError(null);
+    try {
+      // Note: This would need a banMerchant mutation in the API
+      // For now, we'll use reject as a placeholder
+      await reject({ id: merchant.id, reason: "Banned by admin" }).unwrap();
+      await refetch();
+      setConfirmAction(null);
+    } catch (e: any) {
+      setError(e?.data?.message ?? "Could not ban merchant");
+    }
+  };
+
+  const handleBanTeamMember = async (memberId: string) => {
+    // Note: This would need a banTeamMember mutation in the API
+    // For now, this is just UI placeholder
+    console.log("Ban team member:", memberId);
+    await refetch();
+  };
+
+  // Calculate stats (mock data - would come from API)
+  // Must be called before any conditional returns
+  const stats = useMemo(() => {
+    if (!merchant) {
+      return {
+        revenue: 0,
+        totalUsers: 0,
+        totalTips: 0,
+      };
+    }
+    // These would be fetched from the API
+    return {
+      revenue: 1250000.50,
+      totalUsers: merchant.users?.length || 0,
+      totalTips: 45000.25,
+    };
+  }, [merchant]);
+
+  // Early returns for loading/error states (after all hooks)
   if (shouldSkip || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px] text-gray-500 dark:text-gray-400">
@@ -101,6 +144,11 @@ export default function UserDetail({ userId }: UserDetailProps) {
   }
 
   const isPending = merchant.status === "PENDING";
+  const isBanned = merchant.status === "SUSPENDED";
+
+  const handleViewTeamMember = (memberId: string) => {
+    router.push(`/users/${userId}/team/${memberId}`);
+  };
 
   return (
     <div className="space-y-8">
@@ -141,6 +189,13 @@ export default function UserDetail({ userId }: UserDetailProps) {
           >
             {rejecting ? "Rejecting..." : "Reject"}
           </Button>
+          <Button
+            disabled={isBanned || approving || rejecting}
+            onClick={() => setConfirmAction("ban")}
+            className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+          >
+            Ban
+          </Button>
         </div>
       </div>
 
@@ -149,6 +204,13 @@ export default function UserDetail({ userId }: UserDetailProps) {
           {error}
         </div>
       )}
+
+      {/* Stats Card */}
+      <MerchantStatsCard
+        revenue={stats.revenue}
+        totalUsers={stats.totalUsers}
+        totalTips={stats.totalTips}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800/60 space-y-4 col-span-2">
@@ -200,22 +262,49 @@ export default function UserDetail({ userId }: UserDetailProps) {
                 <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
                   Status
                 </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
+                  Actions
+                </TableCell>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {merchant.users.map((user) => (
-                <TableRow key={user.id} className="bg-white dark:bg-gray-800/50">
-                  <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.name ?? "-"}</TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.email ?? "-"}</TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.phone ?? "-"}</TableCell>
-                  <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.role}</TableCell>
-                  <TableCell className="px-5 py-4">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusBadge(user.status)}`}>
-                      {user.status}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {merchant.users.map((user) => {
+                const isUserBanned = user.status === "BANNED" || user.status === "SUSPENDED";
+                return (
+                  <TableRow key={user.id} className="bg-white dark:bg-gray-800/50">
+                    <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.name ?? "-"}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.email ?? "-"}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.phone ?? "-"}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.role}</TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusBadge(user.status)}`}>
+                        {user.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewTeamMember(user.id)}
+                          className="text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/20"
+                        >
+                          Details
+                        </Button>
+                        {!isUserBanned && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleBanTeamMember(user.id)}
+                            className="bg-red-600 text-white hover:bg-red-700"
+                          >
+                            Ban
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -228,12 +317,18 @@ export default function UserDetail({ userId }: UserDetailProps) {
       >
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {confirmAction === "approve" ? "Approve merchant" : "Reject merchant"}
+            {confirmAction === "approve" 
+              ? "Approve merchant" 
+              : confirmAction === "reject"
+              ? "Reject merchant"
+              : "Ban merchant"}
           </h3>
           <p className="text-gray-700 dark:text-gray-300">
             {confirmAction === "approve"
               ? `Approve ${merchant.name} and activate its invited users?`
-              : `Reject ${merchant.name} and suspend all of its users?`}
+              : confirmAction === "reject"
+              ? `Reject ${merchant.name} and suspend all of its users?`
+              : `Ban ${merchant.name}? This will permanently suspend the merchant account and all associated users.`}
           </p>
           {error && (
             <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
@@ -257,13 +352,21 @@ export default function UserDetail({ userId }: UserDetailProps) {
               >
                 {approving ? "Approving..." : "Confirm approve"}
               </Button>
-            ) : (
+            ) : confirmAction === "reject" ? (
               <Button
                 onClick={handleReject}
                 disabled={rejecting}
                 className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
               >
                 {rejecting ? "Rejecting..." : "Confirm reject"}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleBanMerchant}
+                disabled={approving || rejecting}
+                className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                Confirm Ban
               </Button>
             )}
           </div>
