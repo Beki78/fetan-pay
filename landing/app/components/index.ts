@@ -7,6 +7,7 @@ export { default as CoreFeatures } from "./CoreFeatures";
 export { default as Business } from "./Business";
 export { default as SupportedBanks } from "./SupportedBanks";
 export { default as Integration } from "./Integration";
+export { default as Pricing } from "./Pricing";
 export { default as CallToAction } from "./CallToAction";
 export { default as Footer } from "./Footer";
 

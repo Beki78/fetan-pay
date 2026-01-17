@@ -21,12 +21,10 @@ function BusinessCard({
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)",
       }}
     >
-      <div className="mb-4 shrink-0 min-h-[120px] flex items-center justify-center">
+      <div className="mb-4 shrink-0 min-h-[100px] sm:min-h-[120px] flex items-center justify-center">
         <div
-          className="rounded-full flex items-center justify-center"
+          className="rounded-full flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 lg:w-[100px] lg:h-[100px]"
           style={{
-            width: "100px",
-            height: "100px",
             background: "linear-gradient(180deg, #FAFEFF 0%, #EAFCFD 100%)",
             border: "1px solid #d0f8fb",
           }}
@@ -37,29 +35,23 @@ function BusinessCard({
             alt={iconAlt}
             width={60}
             height={60}
-            className="object-contain"
+            className="object-contain w-10 h-10 sm:w-12 sm:h-12 lg:w-[60px] lg:h-[60px]"
           />
         </div>
       </div>
       <div className="flex-1 flex flex-col items-center text-center">
         <h3
+          className="text-lg sm:text-xl lg:text-2xl font-semibold text-[#174686] mb-2 sm:mb-3 lg:mb-2 leading-6 sm:leading-7 lg:leading-8"
           style={{
             fontFamily: "var(--font-geist)",
-            fontSize: "24px",
-            fontWeight: 600,
-            color: "#174686",
-            marginBottom: "8px",
-            lineHeight: "32px",
           }}
         >
           {title}
         </h3>
         <p
+          className="text-sm sm:text-base text-[#4d4d4d] leading-5 sm:leading-6"
           style={{
             fontFamily: "var(--font-geist)",
-            fontSize: "16px",
-            lineHeight: "24px",
-            color: "#4d4d4d",
             fontWeight: 400,
           }}
         >
@@ -117,8 +109,8 @@ export default function Business() {
   ];
 
   return (
-    <section className="py-16 px-4 relative z-10 bg-white">
-      <div className="max-w-7xl mx-auto">
+    <section className="py-8 sm:py-12 md:py-16 px-4 relative z-10 bg-white">
+      <div className="mx-auto" style={{ maxWidth: "1450px" }}>
         {/* Badge */}
         <div className="flex justify-center mb-6">
           <Badge
@@ -130,12 +122,11 @@ export default function Business() {
           </Badge>
         </div>
 
-        {/* Title */}
+        {/* Title - Responsive */}
         <h2
-          className="text-[72px] leading-[75px] font-normal opacity-0 animate-fade-in-up animation-delay-300 text-center mx-auto"
+          className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-tight sm:leading-[48px] md:leading-[60px] lg:leading-[75px] font-normal opacity-0 animate-fade-in-up animation-delay-300 text-center mx-auto tracking-tight lg:tracking-[-2.16px] px-4"
           style={{
             fontFamily: "var(--font-geist)",
-            letterSpacing: "-2.16px",
             background: "linear-gradient(to right, #061a32, #0d3463)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
@@ -146,9 +137,9 @@ export default function Business() {
           Trusted by businesses across Ethiopia
         </h2>
 
-        {/* Subtitle */}
+        {/* Subtitle - Responsive */}
         <p
-          className="text-xl py-8 leading-[35px] text-[#4d4d4d] font-normal animate-fade-in-up animation-delay-400 text-center mx-auto"
+          className="text-base sm:text-lg md:text-xl lg:text-xl py-4 sm:py-6 md:py-8 leading-6 sm:leading-7 md:leading-8 lg:leading-[35px] text-[#4d4d4d] font-normal animate-fade-in-up animation-delay-400 text-center mx-auto px-4"
           style={{
             fontFamily: "var(--font-geist)",
             maxWidth: "720px",
@@ -158,8 +149,8 @@ export default function Business() {
           Fetan Pay for instant, reliable payment verification.
         </p>
 
-        {/* Business Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-[1400px] mx-auto mt-12">
+        {/* Business Cards Grid - Responsive */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-[1400px] mx-auto mt-8 sm:mt-10 md:mt-12">
           {businessTypes.map((business, index) => (
             <div
               key={business.title}

@@ -3,17 +3,11 @@ import Link from "next/link";
 
 export default function Footer() {
   const productLinks = [
+    { name: "How it works", href: "#how-it-works" },
     { name: "Features", href: "#features" },
+    { name: "Integration", href: "#integration" },
     { name: "Pricing", href: "#pricing" },
-    { name: "API Docs", href: "/docs" },
-    { name: "Status", href: "/status" },
-  ];
-
-  const companyLinks = [
-    { name: "About", href: "#about" },
-    { name: "Blog", href: "/blog" },
-    { name: "Careers", href: "/careers" },
-    { name: "Contact", href: "/contact" },
+    { name: "Docs", href: "https://docs.fetanpay.com" },
   ];
 
   return (
@@ -25,7 +19,7 @@ export default function Footer() {
     >
       <div className="max-w-7xl mx-auto px-4 py-16">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Left Section - Company Info */}
           <div className="flex flex-col">
             <Link href="/" className="mb-6">
@@ -69,42 +63,6 @@ export default function Footer() {
             </h3>
             <ul className="flex flex-col gap-3">
               {productLinks.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    style={{
-                      fontFamily: "var(--font-geist)",
-                      fontSize: "14px",
-                      lineHeight: "21px",
-                      color: "#eafcfd",
-                      fontWeight: 400,
-                      transition: "color 0.3s ease",
-                    }}
-                    className="hover:opacity-80"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Right Section - Company Links */}
-          <div className="flex flex-col">
-            <h3
-              style={{
-                fontFamily: "var(--font-geist)",
-                fontSize: "16px",
-                fontWeight: 500,
-                color: "#ffffff",
-                marginBottom: "16px",
-                lineHeight: "24px",
-              }}
-            >
-              Company
-            </h3>
-            <ul className="flex flex-col gap-3">
-              {companyLinks.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
@@ -181,4 +139,3 @@ export default function Footer() {
     </footer>
   );
 }
-
