@@ -14,6 +14,7 @@ import * as path from 'path';
 import { PrismaService } from '../../../database/prisma.service';
 import { MerchantUsersService } from '../merchant-users/merchant-users.service';
 import { VerificationService } from '../verifier/services/verification.service';
+import { WalletService } from '../wallet/wallet.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
@@ -36,6 +37,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly merchantUsersService: MerchantUsersService,
     private readonly verificationService: VerificationService,
+    private readonly walletService: WalletService,
     private readonly configService: ConfigService,
   ) {
     // Get payment page URL from environment variables
@@ -411,6 +413,35 @@ export class PaymentsService {
           },
         },
       });
+
+      // Charge wallet if enabled (after payment is created)
+      if (payment) {
+        try {
+          const walletChargeResult = await this.walletService.chargeForPayment(
+            membership.merchantId,
+            payment.id,
+            claimedAmount,
+          );
+
+          if (!walletChargeResult.success && walletChargeResult.error) {
+            // Log error but don't fail the payment verification
+            // Payment is already verified, wallet charge failed
+            console.error(
+              `[Wallet] Failed to charge wallet for payment ${payment.id}:`,
+              walletChargeResult.error,
+            );
+            // Optionally: You could throw an error here to rollback payment verification
+            // For now, we allow payment verification to succeed even if wallet charge fails
+            // This can be changed based on business requirements
+          }
+        } catch (error) {
+          // Log error but don't fail payment verification
+          console.error(
+            `[Wallet] Error charging wallet for payment ${payment.id}:`,
+            error,
+          );
+        }
+      }
     }
 
     return {
