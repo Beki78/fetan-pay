@@ -139,7 +139,7 @@ export const walletServiceApi = baseApi.injectEndpoints({
       MerchantWalletConfig,
       string
     >({
-      query: (merchantId) => `/merchants/${merchantId}/wallet-config`,
+      query: (merchantId) => `/merchant-accounts/${merchantId}/wallet-config`,
       providesTags: (result, error, merchantId) => [
         { type: "Merchant", id: `WALLET_CONFIG_${merchantId}` },
       ],
@@ -150,7 +150,7 @@ export const walletServiceApi = baseApi.injectEndpoints({
       { merchantId: string; config: UpdateMerchantWalletConfigInput }
     >({
       query: ({ merchantId, config }) => ({
-        url: `/merchants/${merchantId}/wallet-config`,
+        url: `/merchant-accounts/${merchantId}/wallet-config`,
         method: "PUT",
         body: config,
       }),
