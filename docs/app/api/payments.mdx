@@ -1,0 +1,307 @@
+# Payments API
+
+The Payments API allows you to verify bank transfers and manage payment transactions programmatically.
+
+## Verify Payment
+
+Verify a payment transaction by checking the provider, reference, and amount against your configured receiver account.
+
+### Endpoint
+
+```http
+POST /api/v1/payments/verify
+```
+
+### Authentication
+
+Requires API key authentication. Include your API key in the `Authorization` header:
+
+```http
+Authorization: Bearer YOUR_API_KEY
+```
+
+### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `provider` | `string` | Yes | Payment provider: `CBE`, `BOA`, `Awash`, `Telebirr`, `Dashen` |
+| `reference` | `string` | Yes | Transaction reference from bank receipt |
+| `claimedAmount` | `number` | No | Amount customer claims to have paid |
+| `qrData` | `string` | No | Optional raw QR code data |
+| `tipAmount` | `number` | No | Optional tip amount |
+
+### Example Request
+
+```bash
+curl -X POST https://api.fetanpay.et/api/v1/payments/verify \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "CBE",
+    "reference": "FT26017MLDG7755415774",
+    "claimedAmount": 1000.00,
+    "tipAmount": 50.0
+  }'
+```
+
+### Example Response
+
+**Success (Verified):**
+
+```json
+{
+  "success": true,
+  "status": "VERIFIED",
+  "transaction": {
+    "id": "txn_1234567890",
+    "reference": "FT26017MLDG7755415774",
+    "provider": "CBE",
+    "amount": 1000.00,
+    "claimedAmount": 1000.00,
+    "tipAmount": 50.0,
+    "status": "VERIFIED",
+    "verifiedAt": "2025-01-15T10:30:00Z"
+  },
+  "checks": {
+    "referenceExists": true,
+    "amountMatches": true,
+    "receiverMatches": true,
+    "notDuplicate": true
+  }
+}
+```
+
+**Failed (Unverified):**
+
+```json
+{
+  "success": false,
+  "status": "UNVERIFIED",
+  "mismatchReason": "Amount mismatch. Expected: 1000.00 ETB, Found: 500.00 ETB",
+  "checks": {
+    "referenceExists": true,
+    "amountMatches": false,
+    "receiverMatches": true,
+    "notDuplicate": true
+  }
+}
+```
+
+### Response Fields
+
+#### Transaction Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Unique transaction ID |
+| `reference` | `string` | Transaction reference from bank |
+| `provider` | `string` | Payment provider |
+| `amount` | `number` | Actual amount from bank (in ETB) |
+| `claimedAmount` | `number` | Amount claimed by customer (in ETB) |
+| `tipAmount` | `number` | Tip amount (if provided) |
+| `status` | `string` | Transaction status: `VERIFIED`, `UNVERIFIED`, `PENDING` |
+| `verifiedAt` | `string` | ISO 8601 timestamp when verified |
+
+#### Checks Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `referenceExists` | `boolean` | Whether transaction reference exists in bank records |
+| `amountMatches` | `boolean` | Whether claimed amount matches bank amount |
+| `receiverMatches` | `boolean` | Whether receiver account matches configured account |
+| `notDuplicate` | `boolean` | Whether this transaction hasn't been verified before |
+
+### Status Values
+
+| Status | Description |
+|--------|-------------|
+| `VERIFIED` | Payment verified successfully - all checks passed |
+| `UNVERIFIED` | Payment verification failed - one or more checks failed |
+| `PENDING` | Verification in progress (rare) |
+
+## Code Examples
+
+### JavaScript/Node.js
+
+```javascript
+async function verifyPayment(reference, amount, provider, tipAmount = 0) {
+  const response = await fetch('https://api.fetanpay.et/api/v1/payments/verify', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.FETANPAY_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      provider: provider,
+      reference: reference,
+      claimedAmount: amount,
+      tipAmount: tipAmount
+    })
+  });
+
+  const result = await response.json();
+  
+  if (result.status === 'VERIFIED') {
+    console.log('✅ Payment verified!');
+    return result.transaction;
+  } else {
+    throw new Error(result.mismatchReason);
+  }
+}
+
+// Usage
+verifyPayment('FT26017MLDG7755415774', 1000.00, 'CBE', 50.0)
+  .then(transaction => {
+    updateOrderStatus(transaction.id, 'PAID');
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+```
+
+### Python
+
+```python
+import requests
+import os
+
+def verify_payment(reference, amount, provider, tip_amount=0):
+    url = 'https://api.fetanpay.et/api/v1/payments/verify'
+    headers = {
+        'Authorization': f'Bearer {os.getenv("FETANPAY_API_KEY")}',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        'provider': provider,
+        'reference': reference,
+        'claimedAmount': amount,
+        'tipAmount': tip_amount
+    }
+    
+    response = requests.post(url, headers=headers, json=data)
+    result = response.json()
+    
+    if result['status'] == 'VERIFIED':
+        print('✅ Payment verified!')
+        return result['transaction']
+    else:
+        raise Exception(result.get('mismatchReason'))
+
+# Usage
+try:
+    transaction = verify_payment('FT26017MLDG7755415774', 1000.00, 'CBE', 50.0)
+    update_order_status(transaction['id'], 'PAID')
+except Exception as e:
+    print(f'Error: {e}')
+```
+
+## Get Verification History
+
+Retrieve paginated list of payment verification history.
+
+### Endpoint
+
+```http
+GET /api/v1/payments/verification-history
+```
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | `number` | No | Page number (default: 1) |
+| `pageSize` | `number` | No | Items per page (default: 20, max: 100) |
+| `status` | `string` | No | Filter by status: `VERIFIED`, `UNVERIFIED` |
+| `provider` | `string` | No | Filter by provider |
+| `startDate` | `string` | No | Start date filter (ISO 8601) |
+| `endDate` | `string` | No | End date filter (ISO 8601) |
+
+### Example Request
+
+```bash
+curl "https://api.fetanpay.et/api/v1/payments/verification-history?page=1&pageSize=20&status=VERIFIED" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Response
+
+```json
+{
+  "page": 1,
+  "pageSize": 20,
+  "total": 150,
+  "totalPages": 8,
+  "data": [
+    {
+      "id": "txn_123",
+      "reference": "FT26017MLDG7755415774",
+      "provider": "CBE",
+      "claimedAmount": 1000.00,
+      "tipAmount": 50.0,
+      "status": "VERIFIED",
+      "createdAt": "2025-01-15T10:30:00Z",
+      "verifiedAt": "2025-01-15T10:30:05Z"
+    }
+  ]
+}
+```
+
+## Supported Providers
+
+| Provider | Code | Description |
+|----------|------|-------------|
+| Commercial Bank of Ethiopia | `CBE` | CBE mobile banking and transfers |
+| Bank of Abyssinia | `BOA` | BOA transfers |
+| Awash Bank | `Awash` | Awash Bank transfers |
+| Telebirr | `Telebirr` | Telebirr mobile money |
+| Dashen Bank | `Dashen` | Dashen Bank transfers |
+
+## Error Handling
+
+### Common Errors
+
+**Invalid Provider:**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Provider must be one of: CBE, BOA, Awash, Telebirr, Dashen"
+  }
+}
+```
+
+**Transaction Not Found:**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Transaction with reference FT26017MLDG7755415774 not found"
+  }
+}
+```
+
+**Duplicate Transaction:**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Transaction already verified at 2025-01-15T10:30:00Z"
+  }
+}
+```
+
+## Webhooks
+
+When a payment is verified, FetanPay can automatically send a webhook notification to your endpoint. See the [Webhooks documentation](/api/webhooks) for details.
+
+## Next Steps
+
+- Learn about [Webhooks](/api/webhooks) for real-time notifications
+- Set up [API Keys](/api/authentication) if you haven't already
+- Check the [API Reference](/api/reference) for all endpoints

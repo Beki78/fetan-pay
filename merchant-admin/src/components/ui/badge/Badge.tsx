@@ -2,7 +2,7 @@ import React from "react";
 
 type BadgeVariant = "light" | "solid";
 type BadgeSize = "sm" | "md";
-type BadgeColor =
+export type BadgeColor =
   | "primary"
   | "success"
   | "error"
@@ -11,7 +11,7 @@ type BadgeColor =
   | "light"
   | "dark";
 
-interface BadgeProps {
+export interface BadgeProps {
   variant?: BadgeVariant; // Light or solid variant
   size?: BadgeSize; // Badge size
   color?: BadgeColor; // Badge color

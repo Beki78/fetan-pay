@@ -13,6 +13,7 @@ import type { Request } from 'express';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { UpdateWebhookDto } from './dto/update-webhook.dto';
 import { MerchantUsersService } from '../merchant-users/merchant-users.service';
+import { encrypt, decrypt } from '../../common/encryption.util';
 
 @Injectable()
 export class WebhooksService {
@@ -81,13 +82,15 @@ export class WebhooksService {
 
     // Generate webhook secret
     const secret = this.generateSecret();
+    // Encrypt secret for storage
+    const encryptedSecret = encrypt(secret);
 
     // Create webhook
     const webhook = await this.prisma.webhook.create({
       data: {
         merchantId,
         url: dto.url,
-        secret,
+        secret: encryptedSecret, // Store encrypted
         events: dto.events,
         maxRetries: dto.maxRetries ?? 3,
         timeout: dto.timeout ?? 30000,
@@ -105,12 +108,13 @@ export class WebhooksService {
         failureCount: true,
         lastTriggeredAt: true,
         createdAt: true,
-        secret: true, // Return secret only on creation
+        // Don't select secret from DB as it is encrypted
       },
     });
 
     return {
       ...webhook,
+      secret, // Return plain secret
       warning: 'Store this secret securely. It will not be shown again.',
     };
   }
@@ -240,12 +244,13 @@ export class WebhooksService {
 
     // Generate new secret
     const newSecret = this.generateSecret();
+    const encryptedSecret = encrypt(newSecret);
 
     // Update webhook with new secret
     const updated = await this.prisma.webhook.update({
       where: { id },
       data: {
-        secret: newSecret,
+        secret: encryptedSecret,
       },
       select: {
         id: true,
@@ -259,12 +264,13 @@ export class WebhooksService {
         lastTriggeredAt: true,
         createdAt: true,
         updatedAt: true,
-        secret: true, // Return secret only on regeneration
+        // Don't select secret
       },
     });
 
     return {
       ...updated,
+      secret: newSecret, // Return plain secret
       warning: 'Store this new secret securely. It will not be shown again.',
     };
   }
@@ -325,6 +331,7 @@ export class WebhooksService {
       },
     };
 
+    // deliverWebhook handles decryption internally
     await this.deliverWebhook(webhook.id, 'test', testPayload);
 
     return { message: 'Test webhook sent successfully' };
@@ -434,7 +441,11 @@ export class WebhooksService {
     }
 
     const payloadString = JSON.stringify(payload);
-    const signature = this.generateSignature(payloadString, webhook.secret);
+    
+    // Decrypt secret for signature generation
+    const secret = decrypt(webhook.secret);
+    
+    const signature = this.generateSignature(payloadString, secret);
 
     // Create delivery record
     const delivery = await this.prisma.webhookDelivery.create({
@@ -675,3 +686,4 @@ export class WebhooksService {
     return { message: 'Delivery retry initiated' };
   }
 }
+

@@ -496,5 +496,3 @@ FetanPay is designed for two types of users:
 © 2025 FetanPay. All rights reserved.
 
 ---
-
-**Note**: This documentation is based on analysis of the FetanPay website and API documentation. For the most up-to-date information, please refer to the official FetanPay documentation at https://FetanPay.amixmon.com/docs/v1
