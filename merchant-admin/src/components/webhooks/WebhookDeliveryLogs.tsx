@@ -2,7 +2,7 @@
 import React from "react";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
-import Badge from "../ui/badge/Badge";
+import Badge, { BadgeColor } from "../ui/badge/Badge";
 import { useGetDeliveryLogsQuery, useRetryDeliveryMutation } from "@/lib/services/webhooksServiceApi";
 import { toast } from "sonner";
 
@@ -35,7 +35,7 @@ export default function WebhookDeliveryLogs({
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): BadgeColor => {
     switch (status) {
       case "SUCCESS":
         return "success";
@@ -44,7 +44,7 @@ export default function WebhookDeliveryLogs({
       case "PENDING":
         return "warning";
       default:
-        return "default";
+        return "light";
     }
   };
 
