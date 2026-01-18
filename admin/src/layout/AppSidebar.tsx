@@ -186,6 +186,11 @@ const mainItems: NavItem[] = [
     name: "Plan Stats",
     path: "/plan-stats",
   },
+  {
+    icon: <BoltIcon />,
+    name: "System Monitoring",
+    path: "/system-monitoring",
+  },
 ];
 
 // // CONFIGURATION section items
