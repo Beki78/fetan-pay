@@ -15,6 +15,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import { MerchantUsersService } from '../merchant-users/merchant-users.service';
 import { VerificationService } from '../verifier/services/verification.service';
 import { WalletService } from '../wallet/wallet.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
@@ -38,6 +39,7 @@ export class PaymentsService {
     private readonly merchantUsersService: MerchantUsersService,
     private readonly verificationService: VerificationService,
     private readonly walletService: WalletService,
+    private readonly webhooksService: WebhooksService,
     private readonly configService: ConfigService,
   ) {
     // Get payment page URL from environment variables
@@ -233,6 +235,22 @@ export class PaymentsService {
     });
 
     if (existingPayment?.status === 'VERIFIED') {
+      // Trigger duplicate webhook before throwing
+      this.webhooksService.triggerWebhook('payment.duplicate', membership.merchantId, {
+        payment: {
+          id: existingPayment.id,
+          reference: body.reference,
+          provider: body.provider,
+          status: 'VERIFIED',
+          verifiedAt: existingPayment.verifiedAt?.toISOString(),
+        },
+        merchant: {
+          id: membership.merchantId,
+        },
+      }).catch((error) => {
+        console.error('[Webhooks] Error triggering payment.duplicate webhook:', error);
+      });
+
       throw new ConflictException(
         `Transaction already verified at ${existingPayment.verifiedAt?.toLocaleString() ?? 'an earlier time'}`,
       );
@@ -417,7 +435,9 @@ export class PaymentsService {
           receiverAccount: { connect: { id: activeReceiver.id } },
           verificationPayload: normalizedPayload as Prisma.InputJsonValue,
           verifiedAt: new Date(),
-          verifiedBy: { connect: { id: membership.merchantUserId } },
+          ...(membership.merchantUserId
+            ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
+            : {}),
         },
         create: {
           merchant: { connect: { id: membership.merchantId } },
@@ -442,7 +462,9 @@ export class PaymentsService {
           receiverAccount: { connect: { id: activeReceiver.id } },
           verificationPayload: normalizedPayload as Prisma.InputJsonValue,
           verifiedAt: new Date(),
-          verifiedBy: { connect: { id: membership.merchantUserId } },
+          ...(membership.merchantUserId
+            ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
+            : {}),
         },
         include: {
           receiverAccount: true,
@@ -494,6 +516,47 @@ export class PaymentsService {
       }
     }
 
+    // Trigger webhooks based on payment status
+    if (status === PaymentStatus.VERIFIED && payment) {
+      // Payment verified successfully
+      this.webhooksService.triggerWebhook('payment.verified', membership.merchantId, {
+        payment: {
+          id: payment.id,
+          reference: effectiveReference,
+          provider: body.provider,
+          amount: claimedAmount.toNumber(),
+          status: 'VERIFIED',
+          verifiedAt: payment.verifiedAt?.toISOString(),
+          tipAmount: tipAmount?.toNumber() ?? null,
+        },
+        merchant: {
+          id: membership.merchantId,
+        },
+      }).catch((error) => {
+        console.error('[Webhooks] Error triggering payment.verified webhook:', error);
+      });
+    } else if (status === PaymentStatus.UNVERIFIED) {
+      // Payment verification failed
+      this.webhooksService.triggerWebhook('payment.unverified', membership.merchantId, {
+        payment: {
+          reference: body.reference,
+          provider: body.provider,
+          amount: claimedAmount.toNumber(),
+          status: 'UNVERIFIED',
+          checks: {
+            referenceFound,
+            receiverMatches,
+            amountMatches,
+          },
+        },
+        merchant: {
+          id: membership.merchantId,
+        },
+      }).catch((error) => {
+        console.error('[Webhooks] Error triggering payment.unverified webhook:', error);
+      });
+    }
+
     return {
       status,
       payment,
@@ -539,8 +602,9 @@ export class PaymentsService {
     };
 
     // Security: Waiter/Sales can only see their own verification history.
+    // API key auth doesn't have role restrictions
     const restrictedRoles = ['WAITER', 'SALES'];
-    if (restrictedRoles.includes(membership.role)) {
+    if (membership.role && restrictedRoles.includes(membership.role) && membership.merchantUserId) {
       where.verifiedById = membership.merchantUserId;
     }
 
@@ -1032,9 +1096,12 @@ export class PaymentsService {
     if (!payment) throw new NotFoundException('Payment not found');
 
     // Security: Waiter/Sales can only view payments they verified.
+    // API key auth doesn't have role restrictions
     const restrictedRoles = ['WAITER', 'SALES'];
     if (
+      membership.role &&
       restrictedRoles.includes(membership.role) &&
+      membership.merchantUserId &&
       payment.verifiedById !== membership.merchantUserId
     ) {
       throw new ForbiddenException(
@@ -1322,7 +1389,19 @@ export class PaymentsService {
   }
 
   private async requireMembership(req: Request) {
-    // Better Auth attaches user to request
+    // Check if API key authentication was used
+    const reqWithAuth = req as any;
+    if (reqWithAuth.authType === 'api_key' && reqWithAuth.merchantId) {
+      // API key authentication - return merchant context directly
+      return {
+        merchantId: reqWithAuth.merchantId,
+        merchantUserId: null, // API keys don't have a specific merchant user
+        userId: null,
+        role: null,
+      };
+    }
+
+    // Fall back to session authentication (Better Auth)
     interface RequestWithUser extends Request {
       user?: { id: string };
     }

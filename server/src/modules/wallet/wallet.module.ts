@@ -4,9 +4,10 @@ import { WalletService } from './wallet.service';
 import { PrismaService } from '../../../database/prisma.service';
 import { VerificationService } from '../verifier/services/verification.service';
 import { VerifierModule } from '../verifier/verifier.module';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 
 @Module({
-  imports: [VerifierModule],
+  imports: [VerifierModule, WebhooksModule],
   controllers: [WalletController],
   providers: [WalletService, PrismaService],
   exports: [WalletService],
