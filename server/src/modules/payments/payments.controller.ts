@@ -35,6 +35,8 @@ import { VerifyMerchantPaymentDto } from './dto/verify-merchant-payment.dto';
 import { LogTransactionDto } from './dto/log-transaction.dto';
 import { ListTipsDto } from './dto/list-tips.dto';
 import { PaymentsService } from './payments.service';
+import { ApiKeyOrSessionGuard } from '../api-keys/guards/api-key-or-session.guard';
+import { ApiKeysModule } from '../api-keys/api-keys.module';
 
 @ApiTags('payments')
 @ApiBearerAuth('bearer')
@@ -211,7 +213,7 @@ export class PaymentsController {
     summary:
       'Verify a payment by provider+reference+amount against the merchant configured receiver account',
     description:
-      'Verifies a payment transaction by checking the provider, reference, and amount against the merchant\'s configured receiver account. Rate-limited to prevent abuse. Only VERIFIED transactions are saved to the database.',
+      'Verifies a payment transaction by checking the provider, reference, and amount against the merchant\'s configured receiver account. Supports both API key and session authentication. Rate-limited to prevent abuse. Only VERIFIED transactions are saved to the database.',
   })
   @ApiBody({ type: VerifyMerchantPaymentDto })
   @ApiResponse({

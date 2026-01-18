@@ -4,29 +4,22 @@ import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import { AlertIcon } from "@/icons";
 
-interface RevokeKeyModalProps {
+interface RegenerateSecretModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  apiKeyName: string;
   isLoading?: boolean;
-  isRegenerating?: boolean;
 }
 
-export default function RevokeKeyModal({
+export default function RegenerateSecretModal({
   isOpen,
   onClose,
   onConfirm,
-  apiKeyName,
   isLoading,
-  isRegenerating = false,
-}: RevokeKeyModalProps) {
+}: RegenerateSecretModalProps) {
   const handleConfirm = () => {
     onConfirm();
-    // Don't close immediately when regenerating - let the parent handle it after new key is created
-    if (!isRegenerating) {
-      onClose();
-    }
+    // Don't close immediately - let the parent handle it after new secret is generated
   };
 
   return (
@@ -37,35 +30,24 @@ export default function RevokeKeyModal({
         </div>
         <div className="flex-1">
           <h4 className="font-semibold text-gray-800 mb-2 text-title-sm dark:text-white/90">
-            {isRegenerating ? "Regenerate API Key" : "Revoke API Key"}
+            Regenerate Webhook Secret
           </h4>
           <p className="text-sm text-gray-600 dark:text-gray-300">
-            {isRegenerating ? (
-              <>
-                This will revoke <strong>{apiKeyName}</strong> and create a new key. The old key
-                will stop working immediately.
-              </>
-            ) : (
-              <>
-                Are you sure you want to revoke <strong>{apiKeyName}</strong>? This action cannot be
-                undone. Any applications using this key will stop working immediately.
-              </>
-            )}
+            This will generate a new secret for your webhook. The old secret will stop working
+            immediately and you&apos;ll need to update your webhook endpoint to use the new secret.
           </p>
         </div>
       </div>
 
       <div className="rounded-xl border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20 mb-6">
         <p className="text-sm text-error-800 dark:text-error-300">
-          <strong>Warning:</strong>{" "}
-          {isRegenerating
-            ? "The old key will be invalidated and a new key will be generated. Make sure to update all applications with the new key."
-            : "Revoking this key will immediately invalidate it. Make sure no critical services are using this key."}
+          <strong>Warning:</strong> The old secret will be invalidated immediately. Make sure to
+          copy and store the new secret securely - it will only be shown once.
         </p>
       </div>
 
       <div className="flex items-center justify-end gap-3">
-        <Button size="sm" variant="outline" onClick={onClose}>
+        <Button size="sm" variant="outline" onClick={onClose} disabled={isLoading}>
           Cancel
         </Button>
         <Button
@@ -75,13 +57,7 @@ export default function RevokeKeyModal({
           className="bg-error-500 hover:bg-error-600 text-white"
           disabled={isLoading}
         >
-          {isLoading
-            ? isRegenerating
-              ? "Regenerating..."
-              : "Revoking..."
-            : isRegenerating
-            ? "Regenerate Key"
-            : "Revoke Key"}
+          {isLoading ? "Regenerating..." : "Regenerate Secret"}
         </Button>
       </div>
     </Modal>

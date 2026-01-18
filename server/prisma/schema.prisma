@@ -84,6 +84,23 @@ enum WalletDepositStatus {
   EXPIRED
 }
 
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum WebhookStatus {
+  ACTIVE
+  PAUSED
+  FAILED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
 model Merchant {
   id           String         @id @default(uuid())
   name         String
@@ -114,6 +131,10 @@ model Merchant {
   // Wallet Relations
   walletTransactions   WalletTransaction[]
   walletDeposits       WalletDeposit[]
+
+  // API Keys & Webhooks
+  apiKeys              ApiKey[]
+  webhooks             Webhook[]
 
   // Provider catalog is global (admin-managed), so no relation here.
 
@@ -471,4 +492,87 @@ model WalletDeposit {
   @@index([provider, reference])
   @@index([status])
   @@map("wallet_deposit")
+}
+
+model ApiKey {
+  id            String      @id @default(uuid())
+  merchantId    String
+  merchant      Merchant   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  name          String      // User-friendly name (e.g., "Production API Key", "Test Key")
+  keyHash       String      @unique // Hashed API key (never store plain text)
+  keyPrefix     String      // First 8 chars for display (e.g., "fetan_live_")
+  
+  status        ApiKeyStatus @default(ACTIVE) // ACTIVE, REVOKED
+  lastUsedAt    DateTime?
+  expiresAt     DateTime?   // Optional expiration
+  
+  // Permissions/Scopes (future: fine-grained access control)
+  scopes        String[]    // e.g., ["payments:verify", "payments:read"]
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  createdBy     String?     // merchantUserId who created it
+  
+  @@index([merchantId])
+  @@index([keyHash])
+  @@index([status])
+  @@map("api_key")
+}
+
+model Webhook {
+  id            String   @id @default(uuid())
+  merchantId    String
+  merchant      Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  url           String   // Webhook endpoint URL
+  secret        String   // Secret for signature verification
+  status        WebhookStatus @default(ACTIVE) // ACTIVE, PAUSED, FAILED
+  
+  // Event subscriptions
+  events        String[] // e.g., ["payment.verified", "payment.failed"]
+  
+  // Retry configuration
+  maxRetries    Int      @default(3)
+  timeout       Int      @default(30000) // milliseconds
+  
+  // Statistics
+  successCount  Int      @default(0)
+  failureCount  Int      @default(0)
+  lastTriggeredAt DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String?  // merchantUserId who created it
+  
+  // Relations
+  deliveries    WebhookDelivery[]
+  
+  @@index([merchantId])
+  @@index([status])
+  @@map("webhook")
+}
+
+model WebhookDelivery {
+  id            String   @id @default(uuid())
+  webhookId     String
+  webhook       Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  
+  event         String   // Event type
+  payload       Json     // Event payload
+  status        WebhookDeliveryStatus // PENDING, SUCCESS, FAILED
+  statusCode    Int?     // HTTP status code from webhook endpoint
+  responseBody  String?  // Response from webhook endpoint
+  errorMessage  String?  // Error message if failed
+  
+  attemptNumber Int      @default(1)
+  nextRetryAt   DateTime?
+  
+  createdAt     DateTime @default(now())
+  deliveredAt   DateTime?
+  
+  @@index([webhookId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("webhook_delivery")
 }
