@@ -200,7 +200,10 @@ export class AdminDashboardService {
     };
 
     // Provider/Bank Usage Statistics
-      const providerStats = await this.getProviderUsageStats(dateFilter);
+    const providerStats = await this.getProviderUsageStats(
+      transactionDateFilter,
+      paymentDateFilter,
+    );
 
     return {
       userAnalytics: {

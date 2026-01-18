@@ -45,9 +45,9 @@ export async function exportAnalyticsToPDF({
   let yPosition = margin;
 
   // Colors
-  const primaryColor = [70, 95, 255]; // #465fff
-  const textColor = [31, 41, 55]; // #1f2937
-  const lightGray = [243, 244, 246]; // #f3f4f6
+  const primaryColor: [number, number, number] = [70, 95, 255]; // #465fff
+  const textColor: [number, number, number] = [31, 41, 55]; // #1f2937
+  const lightGray: [number, number, number] = [243, 244, 246]; // #f3f4f6
 
   // Helper function to add a new page if needed
   const checkNewPage = (requiredSpace: number) => {
@@ -60,7 +60,7 @@ export async function exportAnalyticsToPDF({
   };
 
   // Header
-  doc.setFillColor(...primaryColor);
+  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.rect(0, 0, pageWidth, 40, "F");
 
   doc.setTextColor(255, 255, 255);
@@ -89,7 +89,7 @@ export async function exportAnalyticsToPDF({
   yPosition = 50;
 
   // User Analytics Section
-  doc.setTextColor(...textColor);
+  doc.setTextColor(textColor[0], textColor[1], textColor[2]);
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.text("User Analytics", margin, yPosition);
