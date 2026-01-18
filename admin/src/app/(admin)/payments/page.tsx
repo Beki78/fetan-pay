@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import PaymentTable from "@/components/payments/PaymentTable";
 import AdminPaymentDetailPage from "@/components/payments/AdminPaymentDetailPage";
+import Button from "@/components/ui/button/Button";
 
 import type { UnifiedPayment } from "@/lib/services/adminApi";
 

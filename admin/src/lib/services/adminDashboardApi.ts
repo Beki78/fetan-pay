@@ -51,7 +51,7 @@ export const adminDashboardApi = baseApi.injectEndpoints({
         const queryString = query.toString();
         return `/admin/dashboard/analytics${queryString ? `?${queryString}` : ""}`;
       },
-      providesTags: [{ type: "Admin", id: "ANALYTICS" }],
+      providesTags: [{ type: "Merchant", id: "ANALYTICS" }],
     }),
   }),
 });
