@@ -15,6 +15,8 @@ export interface AdminAnalytics {
     totalVerified: number;
     totalPending: number;
     totalUnsuccessful: number;
+    totalTransactionAmount: number;
+    totalTips: number;
   };
   walletAnalytics: {
     totalDeposits: number;
@@ -35,7 +37,11 @@ export interface AdminAnalytics {
     count: number;
     isCustom: boolean;
   }>;
-  totalTips: number;
+  dailyData?: Array<{
+    date: string;
+    amount: number;
+    tips: number;
+  }>;
 }
 
 export const adminDashboardApi = baseApi.injectEndpoints({

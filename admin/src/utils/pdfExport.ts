@@ -130,7 +130,7 @@ export async function exportAnalyticsToPDF({
 
   autoTable(doc, {
     startY: yPosition,
-    head: [["Metric", "Count"]],
+    head: [["Metric", "Value"]],
     body: [
       [
         "Total Transactions",
@@ -147,6 +147,14 @@ export async function exportAnalyticsToPDF({
       [
         "Total Unsuccessful",
         analytics.platformTransactions.totalUnsuccessful.toLocaleString(),
+      ],
+      [
+        "Total Transaction Amount",
+        formatAmount(analytics.platformTransactions.totalTransactionAmount),
+      ],
+      [
+        "Total Tips",
+        formatAmount(analytics.platformTransactions.totalTips),
       ],
     ],
     theme: "striped",
@@ -326,30 +334,6 @@ export async function exportAnalyticsToPDF({
     margin: { left: margin, right: margin },
   });
   yPosition = (doc as any).lastAutoTable.finalY + 10;
-
-  // Total Tips
-  checkNewPage(20);
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("Tips Summary", margin, yPosition);
-  yPosition += 8;
-
-  autoTable(doc, {
-    startY: yPosition,
-    head: [["Metric", "Amount"]],
-    body: [["Total Tips Collected", formatAmount(analytics.totalTips)]],
-    theme: "striped",
-    headStyles: {
-      fillColor: primaryColor,
-      textColor: [255, 255, 255],
-      fontStyle: "bold",
-    },
-    styles: {
-      fontSize: 10,
-      cellPadding: 5,
-    },
-    margin: { left: margin, right: margin },
-  });
 
   // Footer on each page
   const pageCount = doc.getNumberOfPages();

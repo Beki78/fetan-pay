@@ -1,26 +1,40 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import Image from "next/image";
-
-// Mock data
-const mockPersonalData = {
-  firstName: "John",
-  lastName: "Doe",
-  email: "john.doe@fetanpay.com",
-  phone: "+251 911 234 567",
-  profilePicture: "/images/user/user-01.png",
-};
+import { useSession } from "@/hooks/useSession";
+import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 export default function UserInfoCard() {
   const { isOpen, openModal, closeModal } = useModal();
-  const [formData, setFormData] = useState(mockPersonalData);
-  const [profilePreview, setProfilePreview] = useState(mockPersonalData.profilePicture);
+  const { user, refreshSession } = useSession();
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  });
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Initialize form data from user session
+  useEffect(() => {
+    if (user) {
+      const nameParts = (user.name || "").split(" ");
+      setFormData({
+        firstName: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" ") || "",
+        email: user.email || "",
+        phone: (user as any).phone || "",
+      });
+      setProfilePreview(user.image || null);
+    }
+  }, [user]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -29,22 +43,69 @@ export default function UserInfoCard() {
   const handleProfileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("Image size must be less than 2MB");
+        return;
+      }
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please upload an image file");
+        return;
+      }
+      // For now, just show preview - Better Auth updateUser expects image URL
+      // File uploads would require a separate storage service
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfilePreview(reader.result as string);
+        toast.info("Image preview updated. Note: Image file uploads require a storage service integration.");
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleSave = async () => {
+    if (!user?.id) {
+      toast.error("User not found");
+      return;
+    }
+
     setIsSaving(true);
-    // Mock API call
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      // Prepare update data
+      // Use updateUser() for current user (not admin.updateUser which is for other users)
+      const updateData: any = {
+        name: `${formData.firstName} ${formData.lastName}`.trim() || user.name,
+      };
+
+      // Only update email if it changed
+      if (formData.email && formData.email !== user.email) {
+        updateData.email = formData.email;
+      }
+
+      // If profile preview is a URL (not base64), include it
+      // Note: Better Auth's updateUser expects image as URL, not base64
+      // For file uploads, you'd need to upload to a storage service first
+      if (profilePreview && profilePreview.startsWith("http")) {
+        updateData.image = profilePreview;
+      }
+
+      // Use updateUser() for current user profile updates
+      const result = await authClient.updateUser(updateData);
+
+      if (result.error) {
+        throw new Error(result.error.message || "Failed to update profile");
+      }
+
+      toast.success("Profile updated successfully");
+      await refreshSession();
       closeModal();
-      console.log("Personal info saved", formData);
-    }, 1000);
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      toast.error(error?.message || "Failed to update profile. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -77,10 +138,10 @@ export default function UserInfoCard() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-800 dark:text-white/90 mb-1">
-                {mockPersonalData.firstName} {mockPersonalData.lastName}
+                {user?.name || "Loading..."}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                {mockPersonalData.email}
+                {user?.email || ""}
               </p>
             </div>
           </div>
@@ -91,7 +152,7 @@ export default function UserInfoCard() {
                 First Name
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {mockPersonalData.firstName}
+                {formData.firstName || "-"}
               </p>
             </div>
 
@@ -100,7 +161,7 @@ export default function UserInfoCard() {
                 Last Name
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {mockPersonalData.lastName}
+                {formData.lastName || "-"}
               </p>
             </div>
 
@@ -109,7 +170,7 @@ export default function UserInfoCard() {
                 Email Address
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {mockPersonalData.email}
+                {formData.email || "-"}
               </p>
             </div>
 
@@ -118,7 +179,7 @@ export default function UserInfoCard() {
                 Phone Number
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {mockPersonalData.phone}
+                {formData.phone || "-"}
               </p>
             </div>
           </div>

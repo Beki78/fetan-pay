@@ -6,12 +6,14 @@ import WalletDepositsChart from "@/components/analytics/WalletDepositsChart";
 import TransactionTypeChart from "@/components/analytics/TransactionTypeChart";
 import TransactionStatusChart from "@/components/analytics/TransactionStatusChart";
 import ProviderUsageChart from "@/components/analytics/ProviderUsageChart";
+import DailyTransactionChart from "@/components/analytics/DailyTransactionChart";
 import Input from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 import { exportAnalyticsToPDF } from "@/utils/pdfExport";
 
-const formatAmount = (amount: number) => {
-  return `${amount.toLocaleString("en-US", {
+const formatAmount = (amount: number | undefined | null) => {
+  const safeAmount = amount ?? 0;
+  return `${safeAmount.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} ETB`;
@@ -97,7 +99,7 @@ export default function AnalyticsPage() {
 
         <div className="flex items-center gap-3">
           {/* Date Filter */}
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                 From:
@@ -192,7 +194,7 @@ export default function AnalyticsPage() {
         <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
           Platform Transactions
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
               Total Transactions
@@ -217,12 +219,32 @@ export default function AnalyticsPage() {
               {analytics.platformTransactions.totalPending.toLocaleString()}
             </p>
           </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
               Total Unsuccessful
             </p>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">
               {analytics.platformTransactions.totalUnsuccessful.toLocaleString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+              Total Transaction Amount
+            </p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {formatAmount(
+                analytics.platformTransactions.totalTransactionAmount,
+              )}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+              Total Tips
+            </p>
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              {formatAmount(analytics.platformTransactions.totalTips)}
             </p>
           </div>
         </div>
@@ -245,20 +267,25 @@ export default function AnalyticsPage() {
 
       {/* Charts Grid */}
       <div className="space-y-6">
-        {/* First Row - Transaction Overview */}
+        {/* First Row - Daily Transaction Amount & Tips */}
+        {analytics.dailyData && analytics.dailyData.length > 0 && (
+          <DailyTransactionChart dailyData={analytics.dailyData} />
+        )}
+
+        {/* Second Row - Transaction Overview */}
         <TransactionOverviewChart
           totalTransactions={analytics.platformTransactions.totalTransactions}
           totalMerchants={analytics.userAnalytics.totalMerchants}
           totalVerified={analytics.platformTransactions.totalVerified}
         />
 
-        {/* Second Row - Wallet Deposits */}
+        {/* Third Row - Wallet Deposits */}
         <WalletDepositsChart
           totalDeposits={analytics.walletAnalytics.totalDeposits}
         />
 
         {/* Third Row - Transaction Type and Status */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <TransactionTypeChart
             qr={analytics.transactionTypeBreakdown.qr}
             cash={analytics.transactionTypeBreakdown.cash}
@@ -270,7 +297,7 @@ export default function AnalyticsPage() {
             pending={analytics.transactionStatusBreakdown.pending}
             expired={analytics.transactionStatusBreakdown.expired}
           />
-        </div>
+          </div>
 
         {/* Fourth Row - Provider Usage */}
         <ProviderUsageChart providerUsage={analytics.providerUsage} />

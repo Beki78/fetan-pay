@@ -23,6 +23,9 @@ interface TeamMemberDetailProps {
   member: TeamMember;
   onBack: () => void;
   onBan?: (memberId: string) => void;
+  onUnban?: (memberId: string) => void;
+  isBanning?: boolean;
+  isUnbanning?: boolean;
 }
 
 const statusBadge = (status?: string) => {
@@ -46,24 +49,39 @@ const InfoItem = ({ label, value }: { label: string; value?: string | number | n
   </div>
 );
 
-export default function TeamMemberDetail({ member, onBack, onBan }: TeamMemberDetailProps) {
+export default function TeamMemberDetail({ 
+  member, 
+  onBack, 
+  onBan, 
+  onUnban, 
+  isBanning = false,
+  isUnbanning = false 
+}: TeamMemberDetailProps) {
   const [showBanModal, setShowBanModal] = React.useState(false);
-  const [isBanning, setIsBanning] = React.useState(false);
+  const [showUnbanModal, setShowUnbanModal] = React.useState(false);
 
   const handleBan = async () => {
     if (!onBan) return;
-    setIsBanning(true);
     try {
       await onBan(member.id);
       setShowBanModal(false);
     } catch (error) {
       console.error("Failed to ban member:", error);
-    } finally {
-      setIsBanning(false);
     }
   };
 
-  const isBanned = member.status === "BANNED" || member.status === "SUSPENDED";
+  const handleUnban = async () => {
+    if (!onUnban) return;
+    try {
+      await onUnban(member.id);
+      setShowUnbanModal(false);
+    } catch (error) {
+      console.error("Failed to unban member:", error);
+    }
+  };
+
+  const isBanned = (member as any).banned === true;
+  const displayStatus = isBanned ? "BANNED" : member.status;
 
   return (
     <div className="space-y-8">
@@ -83,8 +101,8 @@ export default function TeamMemberDetail({ member, onBack, onBan }: TeamMemberDe
                 <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
                   {member.name || member.email || "Unknown User"}
                 </h1>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusBadge(member.status)}`}>
-                  {member.status}
+                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusBadge(displayStatus)}`}>
+                  {displayStatus}
                 </span>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">ID: {member.id}</p>
@@ -95,9 +113,19 @@ export default function TeamMemberDetail({ member, onBack, onBan }: TeamMemberDe
         {!isBanned && onBan && (
           <Button
             onClick={() => setShowBanModal(true)}
-            className="bg-red-600 text-white hover:bg-red-700"
+            disabled={isBanning || isUnbanning}
+            className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
           >
             Ban User
+          </Button>
+        )}
+        {isBanned && onUnban && (
+          <Button
+            onClick={() => setShowUnbanModal(true)}
+            disabled={isBanning || isUnbanning}
+            className="bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+          >
+            {isUnbanning ? "Activating..." : "Unban User"}
           </Button>
         )}
       </div>
@@ -133,7 +161,7 @@ export default function TeamMemberDetail({ member, onBack, onBan }: TeamMemberDe
             <InfoItem label="Email" value={member.email} />
             <InfoItem label="Phone" value={member.phone} />
             <InfoItem label="Role" value={member.role} />
-            <InfoItem label="Status" value={member.status} />
+            <InfoItem label="Status" value={displayStatus} />
             <InfoItem label="User ID" value={member.id} />
           </div>
         </div>
@@ -190,6 +218,39 @@ export default function TeamMemberDetail({ member, onBack, onBan }: TeamMemberDe
               className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
             >
               {isBanning ? "Banning..." : "Confirm Ban"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Unban Confirmation Modal */}
+      <Modal
+        isOpen={showUnbanModal}
+        onClose={() => !isUnbanning && setShowUnbanModal(false)}
+        className="max-w-lg p-6"
+      >
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Unban Team Member
+          </h3>
+          <p className="text-gray-700 dark:text-gray-300">
+            Are you sure you want to unban {member.name || member.email}? This action will reactivate their account and allow them to access the system again.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowUnbanModal(false)}
+              disabled={isUnbanning}
+              className="border-gray-300 text-gray-700 dark:text-gray-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUnban}
+              disabled={isUnbanning}
+              className="bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+            >
+              {isUnbanning ? "Activating..." : "Confirm Unban"}
             </Button>
           </div>
         </div>

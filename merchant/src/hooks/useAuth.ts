@@ -10,7 +10,7 @@ export function useAuth() {
   const { refreshSession, signOut: sessionSignOut } = useSession();
 
   const signInWithEmailAndPassword = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
       setIsLoading(true);
       setError(null);
       try {
@@ -20,16 +20,38 @@ export function useAuth() {
         });
 
         if (res.error) {
-          setError(res.error.message ?? "Failed to sign in");
-          return false;
+          // Check if it's a ban-related error and show appropriate message
+          const errorCode = (res.error as { code?: string })?.code;
+          const errorMessage = res.error.message ?? "Failed to sign in";
+          
+          let finalError: string;
+          if (errorCode === "BANNED_USER" || errorMessage.includes("banned") || errorMessage.includes("SUSPENDED")) {
+            finalError = "Your account has been banned. Please contact support.";
+          } else {
+            finalError = errorMessage;
+          }
+          
+          setError(finalError);
+          return { success: false, error: finalError };
         }
 
         await refreshSession();
-        return true;
+        return { success: true };
       } catch (e) {
         console.error("[merchant] signIn.email failed", e);
-        setError((e as Error)?.message ?? "Failed to sign in");
-        return false;
+        // Check if the error is from a banned user
+        const errorCode = (e as { code?: string })?.code;
+        const errorMessage = (e as Error)?.message ?? "Failed to sign in";
+        
+        let finalError: string;
+        if (errorCode === "BANNED_USER" || errorMessage.includes("banned") || errorMessage.includes("SUSPENDED")) {
+          finalError = "Your account has been banned. Please contact support.";
+        } else {
+          finalError = errorMessage;
+        }
+        
+        setError(finalError);
+        return { success: false, error: finalError };
       } finally {
         setIsLoading(false);
       }
