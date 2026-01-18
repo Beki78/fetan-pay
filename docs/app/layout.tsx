@@ -3,6 +3,7 @@ import { Banner, Head } from "nextra/components";
 import { getPageMap } from "nextra/page-map";
 import "nextra-theme-docs/style.css";
 import { APP_CONFIG } from "@/libs/config";
+import Image from "next/image";
 
 export const metadata = {
   // Define your metadata here
@@ -17,7 +18,19 @@ export const metadata = {
 const banner = <Banner storageKey="some-key">{APP_CONFIG.name} 1.0 is released 🎉</Banner>;
 const navbar = (
   <Navbar
-    logo={<b>{APP_CONFIG.name}</b>}
+    logo={
+      <Image
+        src="/logo/headerlogo.svg"
+        alt="FetanPay"
+        width={140}
+        height={40}
+        style={{
+          filter: 'var(--logo-filter, none)',
+        }}
+        className="nextra-logo"
+        priority
+      />
+    }
     // ... Your additional navbar options
   />
 );
@@ -48,6 +61,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           pageMap={await getPageMap()}
           docsRepositoryBase="https://github.com/Fetan-System-Technology/kifiya-pay/tree/main/docs"
           footer={footer}
+          toc={{
+            float: false,
+          }}
           // ... Your additional layout options
         >
           {children}

@@ -1,0 +1,432 @@
+# Webhooks
+
+Webhooks allow you to receive real-time notifications when payment events occur. Instead of polling the API, FetanPay will send HTTP POST requests to your endpoint when events happen.
+
+## Overview
+
+Webhooks are HTTP callbacks that notify your application when specific events occur in FetanPay. This enables real-time integration without constant polling.
+
+### Benefits
+
+- **Real-time notifications**: Get instant updates when payments are verified
+- **Reduced API calls**: No need to poll for status updates
+- **Better user experience**: Update your system immediately
+- **Efficient**: Process events asynchronously
+
+## Setting Up Webhooks
+
+### 1. Create a Webhook Endpoint
+
+Create an HTTPS endpoint on your server that can receive POST requests:
+
+```javascript
+const express = require('express');
+const crypto = require('crypto');
+const app = express();
+
+app.use(express.json());
+
+app.post('/webhooks/fetanpay', (req, res) => {
+  // Verify signature
+  const signature = req.headers['x-fetanpay-signature'];
+  const isValid = verifySignature(req.body, signature, process.env.WEBHOOK_SECRET);
+  
+  if (!isValid) {
+    return res.status(401).send('Invalid signature');
+  }
+  
+  // Process webhook
+  handleWebhookEvent(req.body);
+  
+  // Always respond quickly
+  res.status(200).send('OK');
+});
+```
+
+### 2. Configure Webhook in Dashboard
+
+1. Go to [Webhooks](https://admin.fetanpay.et/webhooks) in your merchant dashboard
+2. Enter your webhook URL (must be HTTPS)
+3. Select events you want to subscribe to
+4. Copy the webhook secret (shown only once!)
+
+<div style={{backgroundColor: '#fef3c7', border: '1px solid #fbbf24', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem'}}>
+
+**Security:** Store your webhook secret securely. It's only shown once when you create the webhook.
+
+</div>
+
+### 3. Verify Webhook Signature
+
+Always verify the webhook signature to ensure requests are from FetanPay:
+
+```javascript
+const crypto = require('crypto');
+
+function verifySignature(payload, signature, secret) {
+  const payloadString = JSON.stringify(payload);
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payloadString)
+    .digest('hex');
+  
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}
+```
+
+## Available Events
+
+### payment.verified
+
+Triggered when a payment is successfully verified.
+
+```json
+{
+  "id": "evt_1234567890",
+  "type": "payment.verified",
+  "created": 1640995200,
+  "data": {
+    "payment": {
+      "id": "pay_123",
+      "reference": "FT26017MLDG7755415774",
+      "provider": "CBE",
+      "amount": 1000.00,
+      "status": "VERIFIED",
+      "verifiedAt": "2025-01-15T10:30:00Z",
+      "tipAmount": 50.0
+    },
+    "merchant": {
+      "id": "merchant_123"
+    }
+  }
+}
+```
+
+### payment.unverified
+
+Triggered when payment verification fails.
+
+```json
+{
+  "id": "evt_1234567891",
+  "type": "payment.unverified",
+  "created": 1640995201,
+  "data": {
+    "payment": {
+      "reference": "FT26017MLDG7755415774",
+      "provider": "CBE",
+      "amount": 1000.00,
+      "status": "UNVERIFIED"
+    },
+    "checks": {
+      "referenceFound": true,
+      "receiverMatches": true,
+      "amountMatches": false
+    }
+  }
+}
+```
+
+### payment.duplicate
+
+Triggered when attempting to verify an already verified transaction.
+
+```json
+{
+  "id": "evt_1234567892",
+  "type": "payment.duplicate",
+  "created": 1640995202,
+  "data": {
+    "payment": {
+      "id": "pay_123",
+      "reference": "FT26017MLDG7755415774",
+      "provider": "CBE",
+      "status": "VERIFIED",
+      "verifiedAt": "2025-01-15T10:30:00Z"
+    },
+    "merchant": {
+      "id": "merchant_123"
+    }
+  }
+}
+```
+
+### wallet.charged
+
+Triggered when wallet is charged for a payment (if wallet is enabled).
+
+```json
+{
+  "id": "evt_1234567893",
+  "type": "wallet.charged",
+  "created": 1640995203,
+  "data": {
+    "wallet": {
+      "balanceBefore": 1000.00,
+      "balanceAfter": 990.00,
+      "chargeAmount": 10.00
+    },
+    "payment": {
+      "id": "pay_123",
+      "amount": 1000.00
+    },
+    "transaction": {
+      "id": "wtxn_123"
+    },
+    "merchant": {
+      "id": "merchant_123"
+    }
+  }
+}
+```
+
+### wallet.insufficient
+
+Triggered when wallet has insufficient balance for a payment.
+
+```json
+{
+  "id": "evt_1234567894",
+  "type": "wallet.insufficient",
+  "created": 1640995204,
+  "data": {
+    "wallet": {
+      "balance": 5.00,
+      "required": 10.00,
+      "minimumBalance": 100.00
+    },
+    "payment": {
+      "id": "pay_123",
+      "amount": 1000.00
+    },
+    "merchant": {
+      "id": "merchant_123"
+    }
+  }
+}
+```
+
+## Webhook Headers
+
+Every webhook request includes these headers:
+
+| Header | Description |
+|--------|-------------|
+| `X-FetanPay-Signature` | HMAC-SHA256 signature of the payload |
+| `X-FetanPay-Event` | Event type (e.g., `payment.verified`) |
+| `X-FetanPay-Delivery-Id` | Unique delivery ID for this webhook |
+| `Content-Type` | `application/json` |
+
+## Signature Verification
+
+### JavaScript/Node.js
+
+```javascript
+const crypto = require('crypto');
+
+function verifyWebhookSignature(payload, signature, secret) {
+  const payloadString = JSON.stringify(payload);
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payloadString)
+    .digest('hex');
+  
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}
+
+app.post('/webhooks/fetanpay', express.json(), (req, res) => {
+  const signature = req.headers['x-fetanpay-signature'];
+  const secret = process.env.WEBHOOK_SECRET;
+  
+  if (!verifyWebhookSignature(req.body, signature, secret)) {
+    return res.status(401).send('Invalid signature');
+  }
+  
+  handleWebhookEvent(req.body);
+  res.status(200).send('OK');
+});
+```
+
+### Python
+
+```python
+import hmac
+import hashlib
+import json
+
+def verify_webhook_signature(payload, signature, secret):
+    payload_string = json.dumps(payload, separators=(',', ':'))
+    expected_signature = hmac.new(
+        secret.encode('utf-8'),
+        payload_string.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    return hmac.compare_digest(expected_signature, signature)
+
+@app.route('/webhooks/fetanpay', methods=['POST'])
+def webhook():
+    signature = request.headers.get('X-FetanPay-Signature')
+    secret = os.getenv('WEBHOOK_SECRET')
+    
+    if not verify_webhook_signature(request.json, signature, secret):
+        return 'Invalid signature', 401
+    
+    handle_webhook_event(request.json)
+    return 'OK', 200
+```
+
+### PHP
+
+```php
+<?php
+
+function verifyWebhookSignature($payload, $signature, $secret) {
+    $payloadString = json_encode($payload, JSON_UNESCAPED_SLASHES);
+    $expectedSignature = hash_hmac('sha256', $payloadString, $secret);
+    
+    return hash_equals($expectedSignature, $signature);
+}
+
+$payload = json_decode(file_get_contents('php://input'), true);
+$signature = $_SERVER['HTTP_X_FETANPAY_SIGNATURE'] ?? '';
+$secret = getenv('WEBHOOK_SECRET');
+
+if (!verifyWebhookSignature($payload, $signature, $secret)) {
+    http_response_code(401);
+    exit('Invalid signature');
+}
+
+handleWebhookEvent($payload);
+http_response_code(200);
+echo 'OK';
+?>
+```
+
+## Best Practices
+
+### 1. Verify Signatures Always
+
+Never process webhooks without verifying the signature. This ensures requests are from FetanPay.
+
+### 2. Respond Quickly
+
+Return a 200 status code quickly (within 5 seconds). Process the webhook asynchronously if needed:
+
+```javascript
+app.post('/webhooks/fetanpay', async (req, res) => {
+  // Verify signature
+  if (!verifySignature(req.body, req.headers['x-fetanpay-signature'], secret)) {
+    return res.status(401).send('Invalid');
+  }
+  
+  // Respond immediately
+  res.status(200).send('OK');
+  
+  // Process asynchronously
+  processWebhookAsync(req.body);
+});
+```
+
+### 3. Handle Duplicates
+
+Webhooks may be delivered multiple times. Make your handler idempotent:
+
+```javascript
+async function handleWebhookEvent(event) {
+  // Check if already processed
+  const processed = await checkIfProcessed(event.id);
+  if (processed) {
+    return; // Already processed
+  }
+  
+  // Process event
+  await processEvent(event);
+  
+  // Mark as processed
+  await markAsProcessed(event.id);
+}
+```
+
+## Managing Webhooks
+
+### Create Webhook
+
+```bash
+curl -X POST https://api.fetanpay.et/api/v1/webhooks \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-domain.com/webhooks/fetanpay",
+    "events": ["payment.verified", "payment.unverified"]
+  }'
+```
+
+### List Webhooks
+
+```bash
+curl https://api.fetanpay.et/api/v1/webhooks \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Update Webhook
+
+```bash
+curl -X PUT https://api.fetanpay.et/api/v1/webhooks/WEBHOOK_ID \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-domain.com/webhooks/fetanpay",
+    "events": ["payment.verified", "payment.unverified", "payment.duplicate"]
+  }'
+```
+
+### Delete Webhook
+
+```bash
+curl -X DELETE https://api.fetanpay.et/api/v1/webhooks/WEBHOOK_ID \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Regenerate Secret
+
+```bash
+curl -X POST https://api.fetanpay.et/api/v1/webhooks/WEBHOOK_ID/regenerate-secret \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Test Webhook
+
+```bash
+curl -X POST https://api.fetanpay.et/api/v1/webhooks/WEBHOOK_ID/test \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Get Delivery Logs
+
+```bash
+curl "https://api.fetanpay.et/api/v1/webhooks/WEBHOOK_ID/deliveries?limit=50" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Retry Logic
+
+FetanPay automatically retries failed webhook deliveries:
+
+- **Max Retries**: 3 (configurable, default: 3)
+- **Retry Interval**: Exponential backoff (1s, 2s, 4s)
+- **Timeout**: 30 seconds (configurable, default: 30000ms)
+
+Failed deliveries are logged in the dashboard for review.
+
+## Next Steps
+
+- Learn about [API Keys](/api/authentication)
+- Explore the [Payments API](/api/payments)
+- Check the [API Reference](/api/reference)
