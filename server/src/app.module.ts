@@ -18,6 +18,8 @@ import { MerchantAdminDashboardModule } from './modules/merchant-admin-dashboard
 import { WalletModule } from './modules/wallet/wallet.module';
 import { SystemMonitoringModule } from './modules/system-monitoring/system-monitoring.module';
 import { AdminPaymentsModule } from './modules/admin-payments/admin.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -33,13 +35,14 @@ import { ThrottlerModule } from '@nestjs/throttler';
     MerchantsModule,
     MerchantUsersModule,
     PaymentsModule,
-    PaymentsModule,
     PaymentProvidersModule,
     BrandingModule,
     MerchantAdminDashboardModule,
     WalletModule,
     SystemMonitoringModule,
     AdminPaymentsModule,
+    ApiKeysModule,
+    WebhooksModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

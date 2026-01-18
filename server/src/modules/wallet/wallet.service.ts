@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../../database/prisma.service';
 import { Prisma, TransactionProvider } from '@prisma/client';
 import { VerificationService } from '../verifier/services/verification.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import type { Request } from 'express';
 import { VerifyWalletDepositDto } from './dto/verify-wallet-deposit.dto';
 import { SetDepositReceiverDto } from './dto/set-deposit-receiver.dto';
@@ -21,6 +22,7 @@ export class WalletService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly verificationService: VerificationService,
+    private readonly webhooksService: WebhooksService,
   ) {}
 
   /**
@@ -110,6 +112,24 @@ export class WalletService {
     // Check minimum balance if set
     if (merchant.walletMinBalance) {
       if (newBalance.lt(merchant.walletMinBalance)) {
+        // Trigger insufficient balance webhook
+        this.webhooksService.triggerWebhook('wallet.insufficient', merchantId, {
+          wallet: {
+            balance: currentBalance.toNumber(),
+            required: chargeAmount.toNumber(),
+            minimumBalance: merchant.walletMinBalance.toNumber(),
+          },
+          payment: {
+            id: paymentId,
+            amount: paymentAmount.toNumber(),
+          },
+          merchant: {
+            id: merchantId,
+          },
+        }).catch((error) => {
+          console.error('[Webhooks] Error triggering wallet.insufficient webhook:', error);
+        });
+
         return {
           success: false,
           chargeAmount,
@@ -120,6 +140,24 @@ export class WalletService {
     } else {
       // No minimum balance set, but still check if balance goes negative
       if (newBalance.lt(0)) {
+        // Trigger insufficient balance webhook
+        this.webhooksService.triggerWebhook('wallet.insufficient', merchantId, {
+          wallet: {
+            balance: currentBalance.toNumber(),
+            required: chargeAmount.toNumber(),
+            minimumBalance: null,
+          },
+          payment: {
+            id: paymentId,
+            amount: paymentAmount.toNumber(),
+          },
+          merchant: {
+            id: merchantId,
+          },
+        }).catch((error) => {
+          console.error('[Webhooks] Error triggering wallet.insufficient webhook:', error);
+        });
+
         return {
           success: false,
           chargeAmount,
@@ -188,6 +226,27 @@ export class WalletService {
         });
 
         return walletTransaction;
+      });
+
+      // Trigger wallet charged webhook
+      this.webhooksService.triggerWebhook('wallet.charged', merchantId, {
+        wallet: {
+          balanceBefore: result.balanceBefore.toNumber(),
+          balanceAfter: result.balanceAfter.toNumber(),
+          chargeAmount: chargeAmount.toNumber(),
+        },
+        payment: {
+          id: paymentId,
+          amount: paymentAmount.toNumber(),
+        },
+        transaction: {
+          id: result.id,
+        },
+        merchant: {
+          id: merchantId,
+        },
+      }).catch((error) => {
+        console.error('[Webhooks] Error triggering wallet.charged webhook:', error);
       });
 
       return {
