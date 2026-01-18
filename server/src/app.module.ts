@@ -18,6 +18,7 @@ import { MerchantAdminDashboardModule } from './modules/merchant-admin-dashboard
 import { WalletModule } from './modules/wallet/wallet.module';
 import { SystemMonitoringModule } from './modules/system-monitoring/system-monitoring.module';
 import { AdminPaymentsModule } from './modules/admin-payments/admin.module';
+import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -41,6 +42,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     WalletModule,
     SystemMonitoringModule,
     AdminPaymentsModule,
+    AdminDashboardModule,
     ApiKeysModule,
     WebhooksModule,
     ThrottlerModule.forRoot([
