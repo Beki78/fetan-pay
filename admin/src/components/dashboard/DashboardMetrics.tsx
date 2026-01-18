@@ -22,9 +22,19 @@ export default function DashboardMetrics() {
   }
 
   const metrics = analytics || {
-    userAnalytics: { totalMerchants: 0 },
-    platformTransactions: { totalTransactions: 0, totalVerified: 0 },
-    totalTips: 0,
+    userAnalytics: { totalUsers: 0, totalMerchants: 0 },
+    platformTransactions: {
+      totalTransactions: 0,
+      totalVerified: 0,
+      totalPending: 0,
+      totalUnsuccessful: 0,
+      totalTransactionAmount: 0,
+      totalTips: 0,
+    },
+    walletAnalytics: { totalDeposits: 0 },
+    transactionTypeBreakdown: { qr: 0, cash: 0, bank: 0 },
+    transactionStatusBreakdown: { successful: 0, failed: 0, pending: 0, expired: 0 },
+    providerUsage: [],
   };
 
   return (
@@ -38,7 +48,7 @@ export default function DashboardMetrics() {
           <span className="text-sm text-gray-600 dark:text-gray-400">Total Merchants</span>
         </div>
         <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-          {metrics.userAnalytics.totalMerchants.toLocaleString()}
+          {(metrics.userAnalytics?.totalMerchants ?? 0).toLocaleString()}
         </h4>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           Active merchants
@@ -54,7 +64,7 @@ export default function DashboardMetrics() {
           <span className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</span>
         </div>
         <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-          {metrics.platformTransactions.totalTransactions.toLocaleString()}
+          {(metrics.platformTransactions?.totalTransactions ?? 0).toLocaleString()}
         </h4>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           All transactions
@@ -70,7 +80,7 @@ export default function DashboardMetrics() {
           <span className="text-sm text-gray-600 dark:text-gray-400">Total Verified</span>
         </div>
         <h4 className="text-2xl font-semibold text-green-600 dark:text-green-400">
-          {metrics.platformTransactions.totalVerified.toLocaleString()}
+          {(metrics.platformTransactions?.totalVerified ?? 0).toLocaleString()}
         </h4>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           Verified transactions
@@ -86,7 +96,7 @@ export default function DashboardMetrics() {
           <span className="text-sm text-gray-600 dark:text-gray-400">Total Tips</span>
         </div>
         <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-          {metrics.totalTips.toLocaleString("en-US", {
+          {(metrics.platformTransactions?.totalTips ?? 0).toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })} ETB

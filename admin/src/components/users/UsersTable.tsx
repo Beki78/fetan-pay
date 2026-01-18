@@ -22,7 +22,7 @@ export default function UsersTable() {
         return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
       case "PENDING":
         return "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400";
-      case "SUSPENDED":
+      case "BANNED":
         return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
@@ -108,6 +108,9 @@ export default function UsersTable() {
               ) : (
                 merchants.map((merchant) => {
                   const owner = merchant.users.find((u) => u.role === "MERCHANT_OWNER");
+                  // Check if any user in the merchant is banned (Better Auth banned field)
+                  const isBanned = merchant.users?.some((u: any) => u.banned === true) ?? false;
+                  const displayStatus = isBanned ? "BANNED" : merchant.status;
                   return (
                   <TableRow
                     key={merchant.id}
@@ -131,8 +134,8 @@ export default function UsersTable() {
                       {owner?.email ?? owner?.name ?? "-"}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(merchant.status)}`}>
-                        {merchant.status}
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(displayStatus)}`}>
+                        {displayStatus}
                       </span>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400 text-sm">

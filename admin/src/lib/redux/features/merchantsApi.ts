@@ -1,6 +1,6 @@
 import { baseApi } from "../api";
 
-export type MerchantStatus = "PENDING" | "ACTIVE" | "SUSPENDED";
+export type MerchantStatus = "PENDING" | "ACTIVE";
 
 export interface MerchantUser {
   id: string;
@@ -9,6 +9,9 @@ export interface MerchantUser {
   name?: string | null;
   email?: string | null;
   phone?: string | null;
+  createdAt?: string;
+  userId?: string; // Better Auth user ID
+  banned?: boolean; // Better Auth banned status
 }
 
 export interface Merchant {
@@ -90,6 +93,26 @@ export const merchantsApi = baseApi.injectEndpoints({
         ],
       }
     ),
+    deactivateUser: build.mutation<MerchantUser, { merchantId: string; userId: string }>({
+      query: ({ merchantId, userId }) => ({
+        url: `/merchant-accounts/${merchantId}/users/${userId}/deactivate`,
+        method: "PATCH",
+        body: {},
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        { type: "Merchant" as const, id: arg.merchantId },
+      ],
+    }),
+    activateUser: build.mutation<MerchantUser, { merchantId: string; userId: string }>({
+      query: ({ merchantId, userId }) => ({
+        url: `/merchant-accounts/${merchantId}/users/${userId}/activate`,
+        method: "PATCH",
+        body: {},
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        { type: "Merchant" as const, id: arg.merchantId },
+      ],
+    }),
   }),
 });
 
@@ -98,4 +121,6 @@ export const {
   useGetMerchantQuery,
   useApproveMerchantMutation,
   useRejectMerchantMutation,
+  useDeactivateUserMutation,
+  useActivateUserMutation,
 } = merchantsApi;

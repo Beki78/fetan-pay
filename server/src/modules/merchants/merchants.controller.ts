@@ -125,8 +125,8 @@ export class MerchantsController {
 
   @Patch(':id/reject')
   @ApiOperation({
-    summary: 'Reject merchant (set SUSPENDED, stamp rejectedBy)',
-    description: 'Rejects a pending merchant account, setting status to SUSPENDED. Requires admin authentication.',
+    summary: 'Reject merchant (ban users, set PENDING)',
+    description: 'Rejects a pending merchant account, bans all users, and sets status to PENDING. Requires admin authentication.',
   })
   @ApiParam({
     name: 'id',
