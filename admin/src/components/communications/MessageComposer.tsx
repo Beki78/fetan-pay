@@ -18,14 +18,6 @@ export default function MessageComposer() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'unsaved'>('unsaved');
-
-  // Test toast function - remove this after testing
-  const testToast = () => {
-    toast.success('Toast is working! 🎉');
-    toast.error('Error toast test');
-    toast.info('Info toast test');
-    toast.warning('Warning toast test');
-  };
   
   // API hooks
   const [sendEmail, { isLoading: isSendingEmail }] = useSendEmailMutation();

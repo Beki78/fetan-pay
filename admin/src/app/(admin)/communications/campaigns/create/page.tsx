@@ -83,7 +83,7 @@ export default function CreateCampaignPage() {
       return;
     }
 
-    if (formData.type === 'EMAIL' && !formData.subject.trim()) {
+    if ((formData.type === 'EMAIL' || formData.type === 'BOTH') && !formData.subject.trim()) {
       alert('Email subject is required for email campaigns');
       return;
     }
@@ -191,7 +191,7 @@ export default function CreateCampaignPage() {
             </div>
 
             {/* Template Selection */}
-            {formData.type !== 'SMS' && (
+            {(formData.type === 'EMAIL' || formData.type === 'BOTH') && (
               <div className="bg-white dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
                   Email Template (Optional)
@@ -224,7 +224,7 @@ export default function CreateCampaignPage() {
               </h3>
               
               <div className="space-y-4">
-                {formData.type !== 'SMS' && (
+                {(formData.type === 'EMAIL' || formData.type === 'BOTH') && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Email Subject *
@@ -235,7 +235,7 @@ export default function CreateCampaignPage() {
                       onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
                       placeholder="Enter email subject..."
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required={formData.type !== 'SMS'}
+                      required={formData.type === 'EMAIL' || formData.type === 'BOTH'}
                     />
                   </div>
                 )}
