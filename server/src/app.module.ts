@@ -21,6 +21,7 @@ import { AdminPaymentsModule } from './modules/admin-payments/admin.module';
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { CommunicationsModule } from './modules/communications/communications.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -45,6 +46,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     AdminDashboardModule,
     ApiKeysModule,
     WebhooksModule,
+    CommunicationsModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

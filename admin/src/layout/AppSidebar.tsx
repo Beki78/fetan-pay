@@ -173,6 +173,11 @@ const mainItems: NavItem[] = [
   path: "/users",
   },
   {
+    icon: <PaperPlaneIcon />,
+    name: "Communications",
+    path: "/communications",
+  },
+  {
     icon: <WalletIcon />,
     name: "Wallet",
     subItems: [

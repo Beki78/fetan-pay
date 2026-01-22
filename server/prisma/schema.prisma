@@ -101,6 +101,66 @@ enum WebhookDeliveryStatus {
   FAILED
 }
 
+enum EmailStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+  OPENED
+  CLICKED
+  UNSUBSCRIBED
+}
+
+enum EmailTemplateCategory {
+  WELCOME
+  APPROVAL
+  SECURITY
+  MARKETING
+  REMINDER
+  NOTIFICATION
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+  CANCELLED
+  FAILED
+}
+
+enum CampaignType {
+  EMAIL
+  SMS
+  BOTH
+}
+
+enum AudienceSegmentType {
+  ALL_MERCHANTS
+  PENDING_MERCHANTS
+  ACTIVE_MERCHANTS
+  BANNED_USERS
+  INACTIVE_MERCHANTS
+  HIGH_VOLUME_MERCHANTS
+  NEW_SIGNUPS
+  MERCHANT_OWNERS
+  WAITERS
+  CUSTOM_FILTER
+}
+
+enum EngagementEventType {
+  EMAIL_SENT
+  EMAIL_DELIVERED
+  EMAIL_OPENED
+  EMAIL_CLICKED
+  EMAIL_BOUNCED
+  EMAIL_UNSUBSCRIBED
+  CAMPAIGN_STARTED
+  CAMPAIGN_COMPLETED
+}
+
 model Merchant {
   id           String         @id @default(uuid())
   name         String
@@ -135,6 +195,11 @@ model Merchant {
   // API Keys & Webhooks
   apiKeys              ApiKey[]
   webhooks             Webhook[]
+
+  // Email Communications
+  emailLogs            EmailLog[]
+  engagementEvents     EngagementEvent[]
+  unsubscribeList      UnsubscribeList[]
 
   // Provider catalog is global (admin-managed), so no relation here.
 
@@ -397,6 +462,249 @@ model MerchantBranding {
   updatedAt     DateTime @updatedAt
 
   @@map("merchant_branding")
+}
+
+model EmailTemplate {
+  id          String                @id @default(uuid())
+  name        String
+  category    EmailTemplateCategory
+  subject     String
+  content     String                // HTML content
+  variables   String[]              // Array of variable names like ["merchantName", "loginUrl"]
+  isActive    Boolean               @default(true)
+  usageCount  Int                   @default(0)
+  
+  // Template versioning
+  version     Int                   @default(1)
+  parentId    String?               // Reference to original template for versions
+  parent      EmailTemplate?        @relation("TemplateVersions", fields: [parentId], references: [id], onDelete: SetNull)
+  versions    EmailTemplate[]       @relation("TemplateVersions")
+  
+  // Template metadata
+  description String?
+  tags        String[]              @default([])
+  isSystem    Boolean               @default(false) // System templates cannot be deleted
+
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  emailLogs   EmailLog[]
+  campaigns   Campaign[]
+
+  @@map("email_template")
+}
+
+model EmailLog {
+  id           String      @id @default(uuid())
+  toEmail      String
+  subject      String
+  content      String      // Final rendered content
+  templateId   String?
+  template     EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  
+  // Context
+  merchantId   String?
+  merchant     Merchant?   @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  sentByUserId String      // Admin user who sent the email
+  
+  // Campaign context
+  campaignId   String?
+  campaign     Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  
+  // Status tracking
+  status       EmailStatus @default(PENDING)
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  failedAt     DateTime?
+  bouncedAt    DateTime?
+  unsubscribedAt DateTime?
+  errorMessage String?
+  
+  // Email provider response
+  messageId    String?     // Provider message ID
+  metadata     Json?       // Additional provider metadata
+  
+  // Analytics tracking
+  trackingId   String?     @unique // Unique ID for tracking opens/clicks
+  openCount    Int         @default(0)
+  clickCount   Int         @default(0)
+  userAgent    String?     // Browser/client info from opens
+  ipAddress    String?     // IP address from opens
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  engagementEvents EngagementEvent[]
+  emailClicks      EmailClick[]
+
+  @@index([merchantId])
+  @@index([sentByUserId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([trackingId])
+  @@map("email_log")
+}
+
+model Campaign {
+  id              String         @id @default(uuid())
+  name            String
+  type            CampaignType
+  status          CampaignStatus @default(DRAFT)
+  
+  // Content
+  subject         String?        // For email campaigns
+  content         String
+  templateId      String?
+  template        EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  
+  // A/B Testing
+  isAbTest        Boolean        @default(false)
+  abTestVariants  Json?          // Store A/B test variants
+  abTestWinner    String?        // Winning variant ID
+  
+  // Audience
+  audienceSegment AudienceSegmentType
+  customFilters   Json?          // For CUSTOM_FILTER audience
+  
+  // Scheduling
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  completedAt     DateTime?
+  
+  // Stats
+  targetCount     Int            @default(0)
+  sentCount       Int            @default(0)
+  deliveredCount  Int            @default(0)
+  openedCount     Int            @default(0)
+  clickedCount    Int            @default(0)
+  failedCount     Int            @default(0)
+  bouncedCount    Int            @default(0)
+  unsubscribedCount Int          @default(0)
+  
+  // Cost tracking
+  estimatedCost   Decimal        @default(0) @db.Decimal(10, 2)
+  actualCost      Decimal        @default(0) @db.Decimal(10, 2)
+  
+  // Metadata
+  createdByUserId String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Relations
+  emailLogs       EmailLog[]
+  engagementEvents EngagementEvent[]
+  
+  @@index([status])
+  @@index([createdByUserId])
+  @@index([scheduledAt])
+  @@index([createdAt])
+  @@map("campaign")
+}
+
+model EngagementEvent {
+  id          String              @id @default(uuid())
+  type        EngagementEventType
+  
+  // Context
+  emailLogId  String?
+  emailLog    EmailLog?           @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+  campaignId  String?
+  campaign    Campaign?           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  merchantId  String?
+  merchant    Merchant?           @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  
+  // Event data
+  userAgent   String?
+  ipAddress   String?
+  location    String?             // Geographic location
+  deviceType  String?             // mobile, desktop, tablet
+  metadata    Json?               // Additional event data
+  
+  createdAt   DateTime            @default(now())
+  
+  @@index([type])
+  @@index([emailLogId])
+  @@index([campaignId])
+  @@index([merchantId])
+  @@index([createdAt])
+  @@map("engagement_event")
+}
+
+model EmailClick {
+  id          String    @id @default(uuid())
+  emailLogId  String
+  emailLog    EmailLog  @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+  
+  // Click data
+  url         String    // The clicked URL
+  linkText    String?   // Text of the clicked link
+  position    Int?      // Position of link in email (1st, 2nd, etc.)
+  
+  // Analytics
+  userAgent   String?
+  ipAddress   String?
+  location    String?
+  deviceType  String?
+  
+  clickedAt   DateTime  @default(now())
+  
+  @@index([emailLogId])
+  @@index([url])
+  @@index([clickedAt])
+  @@map("email_click")
+}
+
+model UnsubscribeList {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  merchantId  String?
+  merchant    Merchant? @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  
+  // Unsubscribe context
+  campaignId  String?   // Campaign that triggered unsubscribe
+  emailLogId  String?   // Specific email that triggered unsubscribe
+  reason      String?   // Reason for unsubscribing
+  
+  // Metadata
+  userAgent   String?
+  ipAddress   String?
+  
+  createdAt   DateTime  @default(now())
+  
+  @@index([email])
+  @@index([merchantId])
+  @@index([createdAt])
+  @@map("unsubscribe_list")
+}
+
+model SavedAudienceSegment {
+  id          String              @id @default(uuid())
+  name        String
+  description String?
+  
+  // Segment definition
+  segmentType AudienceSegmentType
+  filters     Json                // Custom filters for the segment
+  
+  // Usage tracking
+  usageCount  Int                 @default(0)
+  lastUsedAt  DateTime?
+  
+  // Metadata
+  createdByUserId String
+  isPublic    Boolean             @default(false) // Can other admins use this segment
+  
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  
+  @@index([createdByUserId])
+  @@index([segmentType])
+  @@index([createdAt])
+  @@map("saved_audience_segment")
 }
 
 model WalletTransaction {

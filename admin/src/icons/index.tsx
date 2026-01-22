@@ -20,6 +20,7 @@ import BoxIconLine from "./box-line.svg";
 import ShootingStarIcon from "./shooting-star.svg";
 import DollarLineIcon from "./dollar-line.svg";
 import TrashBinIcon from "./trash.svg";
+import AngleLeftIcon from "./angle-left.svg";
 import AngleUpIcon from "./angle-up.svg";
 import AngleDownIcon from "./angle-down.svg";
 import PencilIcon from "./pencil.svg";
@@ -37,6 +38,7 @@ import EyeCloseIcon from "./eye-close.svg";
 import TimeIcon from "./time.svg";
 import CopyIcon from "./copy.svg";
 import ChevronLeftIcon from "./chevron-left.svg";
+import ArrowLeftIcon from "./angle-left.svg";
 import UserCircleIcon from "./user-circle.svg";
 import TaskIcon from "./task-icon.svg";
 import ListIcon from "./list.svg";
@@ -77,6 +79,7 @@ export {
   ShootingStarIcon,
   DollarLineIcon,
   TrashBinIcon,
+  AngleLeftIcon,
   AngleUpIcon,
   AngleDownIcon,
   PencilIcon,
