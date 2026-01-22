@@ -5,6 +5,7 @@ import { AudienceSegmentType } from './dto/create-campaign.dto';
 export interface AudienceRecipient {
   email: string;
   name: string;
+  phone?: string;
   merchantId?: string;
   merchantName?: string;
   userId?: string;
@@ -14,6 +15,21 @@ export interface AudienceRecipient {
 @Injectable()
 export class AudienceService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Helper function to map merchant user data to AudienceRecipient
+   */
+  private mapToAudienceRecipient(mu: any): AudienceRecipient {
+    return {
+      email: mu.email,
+      name: mu.name,
+      phone: mu.phone || mu.merchant?.contactPhone, // Use user phone or merchant contact phone
+      merchantId: mu.merchant?.id,
+      merchantName: mu.merchant?.name,
+      userId: mu.userId,
+      role: mu.role,
+    };
+  }
 
   /**
    * Get count of recipients for an audience segment
@@ -108,21 +124,14 @@ export class AudienceService {
       },
       include: {
         merchant: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, contactPhone: true },
         },
       },
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
 
-    return merchantUsers.map((mu: any) => ({
-      email: mu.email,
-      name: mu.name,
-      merchantId: mu.merchant.id,
-      merchantName: mu.merchant.name,
-      userId: mu.userId,
-      role: mu.role,
-    }));
+    return merchantUsers.map((mu: any) => this.mapToAudienceRecipient(mu));
   }
 
   private async getPendingMerchants(limit?: number, offset?: number): Promise<AudienceRecipient[]> {
@@ -134,21 +143,14 @@ export class AudienceService {
       },
       include: {
         merchant: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, contactPhone: true },
         },
       },
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
 
-    return merchantUsers.map((mu: any) => ({
-      email: mu.email,
-      name: mu.name,
-      merchantId: mu.merchant.id,
-      merchantName: mu.merchant.name,
-      userId: mu.userId,
-      role: mu.role,
-    }));
+    return merchantUsers.map((mu: any) => this.mapToAudienceRecipient(mu));
   }
 
   private async getActiveMerchants(limit?: number, offset?: number): Promise<AudienceRecipient[]> {
@@ -160,21 +162,14 @@ export class AudienceService {
       },
       include: {
         merchant: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, contactPhone: true },
         },
       },
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
 
-    return merchantUsers.map((mu: any) => ({
-      email: mu.email,
-      name: mu.name,
-      merchantId: mu.merchant.id,
-      merchantName: mu.merchant.name,
-      userId: mu.userId,
-      role: mu.role,
-    }));
+    return merchantUsers.map((mu: any) => this.mapToAudienceRecipient(mu));
   }
 
   private async getBannedUsers(limit?: number, offset?: number): Promise<AudienceRecipient[]> {
@@ -185,7 +180,7 @@ export class AudienceService {
       },
       include: {
         merchant: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, contactPhone: true },
         },
         user: {
           select: { banned: true },
@@ -195,14 +190,7 @@ export class AudienceService {
       ...(offset ? { skip: offset } : {}),
     });
 
-    return merchantUsers.map((mu: any) => ({
-      email: mu.email,
-      name: mu.name,
-      merchantId: mu.merchant.id,
-      merchantName: mu.merchant.name,
-      userId: mu.userId,
-      role: mu.role,
-    }));
+    return merchantUsers.map((mu: any) => this.mapToAudienceRecipient(mu));
   }
 
   private async getInactiveMerchants(limit?: number, offset?: number): Promise<AudienceRecipient[]> {
@@ -224,21 +212,14 @@ export class AudienceService {
       },
       include: {
         merchant: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, contactPhone: true },
         },
       },
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
 
-    return merchantUsers.map((mu: any) => ({
-      email: mu.email,
-      name: mu.name,
-      merchantId: mu.merchant.id,
-      merchantName: mu.merchant.name,
-      userId: mu.userId,
-      role: mu.role,
-    }));
+    return merchantUsers.map((mu: any) => this.mapToAudienceRecipient(mu));
   }
 
   private async getHighVolumeMerchants(limit?: number, offset?: number): Promise<AudienceRecipient[]> {
@@ -273,6 +254,7 @@ export class AudienceService {
       merchant.users.map((mu: any) => ({
         email: mu.email,
         name: mu.name,
+        phone: mu.phone || merchant.contactPhone, // Use user phone or merchant contact phone
         merchantId: merchant.id,
         merchantName: merchant.name,
         userId: mu.userId,
@@ -292,21 +274,14 @@ export class AudienceService {
       },
       include: {
         merchant: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, contactPhone: true },
         },
       },
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
 
-    return merchantUsers.map((mu: any) => ({
-      email: mu.email,
-      name: mu.name,
-      merchantId: mu.merchant.id,
-      merchantName: mu.merchant.name,
-      userId: mu.userId,
-      role: mu.role,
-    }));
+    return merchantUsers.map((mu: any) => this.mapToAudienceRecipient(mu));
   }
 
   private async getMerchantOwners(limit?: number, offset?: number): Promise<AudienceRecipient[]> {
@@ -318,21 +293,14 @@ export class AudienceService {
       },
       include: {
         merchant: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, contactPhone: true },
         },
       },
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
 
-    return merchantUsers.map((mu: any) => ({
-      email: mu.email,
-      name: mu.name,
-      merchantId: mu.merchant.id,
-      merchantName: mu.merchant.name,
-      userId: mu.userId,
-      role: mu.role,
-    }));
+    return merchantUsers.map((mu: any) => this.mapToAudienceRecipient(mu));
   }
 
   private async getWaiters(limit?: number, offset?: number): Promise<AudienceRecipient[]> {
@@ -344,21 +312,14 @@ export class AudienceService {
       },
       include: {
         merchant: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, contactPhone: true },
         },
       },
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
 
-    return merchantUsers.map((mu: any) => ({
-      email: mu.email,
-      name: mu.name,
-      merchantId: mu.merchant.id,
-      merchantName: mu.merchant.name,
-      userId: mu.userId,
-      role: mu.role,
-    }));
+    return merchantUsers.map((mu: any) => this.mapToAudienceRecipient(mu));
   }
 
   private async getCustomFiltered(filters: Record<string, any>, limit?: number, offset?: number): Promise<AudienceRecipient[]> {
@@ -396,21 +357,14 @@ export class AudienceService {
       where,
       include: {
         merchant: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, contactPhone: true },
         },
       },
       ...(limit ? { take: limit } : {}),
       ...(offset ? { skip: offset } : {}),
     });
 
-    return merchantUsers.map((mu: any) => ({
-      email: mu.email,
-      name: mu.name,
-      merchantId: mu.merchant.id,
-      merchantName: mu.merchant.name,
-      userId: mu.userId,
-      role: mu.role,
-    }));
+    return merchantUsers.map((mu: any) => this.mapToAudienceRecipient(mu));
   }
 
   private buildAudienceQuery(segment: AudienceSegmentType, filters?: Record<string, any>): string {

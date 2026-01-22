@@ -62,10 +62,11 @@ export default function AudiencePreviewPage() {
     if (recipients.length === 0) return;
 
     const csvContent = [
-      ['Name', 'Email', 'Role', 'Merchant Name', 'Merchant ID'].join(','),
+      ['Name', 'Email', 'Phone', 'Role', 'Merchant Name', 'Merchant ID'].join(','),
       ...recipients.map(recipient => [
         `"${recipient.name || ''}"`,
         `"${recipient.email || ''}"`,
+        `"${recipient.phone || ''}"`,
         `"${recipient.role || ''}"`,
         `"${recipient.merchantName || ''}"`,
         `"${recipient.merchantId || ''}"`,
@@ -206,6 +207,13 @@ export default function AudiencePreviewPage() {
                         <EnvelopeIcon className="w-4 h-4" />
                         <span className="truncate">{recipient.email}</span>
                       </div>
+                      
+                      {recipient.phone && (
+                        <div className="flex items-center gap-1">
+                          <span>📱</span>
+                          <span className="truncate">{recipient.phone}</span>
+                        </div>
+                      )}
                       
                       {recipient.merchantName && (
                         <div className="flex items-center gap-1">

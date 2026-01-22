@@ -19,8 +19,48 @@ export default function MessagePreview({ type, subject, content, sampleData }: M
     return processed;
   };
 
+  // Convert HTML to plain text for SMS
+  const htmlToPlainText = (html: string) => {
+    // Create a temporary div element to parse HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Handle line breaks and paragraphs
+    const paragraphs = tempDiv.querySelectorAll('p, div, br');
+    paragraphs.forEach(p => {
+      if (p.tagName === 'BR') {
+        p.replaceWith('\n');
+      } else if (p.tagName === 'P' || p.tagName === 'DIV') {
+        p.insertAdjacentText('afterend', '\n');
+      }
+    });
+    
+    // Get text content and clean up whitespace
+    let text = tempDiv.textContent || tempDiv.innerText || '';
+    
+    // Clean up whitespace but preserve intentional line breaks
+    text = text.replace(/[ \t]+/g, ' '); // Replace multiple spaces/tabs with single space
+    text = text.replace(/\n\s+/g, '\n'); // Remove spaces after newlines
+    text = text.replace(/\s+\n/g, '\n'); // Remove spaces before newlines
+    text = text.replace(/\n{3,}/g, '\n\n'); // Replace multiple newlines with max 2
+    text = text.trim();
+    
+    // Convert common HTML entities
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#39;/g, "'");
+    
+    return text;
+  };
+
   const processedSubject = subject ? processContent(subject) : '';
   const processedContent = processContent(content);
+  
+  // For SMS, convert HTML to plain text if needed
+  const smsContent = type === 'sms' ? htmlToPlainText(processedContent) : processedContent;
 
   if (type === 'email') {
     return (
@@ -99,21 +139,21 @@ export default function MessagePreview({ type, subject, content, sampleData }: M
                     className="text-sm leading-relaxed"
                     style={{ whiteSpace: 'pre-wrap' }}
                   >
-                    {processedContent || 'SMS message will appear here...'}
+                    {smsContent || 'SMS message will appear here...'}
                   </div>
                 </div>
                 
                 {/* Character count indicator */}
                 <div className="mt-2 text-right">
                   <span className={`text-xs ${
-                    processedContent.length > 160 
+                    smsContent.length > 160 
                       ? 'text-orange-600 dark:text-orange-400' 
                       : 'text-gray-500 dark:text-gray-400'
                   }`}>
-                    {processedContent.length}/160 chars
-                    {processedContent.length > 160 && (
+                    {smsContent.length}/160 chars
+                    {smsContent.length > 160 && (
                       <span className="ml-1">
-                        ({Math.ceil(processedContent.length / 160)} segments)
+                        ({Math.ceil(smsContent.length / 160)} segments)
                       </span>
                     )}
                   </span>

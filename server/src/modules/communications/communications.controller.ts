@@ -21,8 +21,10 @@ import type { Request } from 'express';
 import { CommunicationsService } from './communications.service';
 import { AnalyticsService } from './analytics.service';
 import { SendEmailDto } from './dto/send-email.dto';
+import { SendSmsDto } from './dto/send-sms.dto';
 import { CreateEmailTemplateDto } from './dto/create-email-template.dto';
 import { ListEmailLogsDto } from './dto/list-email-logs.dto';
+import { ListSmsLogsDto } from './dto/list-sms-logs.dto';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { ListCampaignsDto } from './dto/list-campaigns.dto';
 import { GetAudienceCountDto } from './dto/get-audience-count.dto';
@@ -61,6 +63,138 @@ export class CommunicationsController {
   @ApiResponse({ status: 404, description: 'Template or merchant not found' })
   async sendEmail(@Body() body: SendEmailDto, @Req() req: Request) {
     return this.communicationsService.sendEmail(body, req);
+  }
+
+  @Post('sms/send')
+  @ApiOperation({
+    summary: 'Send an individual SMS',
+    description: 'Send a single SMS to a recipient. Supports template variables and merchant context. HTML templates are converted to plain text. Requires admin authentication.',
+  })
+  @ApiBody({ type: SendSmsDto })
+  @ApiResponse({
+    status: 200,
+    description: 'SMS sent successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'SMS log ID' },
+        status: { type: 'string', example: 'SENT' },
+        sentAt: { type: 'string', format: 'date-time' },
+        messageId: { type: 'string', description: 'Provider message ID' },
+        segmentCount: { type: 'number', description: 'Number of SMS segments' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data or SMS service not configured' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Admin access required' })
+  @ApiResponse({ status: 404, description: 'Template or merchant not found' })
+  async sendSms(@Body() body: SendSmsDto, @Req() req: Request) {
+    return this.communicationsService.sendSms(body, req);
+  }
+
+  @Get('sms/status')
+  @ApiOperation({
+    summary: 'Get SMS service status',
+    description: 'Check if SMS service is configured and working. Requires admin authentication.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'SMS service status',
+    schema: {
+      type: 'object',
+      properties: {
+        configured: { type: 'boolean' },
+        defaultSender: { type: 'string' },
+        defaultFrom: { type: 'string' },
+        apiUrl: { type: 'string' },
+        tokenConfigured: { type: 'boolean' },
+        tokenLength: { type: 'number' },
+      },
+    },
+  })
+  async getSmsStatus(@Req() req: Request) {
+    return this.communicationsService.getSmsStatus(req);
+  }
+
+  @Get('sms/validate')
+  @ApiOperation({
+    summary: 'Validate SMS service configuration',
+    description: 'Test SMS service configuration without sending actual SMS. Requires admin authentication.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'SMS service validation result',
+  })
+  async validateSmsConfig(@Req() req: Request) {
+    return this.communicationsService.validateSmsConfig(req);
+  }
+
+  @Get('sms/logs')
+  @ApiOperation({
+    summary: 'List SMS logs with pagination and filtering',
+    description: 'Retrieve SMS sending history with filtering options. Requires admin authentication.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'SMS logs retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              toPhone: { type: 'string' },
+              message: { type: 'string' },
+              status: { type: 'string' },
+              sentAt: { type: 'string', format: 'date-time', nullable: true },
+              segmentCount: { type: 'number' },
+              messageId: { type: 'string', nullable: true },
+              template: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  id: { type: 'string' },
+                  name: { type: 'string' },
+                  category: { type: 'string' },
+                },
+              },
+              merchant: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  id: { type: 'string' },
+                  name: { type: 'string' },
+                },
+              },
+              createdAt: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        pageSize: { type: 'number' },
+        totalPages: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid query parameters' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Admin access required' })
+  async listSmsLogs(@Query() query: ListSmsLogsDto, @Req() req: Request) {
+    return this.communicationsService.listSmsLogs(query, req);
+  }
+
+  @Get('test-prisma')
+  @ApiOperation({
+    summary: 'Test Prisma SMS log access',
+    description: 'Test if Prisma can access SMS log table. Requires admin authentication.',
+  })
+  async testPrismaAccess(@Req() req: Request) {
+    return this.communicationsService.testPrismaAccess(req);
   }
 
   @Post('templates')

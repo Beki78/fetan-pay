@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useListEmailLogsQuery } from "@/lib/services/communicationsApi";
+import { useListEmailLogsQuery, useListSmsLogsQuery } from "@/lib/services/communicationsApi";
 import { 
   Table,
   TableBody,
@@ -11,15 +11,37 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export default function EmailLogsPage() {
+type LogType = 'email' | 'sms';
+
+export default function CommunicationLogsPage() {
   const pathname = usePathname();
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
+  const [logType, setLogType] = useState<LogType>('email');
   
-  const { data, isLoading, error } = useListEmailLogsQuery({
+  const { data: emailData, isLoading: emailLoading, error: emailError } = useListEmailLogsQuery({
     page,
     pageSize,
+  }, {
+    skip: logType !== 'email'
   });
+
+  const { data: smsData, isLoading: smsLoading, error: smsError } = useListSmsLogsQuery({
+    page,
+    pageSize,
+  }, {
+    skip: logType !== 'sms'
+  });
+
+  const isLoading = logType === 'email' ? emailLoading : smsLoading;
+  const error = logType === 'email' ? emailError : smsError;
+  const data = logType === 'email' ? emailData : smsData;
+
+  // Reset page when switching log types
+  const handleLogTypeChange = (newType: LogType) => {
+    setLogType(newType);
+    setPage(1);
+  };
 
   if (isLoading) {
     return (
@@ -40,9 +62,9 @@ export default function EmailLogsPage() {
     return (
       <div className="p-6">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <h3 className="text-red-800 dark:text-red-200 font-medium">Error loading email logs</h3>
+          <h3 className="text-red-800 dark:text-red-200 font-medium">Error loading {logType} logs</h3>
           <p className="text-red-600 dark:text-red-400 text-sm mt-1">
-            {(error as any)?.data?.message || 'Failed to load email logs'}
+            {(error as any)?.data?.message || `Failed to load ${logType} logs`}
           </p>
         </div>
       </div>
@@ -59,6 +81,8 @@ export default function EmailLogsPage() {
         return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
       case 'PENDING':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
+      case 'QUEUED':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
@@ -71,7 +95,7 @@ export default function EmailLogsPage() {
           Communications
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
-          View all sent emails and their delivery status
+          View all sent messages and their delivery status
         </p>
         
         {/* Navigation Tabs */}
@@ -94,8 +118,34 @@ export default function EmailLogsPage() {
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
-            Email Logs
+            Message Logs
           </Link>
+        </div>
+      </div>
+
+      {/* Log Type Tabs */}
+      <div className="mb-6">
+        <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-fit">
+          <button
+            onClick={() => handleLogTypeChange('email')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              logType === 'email'
+                ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            📧 Email Logs
+          </button>
+          <button
+            onClick={() => handleLogTypeChange('sms')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              logType === 'sms'
+                ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            📱 SMS Logs
+          </button>
         </div>
       </div>
 
@@ -103,20 +153,27 @@ export default function EmailLogsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <th className="text-left p-4 font-medium text-gray-900 dark:text-white">Recipient</th>
-              <th className="text-left p-4 font-medium text-gray-900 dark:text-white">Subject</th>
+              <th className="text-left p-4 font-medium text-gray-900 dark:text-white">
+                {logType === 'email' ? 'Recipient Email' : 'Recipient Phone'}
+              </th>
+              <th className="text-left p-4 font-medium text-gray-900 dark:text-white">
+                {logType === 'email' ? 'Subject' : 'Message Preview'}
+              </th>
               <th className="text-left p-4 font-medium text-gray-900 dark:text-white">Template</th>
               <th className="text-left p-4 font-medium text-gray-900 dark:text-white">Status</th>
+              {logType === 'sms' && (
+                <th className="text-left p-4 font-medium text-gray-900 dark:text-white">Segments</th>
+              )}
               <th className="text-left p-4 font-medium text-gray-900 dark:text-white">Sent At</th>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data?.data?.map((log) => (
+            {data?.data?.map((log: any) => (
               <TableRow key={log.id}>
                 <TableCell className="p-4">
                   <div>
                     <div className="font-medium text-gray-900 dark:text-white">
-                      {log.toEmail}
+                      {logType === 'email' ? log.toEmail : log.toPhone}
                     </div>
                     {log.merchant && (
                       <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -127,7 +184,11 @@ export default function EmailLogsPage() {
                 </TableCell>
                 <TableCell className="p-4">
                   <div className="font-medium text-gray-900 dark:text-white">
-                    {log.subject}
+                    {logType === 'email' ? log.subject : (
+                      <div className="max-w-xs truncate">
+                        {log.message}
+                      </div>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="p-4">
@@ -148,7 +209,24 @@ export default function EmailLogsPage() {
                   <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(log.status)}`}>
                     {log.status}
                   </span>
+                  {log.messageId && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      ID: {log.messageId.substring(0, 8)}...
+                    </div>
+                  )}
                 </TableCell>
+                {logType === 'sms' && (
+                  <TableCell className="p-4">
+                    <div className="text-sm text-gray-900 dark:text-white">
+                      {log.segmentCount} segment{log.segmentCount !== 1 ? 's' : ''}
+                    </div>
+                    {log.cost && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {log.cost.toFixed(2)} ETB
+                      </div>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell className="p-4">
                   <div className="text-sm text-gray-900 dark:text-white">
                     {log.sentAt ? new Date(log.sentAt).toLocaleString() : '-'}
@@ -165,7 +243,7 @@ export default function EmailLogsPage() {
         {data?.data?.length === 0 && (
           <div className="text-center py-12">
             <div className="text-gray-500 dark:text-gray-400">
-              No email logs found
+              No {logType} logs found
             </div>
           </div>
         )}

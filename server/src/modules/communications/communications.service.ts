@@ -6,11 +6,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { EmailService } from '../email/email.service';
+import { SmsService } from '../sms/sms.service';
 import { AudienceService } from './audience.service';
 import { CampaignQueueService } from './campaign-queue.service';
 import { SendEmailDto } from './dto/send-email.dto';
 import { CreateEmailTemplateDto } from './dto/create-email-template.dto';
 import { ListEmailLogsDto } from './dto/list-email-logs.dto';
+import { ListSmsLogsDto } from './dto/list-sms-logs.dto';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { ListCampaignsDto } from './dto/list-campaigns.dto';
 import { GetAudienceCountDto } from './dto/get-audience-count.dto';
@@ -21,6 +23,7 @@ export class CommunicationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly smsService: SmsService,
     private readonly audienceService: AudienceService,
     private readonly campaignQueueService: CampaignQueueService,
   ) {}
@@ -122,6 +125,265 @@ export class CommunicationsService {
       });
 
       throw new BadRequestException(`Failed to send email: ${(error as Error)?.message}`);
+    }
+  }
+
+  /**
+   * Send an individual SMS
+   */
+  async sendSms(dto: any, req: Request) {
+    this.requireAdmin(req);
+
+    if (!this.smsService.isConfigured()) {
+      throw new BadRequestException('SMS service is not configured');
+    }
+
+    const sentByUserId = this.extractUserId(req);
+    
+    // Validate merchant exists if merchantId provided
+    if (dto.merchantId) {
+      const merchant = await (this.prisma as any).merchant.findUnique({
+        where: { id: dto.merchantId },
+      });
+      if (!merchant) {
+        throw new NotFoundException(`Merchant with ID ${dto.merchantId} not found`);
+      }
+    }
+
+    // Get template if templateId provided
+    let template: any = null;
+    if (dto.templateId) {
+      template = await (this.prisma as any).emailTemplate.findUnique({
+        where: { id: dto.templateId },
+      });
+      if (!template) {
+        throw new NotFoundException(`Template with ID ${dto.templateId} not found`);
+      }
+      if (!template.isActive) {
+        throw new BadRequestException('Template is not active');
+      }
+    }
+
+    // Process template variables and convert HTML to plain text
+    let finalMessage = dto.message;
+
+    if (template && dto.variables) {
+      finalMessage = this.substituteVariables(template.content, dto.variables);
+    } else if (dto.variables) {
+      finalMessage = this.substituteVariables(dto.message, dto.variables);
+    }
+
+    // Convert HTML to plain text for SMS
+    finalMessage = this.htmlToPlainText(finalMessage);
+
+    // Format phone number
+    const formattedPhone = this.smsService.formatPhoneNumber(dto.toPhone);
+
+    // Calculate SMS segments
+    const segmentCount = Math.ceil(finalMessage.length / 160);
+
+    // Create SMS log entry
+    const smsLog = await (this.prisma as any).smsLog.create({
+      data: {
+        toPhone: formattedPhone,
+        message: finalMessage,
+        templateId: dto.templateId,
+        merchantId: dto.merchantId,
+        sentByUserId,
+        sender: dto.sender,
+        segmentCount,
+        status: 'PENDING',
+      },
+    });
+
+    try {
+      // Send SMS using SMS service
+      const result = await this.smsService.sendSms({
+        to: formattedPhone,
+        message: finalMessage,
+        sender: dto.sender,
+        callback: dto.callback,
+      });
+
+      if (result.acknowledge === 'success') {
+        // Update status to SENT
+        await (this.prisma as any).smsLog.update({
+          where: { id: smsLog.id },
+          data: {
+            status: 'SENT',
+            sentAt: new Date(),
+            messageId: result.response.message_id,
+            metadata: result.response,
+          },
+        });
+
+        // Increment template usage count
+        if (template) {
+          await (this.prisma as any).emailTemplate.update({
+            where: { id: template.id },
+            data: {
+              usageCount: { increment: 1 },
+            },
+          });
+        }
+
+        return {
+          id: smsLog.id,
+          status: 'SENT',
+          sentAt: new Date(),
+          messageId: result.response.message_id,
+          segmentCount,
+        };
+      } else {
+        // Update status to FAILED
+        await (this.prisma as any).smsLog.update({
+          where: { id: smsLog.id },
+          data: {
+            status: 'FAILED',
+            failedAt: new Date(),
+            errorMessage: result.response.error || 'Unknown error',
+            metadata: result.response,
+          },
+        });
+
+        throw new BadRequestException(`Failed to send SMS: ${result.response.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      // Update status to FAILED if not already updated
+      if (smsLog.status === 'PENDING') {
+        await (this.prisma as any).smsLog.update({
+          where: { id: smsLog.id },
+          data: {
+            status: 'FAILED',
+            failedAt: new Date(),
+            errorMessage: (error as Error)?.message || 'Unknown error',
+          },
+        });
+      }
+
+      throw new BadRequestException(`Failed to send SMS: ${(error as Error)?.message}`);
+    }
+  }
+
+  /**
+   * Get SMS service status
+   */
+  async getSmsStatus(req: Request) {
+    this.requireAdmin(req);
+    return this.smsService.getStatus();
+  }
+
+  /**
+   * Validate SMS service configuration
+   */
+  async validateSmsConfig(req: Request) {
+    this.requireAdmin(req);
+    return this.smsService.validateConfiguration();
+  }
+
+  /**
+   * List SMS logs with pagination and filtering
+   */
+  async listSmsLogs(query: ListSmsLogsDto, req: Request) {
+    this.requireAdmin(req);
+
+    const page = Number(query.page ?? 1);
+    const pageSize = Number(query.pageSize ?? 20);
+
+    if (!Number.isInteger(page) || page < 1) {
+      throw new BadRequestException('page must be a positive integer');
+    }
+    if (!Number.isInteger(pageSize) || pageSize < 1) {
+      throw new BadRequestException('pageSize must be a positive integer');
+    }
+
+    // Build where clause
+    const where: any = {};
+
+    if (query.merchantId) {
+      where.merchantId = query.merchantId;
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.templateId) {
+      where.templateId = query.templateId;
+    }
+
+    if (query.search) {
+      where.OR = [
+        { toPhone: { contains: query.search, mode: 'insensitive' } },
+        { message: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (query.from || query.to) {
+      where.createdAt = {};
+      if (query.from) {
+        where.createdAt.gte = new Date(query.from);
+      }
+      if (query.to) {
+        where.createdAt.lte = new Date(query.to);
+      }
+    }
+
+    // Get total count and data
+    const [total, smsLogs] = await Promise.all([
+      (this.prisma as any).smsLog.count({ where }),
+      (this.prisma as any).smsLog.findMany({
+        where,
+        include: {
+          template: {
+            select: {
+              id: true,
+              name: true,
+              category: true,
+            },
+          },
+          merchant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      data: smsLogs,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Test Prisma SMS log access
+   */
+  async testPrismaAccess(req: Request) {
+    this.requireAdmin(req);
+    
+    try {
+      // Try to access the smsLog table
+      const count = await (this.prisma as any).smsLog.count();
+      return {
+        success: true,
+        message: 'Prisma SMS log access works',
+        count,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        availableProperties: Object.getOwnPropertyNames(this.prisma),
+      };
     }
   }
 
@@ -317,6 +579,27 @@ export class CommunicationsService {
     }
     
     return result;
+  }
+
+  /**
+   * Convert HTML to plain text for SMS
+   */
+  private htmlToPlainText(html: string): string {
+    // Remove HTML tags
+    let text = html.replace(/<[^>]*>/g, '');
+    
+    // Convert common HTML entities
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#39;/g, "'");
+    
+    // Clean up whitespace
+    text = text.replace(/\s+/g, ' ').trim();
+    
+    return text;
   }
 
   /**

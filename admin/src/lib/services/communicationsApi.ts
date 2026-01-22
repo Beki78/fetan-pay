@@ -1,6 +1,7 @@
 import { baseApi } from "../redux/api";
 
 export type EmailStatus = "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "BOUNCED";
+export type SmsStatus = "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "QUEUED";
 export type EmailTemplateCategory = "WELCOME" | "APPROVAL" | "SECURITY" | "MARKETING" | "REMINDER" | "NOTIFICATION";
 export type CampaignStatus = "DRAFT" | "SCHEDULED" | "SENDING" | "SENT" | "PAUSED" | "CANCELLED" | "FAILED";
 export type CampaignType = "EMAIL" | "SMS" | "BOTH";
@@ -61,8 +62,10 @@ export interface Campaign {
 export interface AudienceRecipient {
   email: string;
   name: string;
+  phone?: string;
   merchantId?: string;
   merchantName?: string;
+  userId?: string;
   role?: string;
 }
 
@@ -94,6 +97,36 @@ export interface EmailLog {
   updatedAt: string;
 }
 
+export interface SmsLog {
+  id: string;
+  toPhone: string;
+  message: string;
+  templateId?: string;
+  template?: {
+    id: string;
+    name: string;
+    category: string;
+  };
+  merchantId?: string;
+  merchant?: {
+    id: string;
+    name: string;
+  };
+  sentByUserId: string;
+  status: SmsStatus;
+  sentAt?: string;
+  deliveredAt?: string;
+  failedAt?: string;
+  errorMessage?: string;
+  messageId?: string;
+  sender?: string;
+  segmentCount: number;
+  cost?: number;
+  metadata?: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SendEmailInput {
   toEmail: string;
   subject: string;
@@ -101,6 +134,16 @@ export interface SendEmailInput {
   templateId?: string;
   merchantId?: string;
   variables?: Record<string, string>;
+}
+
+export interface SendSmsInput {
+  toPhone: string;
+  message: string;
+  templateId?: string;
+  merchantId?: string;
+  variables?: Record<string, string>;
+  sender?: string;
+  callback?: string;
 }
 
 export interface CreateCampaignInput {
@@ -166,6 +209,14 @@ export interface SendEmailResponse {
   sentAt: string;
 }
 
+export interface SendSmsResponse {
+  id: string;
+  status: "SENT";
+  sentAt: string;
+  messageId: string;
+  segmentCount: number;
+}
+
 export interface CampaignActionResponse {
   message: string;
   campaignId: string;
@@ -176,6 +227,17 @@ export interface ListEmailLogsParams {
   pageSize?: number;
   merchantId?: string;
   status?: EmailStatus;
+  templateId?: string;
+  search?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface ListSmsLogsParams {
+  page?: number;
+  pageSize?: number;
+  merchantId?: string;
+  status?: SmsStatus;
   templateId?: string;
   search?: string;
   from?: string;
@@ -240,6 +302,14 @@ export interface ListEmailLogsResponse {
   totalPages: number;
 }
 
+export interface ListSmsLogsResponse {
+  data: SmsLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export const communicationsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Send individual email
@@ -250,6 +320,16 @@ export const communicationsApi = baseApi.injectEndpoints({
         body,
       }),
       invalidatesTags: ["EmailLog"],
+    }),
+
+    // Send individual SMS
+    sendSms: builder.mutation<SendSmsResponse, SendSmsInput>({
+      query: (body) => ({
+        url: "communications/sms/send",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["SmsLog"],
     }),
 
     // Create email template
@@ -291,6 +371,25 @@ export const communicationsApi = baseApi.injectEndpoints({
         return `communications/emails/logs?${searchParams.toString()}`;
       },
       providesTags: ["EmailLog"],
+    }),
+
+    // List SMS logs
+    listSmsLogs: builder.query<ListSmsLogsResponse, ListSmsLogsParams>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        
+        if (params.page) searchParams.append("page", params.page.toString());
+        if (params.pageSize) searchParams.append("pageSize", params.pageSize.toString());
+        if (params.merchantId) searchParams.append("merchantId", params.merchantId);
+        if (params.status) searchParams.append("status", params.status);
+        if (params.templateId) searchParams.append("templateId", params.templateId);
+        if (params.search) searchParams.append("search", params.search);
+        if (params.from) searchParams.append("from", params.from);
+        if (params.to) searchParams.append("to", params.to);
+
+        return `communications/sms/logs?${searchParams.toString()}`;
+      },
+      providesTags: ["SmsLog"],
     }),
 
     // ===== CAMPAIGN ENDPOINTS =====
@@ -419,10 +518,12 @@ export const communicationsApi = baseApi.injectEndpoints({
 // Export hooks
 export const {
   useSendEmailMutation,
+  useSendSmsMutation,
   useCreateEmailTemplateMutation,
   useListEmailTemplatesQuery,
   useGetEmailTemplateQuery,
   useListEmailLogsQuery,
+  useListSmsLogsQuery,
   // Campaign hooks
   useCreateCampaignMutation,
   useListCampaignsQuery,

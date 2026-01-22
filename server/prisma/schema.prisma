@@ -112,6 +112,14 @@ enum EmailStatus {
   UNSUBSCRIBED
 }
 
+enum SmsStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  QUEUED
+}
+
 enum EmailTemplateCategory {
   WELCOME
   APPROVAL
@@ -198,6 +206,7 @@ model Merchant {
 
   // Email Communications
   emailLogs            EmailLog[]
+  smsLogs              SmsLog[]
   engagementEvents     EngagementEvent[]
   unsubscribeList      UnsubscribeList[]
 
@@ -489,6 +498,7 @@ model EmailTemplate {
   updatedAt   DateTime              @updatedAt
 
   emailLogs   EmailLog[]
+  smsLogs     SmsLog[]
   campaigns   Campaign[]
 
   @@map("email_template")
@@ -549,6 +559,51 @@ model EmailLog {
   @@map("email_log")
 }
 
+model SmsLog {
+  id           String      @id @default(uuid())
+  toPhone      String      // Recipient phone number
+  message      String      // Final rendered message content
+  templateId   String?
+  template     EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  
+  // Context
+  merchantId   String?
+  merchant     Merchant?   @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  sentByUserId String      // Admin user who sent the SMS
+  
+  // Campaign context
+  campaignId   String?
+  campaign     Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  
+  // Status tracking
+  status       SmsStatus   @default(PENDING)
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  failedAt     DateTime?
+  errorMessage String?
+  
+  // SMS provider response
+  messageId    String?     // Provider message ID (AfroMessage)
+  campaignIdProvider String? // Provider campaign ID for bulk SMS
+  metadata     Json?       // Additional provider metadata
+  
+  // SMS specific fields
+  sender       String?     // Sender name used
+  segmentCount Int         @default(1) // Number of SMS segments
+  cost         Float?      // Cost of sending this SMS
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([merchantId])
+  @@index([sentByUserId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([toPhone])
+  @@map("sms_log")
+}
+
 model Campaign {
   id              String         @id @default(uuid())
   name            String
@@ -596,6 +651,7 @@ model Campaign {
   
   // Relations
   emailLogs       EmailLog[]
+  smsLogs         SmsLog[]
   engagementEvents EngagementEvent[]
   
   @@index([status])
