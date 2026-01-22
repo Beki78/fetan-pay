@@ -7,6 +7,6 @@ export const baseApi = createApi({
     baseUrl: API_BASE_URL,
     credentials: "include",
   }),
-  tagTypes: ["Merchant", "Branding"],
+  tagTypes: ["Merchant", "Branding", "EmailTemplate", "EmailLog", "SmsLog", "Campaign", "Analytics"],
   endpoints: () => ({}),
 });

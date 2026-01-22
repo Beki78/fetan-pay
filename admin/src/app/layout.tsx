@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ReduxProvider } from '@/lib/redux/ReduxProvider';
+import { Providers } from '@/components/Providers';
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -30,7 +31,11 @@ export default function RootLayout({
       <body className={`${outfit.className} dark:bg-gray-900`}>
         <ReduxProvider>
           <ThemeProvider>
-            <SidebarProvider>{children}</SidebarProvider>
+            <SidebarProvider>
+              <Providers>
+                {children}
+              </Providers>
+            </SidebarProvider>
           </ThemeProvider>
         </ReduxProvider>
       </body>
