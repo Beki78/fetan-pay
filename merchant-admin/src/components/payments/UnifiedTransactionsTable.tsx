@@ -11,7 +11,42 @@ import {
 import Badge from "../ui/badge/Badge";
 import Link from "next/link";
 import { useListTransactionsQuery } from "@/lib/services/transactionsServiceApi";
-import { useListVerificationHistoryQuery } from "@/lib/services/paymentsServiceApi";
+import { useListVerificationHistoryQuery, type TransactionProvider } from "@/lib/services/paymentsServiceApi";
+import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
+import { ExternalLink } from "lucide-react";
+
+/**
+ * Generate bank receipt URL based on provider and transaction reference
+ * Returns undefined if provider is not supported or if it's a cash transaction
+ */
+function getBankReceiptUrl(
+  provider: TransactionProvider | null | undefined,
+  reference: string | null | undefined,
+  paymentMethod: string | undefined
+): string | undefined {
+  // Only generate URL for bank transactions
+  if (paymentMethod === 'cash' || !provider || !reference) {
+    return undefined;
+  }
+
+  const ref = reference.trim();
+  if (!ref) return undefined;
+
+  switch (provider) {
+    case 'CBE':
+      return `https://apps.cbe.com.et/?id=${encodeURIComponent(ref)}`;
+    case 'TELEBIRR':
+      return `https://transactioninfo.ethiotelecom.et/receipt/${encodeURIComponent(ref)}`;
+    case 'BOA':
+      return `https://cs.bankofabyssinia.com/slip/?trx=${encodeURIComponent(ref)}`;
+    case 'AWASH':
+      return `https://awashpay.awashbank.com:8225/${encodeURIComponent(ref)}`;
+    case 'DASHEN':
+      return `https://receipt.dashensuperapp.com/receipt/${encodeURIComponent(ref)}`;
+    default:
+      return undefined;
+  }
+}
 
 const providerLabels: Record<string, string> = {
   CBE: "CBE",
@@ -33,6 +68,7 @@ interface UnifiedRecord {
   id: string;
   reference: string;
   provider: string;
+  displayProvider: string; // Display name (e.g., "Cash" for cash transactions)
   status: string;
   amount?: number;
   tipAmount?: number;
@@ -40,6 +76,8 @@ interface UnifiedRecord {
   verifiedAt?: string | null;
   verifiedBy?: string | null;
   type: "transaction" | "payment";
+  receiptUrl?: string; // Receipt URL for bank transactions
+  paymentMethod?: string; // 'cash' or 'bank'
 }
 
 export default function UnifiedTransactionsTable() {
@@ -59,6 +97,7 @@ export default function UnifiedTransactionsTable() {
       id: tx.id,
       reference: tx.reference,
       provider: tx.provider,
+      displayProvider: providerLabels[tx.provider] ?? tx.provider,
       status: tx.status,
       createdAt: tx.createdAt || "",
       verifiedAt: tx.verifiedAt,
@@ -66,18 +105,54 @@ export default function UnifiedTransactionsTable() {
       type: "transaction" as const,
     }));
 
-    const paymentRecords: UnifiedRecord[] = (paymentData?.data || []).map((p) => ({
-      id: p.id,
-      reference: p.reference,
-      provider: p.provider,
-      status: p.status,
-      amount: p.claimedAmount ? Number(p.claimedAmount) : undefined,
-      tipAmount: p.tipAmount ? Number(p.tipAmount) : undefined,
-      createdAt: p.verifiedAt || "",
-      verifiedAt: p.verifiedAt,
-      verifiedBy: p.verifiedBy?.name || p.verifiedBy?.email || null,
-      type: "payment" as const,
-    }));
+    const paymentRecords: UnifiedRecord[] = (paymentData?.data || []).map((p) => {
+      // Extract payment method and receipt URL from verificationPayload
+      let displayProvider = providerLabels[p.provider] ?? p.provider;
+      let receiptUrl: string | undefined;
+      let paymentMethod: string | undefined;
+      
+      if (p.verificationPayload && typeof p.verificationPayload === 'object') {
+        const payload = p.verificationPayload as Record<string, unknown>;
+        paymentMethod = payload.paymentMethod as string | undefined;
+        
+        if (payload.paymentMethod === 'cash') {
+          displayProvider = 'Cash';
+        } else if (payload.otherBankName && typeof payload.otherBankName === 'string') {
+          displayProvider = payload.otherBankName;
+        }
+        
+        // Check for uploaded receipt (manually logged transactions)
+        if (payload.receiptUrl && typeof payload.receiptUrl === 'string') {
+          receiptUrl = `${STATIC_ASSETS_BASE_URL}${payload.receiptUrl}`;
+        }
+      }
+
+      // If no uploaded receipt, try to generate bank receipt URL from provider + reference
+      // Only for bank transactions (not cash)
+      if (!receiptUrl && paymentMethod !== 'cash') {
+        receiptUrl = getBankReceiptUrl(
+          p.provider as TransactionProvider | null | undefined,
+          p.reference,
+          paymentMethod
+        );
+      }
+
+      return {
+        id: p.id,
+        reference: p.reference,
+        provider: p.provider,
+        displayProvider,
+        status: p.status,
+        amount: p.claimedAmount ? Number(p.claimedAmount) : undefined,
+        tipAmount: p.tipAmount ? Number(p.tipAmount) : undefined,
+        createdAt: p.verifiedAt || "",
+        verifiedAt: p.verifiedAt,
+        verifiedBy: p.verifiedBy?.name || p.verifiedBy?.email || null,
+        type: "payment" as const,
+        receiptUrl,
+        paymentMethod,
+      };
+    });
 
     // Merge and sort by date desc
     return [...txRecords, ...paymentRecords].sort(
@@ -219,7 +294,7 @@ export default function UnifiedTransactionsTable() {
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <Badge size="sm" variant="light" color="info">
-                        {providerLabels[record.provider] ?? record.provider}
+                        {record.displayProvider}
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-4">
@@ -234,12 +309,25 @@ export default function UnifiedTransactionsTable() {
                       {record.verifiedBy || "—"}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <Link
-                        href={`/payments/${record.id}`}
-                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        View
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/payments/${record.id}`}
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          View
+                        </Link>
+                        {record.paymentMethod !== 'cash' && record.receiptUrl && (
+                          <a
+                            href={record.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                          >
+                            View Receipt
+                            <ExternalLink className="size-3" />
+                          </a>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

@@ -20,21 +20,13 @@ function Step({
 }: StepProps) {
   return (
     <div className="flex flex-col items-center relative w-full">
-      {/* Numbered Circle - Left aligned */}
+      {/* Numbered Circle - Left aligned - Responsive */}
       <div
-        className="flex items-center justify-center rounded-full mb-3 self-start"
+        className="flex items-center justify-center rounded-full mb-3 self-start sm:self-center lg:self-start w-12 h-12 sm:w-[57.651px] sm:h-[55.069px] text-lg sm:text-[20.651px]"
         style={{
-          display: "flex",
-          width: "57.651px",
-          height: "55.069px",
           padding: "8.605px",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: "33.558px",
           background: "rgba(132, 183, 255, 0.26)",
-          borderRadius: "50%",
           fontFamily: "var(--font-geist)",
-          fontSize: "20.651px",
           fontWeight: 600,
           color: "#174686",
         }}
@@ -42,51 +34,41 @@ function Step({
         {number}
       </div>
 
-      {/* Icon with Gradient Circle - Centered */}
+      {/* Icon with Gradient Circle - Centered - Responsive */}
       <div
-        className="flex flex-col items-center justify-center mb-4"
+        className="flex flex-col items-center justify-center mb-4 mx-auto w-[110px] h-[110px] sm:w-[138.534px] sm:h-[136.727px] rounded-full"
         style={{
-          display: "flex",
-          width: "138.534px",
-          height: "136.727px",
           padding: "13.692px",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: "10.269px",
-          borderRadius: "83.886px",
           border: "3.967px solid rgba(255, 255, 255, 0.38)",
           background:
             "linear-gradient(180deg, #FFF 0%, rgba(255, 255, 255, 0.60) 100%)",
           boxShadow: "0 0 26.056px 0 rgba(22, 93, 188, 0.16)",
           backdropFilter: "blur(14.365782737731934px)",
-          marginLeft: "auto",
-          marginRight: "auto",
         }}
       >
-        <Image src={icon} alt={iconAlt} width={75} height={75} />
+        <Image
+          src={icon}
+          alt={iconAlt}
+          width={75}
+          height={75}
+          className="w-12 h-12 sm:w-[75px] sm:h-[75px]"
+        />
       </div>
 
-      {/* Content */}
+      {/* Content - Responsive */}
       <div className="text-center px-2 w-full">
         <h3
+          className="text-lg sm:text-xl lg:text-2xl font-semibold text-[#174686] mb-2 sm:mb-3 lg:mb-2 leading-6 sm:leading-7 lg:leading-8"
           style={{
             fontFamily: "var(--font-geist)",
-            fontSize: "24px",
-            fontWeight: 600,
-            color: "#174686",
-            marginBottom: "8px",
-            lineHeight: "32px",
           }}
         >
           {title}
         </h3>
         <p
+          className="text-sm sm:text-base text-[#4d4d4d] leading-5 sm:leading-6"
           style={{
             fontFamily: "var(--font-geist)",
-            fontSize: "16px",
-            lineHeight: "24px",
-            color: "#4d4d4d",
             fontWeight: 400,
           }}
         >
@@ -155,8 +137,8 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section className="py-16 px-4 bg-white relative z-10">
-      <div className="max-w-7xl mx-auto">
+    <section className="py-8 sm:py-12 md:py-16 px-4 bg-white relative z-10">
+      <div className="mx-auto" style={{ maxWidth: "1450px" }}>
         {/* Badge */}
         <div className="flex justify-center mb-6">
           <Badge
@@ -168,12 +150,11 @@ export default function HowItWorks() {
           </Badge>
         </div>
 
-        {/* Title */}
+        {/* Title - Responsive */}
         <h2
-          className="text-[72px] leading-[75px] font-normal opacity-0 animate-fade-in-up animation-delay-300 text-center mx-auto"
+          className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-tight sm:leading-[48px] md:leading-[60px] lg:leading-[75px] font-normal opacity-0 animate-fade-in-up animation-delay-300 text-center mx-auto tracking-tight lg:tracking-[-2.16px]"
           style={{
             fontFamily: "var(--font-geist)",
-            letterSpacing: "-2.16px",
             background: "linear-gradient(to right, #061a32, #0d3463)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
@@ -184,9 +165,9 @@ export default function HowItWorks() {
           Simple, reliable payment verification in four steps
         </h2>
 
-        {/* Subtitle */}
+        {/* Subtitle - Responsive */}
         <p
-          className="text-xl py-8 leading-[35px] text-[#4d4d4d] font-normal animate-fade-in-up animation-delay-400 text-center mx-auto"
+          className="text-base sm:text-lg md:text-xl lg:text-xl py-4 sm:py-6 md:py-8 leading-6 sm:leading-7 md:leading-8 lg:leading-[35px] text-[#4d4d4d] font-normal animate-fade-in-up animation-delay-400 text-center mx-auto px-4"
           style={{
             fontFamily: "var(--font-geist)",
             maxWidth: "720px",
@@ -196,12 +177,12 @@ export default function HowItWorks() {
           guesswork.
         </p>
 
-        {/* Steps */}
-        <div className="flex flex-col lg:flex-row items-center justify-center gap-20 relative px-4  mx-auto mt-12">
+        {/* Steps - Responsive */}
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-8 sm:gap-12 md:gap-16 lg:gap-20 relative px-4 mx-auto mt-8 sm:mt-10 md:mt-12">
           {steps.map((step, index) => (
             <div
               key={step.number}
-              className="opacity-0 animate-fade-in-up flex-1 max-w-[280px] lg:max-w-none"
+              className="opacity-0 animate-fade-in-up flex-1 w-full sm:w-auto max-w-[280px] lg:max-w-none"
               style={{
                 animationDelay: `${500 + index * 100}ms`,
               }}

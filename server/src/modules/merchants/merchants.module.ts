@@ -4,9 +4,10 @@ import { PrismaModule } from '../../../database/prisma.module';
 import { MerchantsController } from './merchants.controller';
 import { MerchantsService } from './merchants.service';
 import { QrCodeService } from './qr-code.service';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, WalletModule],
   controllers: [MerchantsController],
   providers: [MerchantsService, QrCodeService],
   exports: [MerchantsService],

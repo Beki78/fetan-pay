@@ -9,14 +9,19 @@ import { ConfigService } from '@nestjs/config';
 import * as PrismaClient from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../../../database/prisma.service';
 import { MerchantUsersService } from '../merchant-users/merchant-users.service';
 import { VerificationService } from '../verifier/services/verification.service';
+import { WalletService } from '../wallet/wallet.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
 import { SubmitPaymentClaimDto } from './dto/submit-payment-claim.dto';
 import { VerifyMerchantPaymentDto } from './dto/verify-merchant-payment.dto';
+import { LogTransactionDto } from './dto/log-transaction.dto';
 import {
   ListVerificationHistoryDto,
   type PaymentVerificationStatus,
@@ -27,11 +32,14 @@ type TipsRange = { from?: string; to?: string };
 @Injectable()
 export class PaymentsService {
   private readonly paymentPageUrl: string;
+  private readonly receiptsDir: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly merchantUsersService: MerchantUsersService,
     private readonly verificationService: VerificationService,
+    private readonly walletService: WalletService,
+    private readonly webhooksService: WebhooksService,
     private readonly configService: ConfigService,
   ) {
     // Get payment page URL from environment variables
@@ -42,6 +50,12 @@ export class PaymentsService {
       (process.env.NODE_ENV === 'production'
         ? 'https://fetanpay.et'
         : 'http://localhost:3000');
+
+    // Setup receipts directory
+    this.receiptsDir = path.join(process.cwd(), 'public', 'receipts');
+    if (!fs.existsSync(this.receiptsDir)) {
+      fs.mkdirSync(this.receiptsDir, { recursive: true });
+    }
   }
 
   private paymentStatusEnum():
@@ -221,6 +235,22 @@ export class PaymentsService {
     });
 
     if (existingPayment?.status === 'VERIFIED') {
+      // Trigger duplicate webhook before throwing
+      this.webhooksService.triggerWebhook('payment.duplicate', membership.merchantId, {
+        payment: {
+          id: existingPayment.id,
+          reference: body.reference,
+          provider: body.provider,
+          status: 'VERIFIED',
+          verifiedAt: existingPayment.verifiedAt?.toISOString(),
+        },
+        merchant: {
+          id: membership.merchantId,
+        },
+      }).catch((error) => {
+        console.error('[Webhooks] Error triggering payment.duplicate webhook:', error);
+      });
+
       throw new ConflictException(
         `Transaction already verified at ${existingPayment.verifiedAt?.toLocaleString() ?? 'an earlier time'}`,
       );
@@ -240,6 +270,27 @@ export class PaymentsService {
       throw new BadRequestException(
         `No active receiver account configured for provider ${body.provider}`,
       );
+    }
+
+    // Check wallet balance before verification if wallet is enabled
+    const merchant = await (this.prisma as any).merchant.findUnique({
+      where: { id: membership.merchantId },
+      select: {
+        walletEnabled: true,
+        walletBalance: true,
+        walletChargeType: true,
+        walletChargeValue: true,
+        walletMinBalance: true,
+      },
+    });
+
+    if (merchant?.walletEnabled) {
+      // If wallet is enabled and balance is 0, reject immediately
+      if (merchant.walletBalance.lte(0)) {
+        throw new BadRequestException(
+          'Wallet balance is insufficient. Please top up your wallet before verifying payments.',
+        );
+      }
     }
 
     const verifierResult = await this.runCoreVerifier(
@@ -302,6 +353,35 @@ export class PaymentsService {
         this.normalizeAmountToCents(txAmount) ===
           this.normalizeAmountToCents(body.claimedAmount));
 
+    // Check wallet balance after getting payment amount (before marking as verified)
+    if (merchant?.walletEnabled && claimedAmount.gt(0)) {
+      const chargeAmount = await this.walletService.calculateCharge(
+        membership.merchantId,
+        claimedAmount,
+      );
+
+      if (chargeAmount && chargeAmount.gt(0)) {
+        const currentBalance = merchant.walletBalance;
+        const newBalance = currentBalance.sub(chargeAmount);
+
+        // Check minimum balance if set
+        if (merchant.walletMinBalance) {
+          if (newBalance.lt(merchant.walletMinBalance)) {
+            throw new BadRequestException(
+              `Insufficient wallet balance. Required: ${chargeAmount.toFixed(2)} ETB, Available: ${currentBalance.toFixed(2)} ETB, Minimum balance: ${merchant.walletMinBalance.toFixed(2)} ETB. Please top up your wallet.`,
+            );
+          }
+        } else {
+          // No minimum balance set, but still check if balance goes negative
+          if (newBalance.lt(0)) {
+            throw new BadRequestException(
+              `Insufficient wallet balance. Required: ${chargeAmount.toFixed(2)} ETB, Available: ${currentBalance.toFixed(2)} ETB. Please top up your wallet.`,
+            );
+          }
+        }
+      }
+    }
+
     const receiverMatches = this.receiverAccountMatches(
       txReceiverAccount,
       activeReceiver.receiverAccount,
@@ -355,7 +435,9 @@ export class PaymentsService {
           receiverAccount: { connect: { id: activeReceiver.id } },
           verificationPayload: normalizedPayload as Prisma.InputJsonValue,
           verifiedAt: new Date(),
-          verifiedBy: { connect: { id: membership.merchantUserId } },
+          ...(membership.merchantUserId
+            ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
+            : {}),
         },
         create: {
           merchant: { connect: { id: membership.merchantId } },
@@ -380,7 +462,9 @@ export class PaymentsService {
           receiverAccount: { connect: { id: activeReceiver.id } },
           verificationPayload: normalizedPayload as Prisma.InputJsonValue,
           verifiedAt: new Date(),
-          verifiedBy: { connect: { id: membership.merchantUserId } },
+          ...(membership.merchantUserId
+            ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
+            : {}),
         },
         include: {
           receiverAccount: true,
@@ -400,6 +484,76 @@ export class PaymentsService {
             },
           },
         },
+      });
+
+      // Charge wallet if enabled (after payment is created)
+      if (payment) {
+        try {
+          const walletChargeResult = await this.walletService.chargeForPayment(
+            membership.merchantId,
+            payment.id,
+            claimedAmount,
+          );
+
+          if (!walletChargeResult.success && walletChargeResult.error) {
+            // Log error but don't fail the payment verification
+            // Payment is already verified, wallet charge failed
+            console.error(
+              `[Wallet] Failed to charge wallet for payment ${payment.id}:`,
+              walletChargeResult.error,
+            );
+            // Optionally: You could throw an error here to rollback payment verification
+            // For now, we allow payment verification to succeed even if wallet charge fails
+            // This can be changed based on business requirements
+          }
+        } catch (error) {
+          // Log error but don't fail payment verification
+          console.error(
+            `[Wallet] Error charging wallet for payment ${payment.id}:`,
+            error,
+          );
+        }
+      }
+    }
+
+    // Trigger webhooks based on payment status
+    if (status === PaymentStatus.VERIFIED && payment) {
+      // Payment verified successfully
+      this.webhooksService.triggerWebhook('payment.verified', membership.merchantId, {
+        payment: {
+          id: payment.id,
+          reference: effectiveReference,
+          provider: body.provider,
+          amount: claimedAmount.toNumber(),
+          status: 'VERIFIED',
+          verifiedAt: payment.verifiedAt?.toISOString(),
+          tipAmount: tipAmount?.toNumber() ?? null,
+        },
+        merchant: {
+          id: membership.merchantId,
+        },
+      }).catch((error) => {
+        console.error('[Webhooks] Error triggering payment.verified webhook:', error);
+      });
+    } else if (status === PaymentStatus.UNVERIFIED) {
+      // Payment verification failed
+      this.webhooksService.triggerWebhook('payment.unverified', membership.merchantId, {
+        payment: {
+          reference: body.reference,
+          provider: body.provider,
+          amount: claimedAmount.toNumber(),
+          status: 'UNVERIFIED',
+          checks: {
+            referenceFound,
+            receiverMatches,
+            amountMatches,
+          },
+        },
+        merchant: {
+          id: membership.merchantId,
+        },
+      }).catch((error) => {
+        console.error('[Webhooks] Error triggering payment.unverified webhook:', error);
       });
     }
 
@@ -448,8 +602,9 @@ export class PaymentsService {
     };
 
     // Security: Waiter/Sales can only see their own verification history.
+    // API key auth doesn't have role restrictions
     const restrictedRoles = ['WAITER', 'SALES'];
-    if (restrictedRoles.includes(membership.role)) {
+    if (membership.role && restrictedRoles.includes(membership.role) && membership.merchantUserId) {
       where.verifiedById = membership.merchantUserId;
     }
 
@@ -941,9 +1096,12 @@ export class PaymentsService {
     if (!payment) throw new NotFoundException('Payment not found');
 
     // Security: Waiter/Sales can only view payments they verified.
+    // API key auth doesn't have role restrictions
     const restrictedRoles = ['WAITER', 'SALES'];
     if (
+      membership.role &&
       restrictedRoles.includes(membership.role) &&
+      membership.merchantUserId &&
       payment.verifiedById !== membership.merchantUserId
     ) {
       throw new ForbiddenException(
@@ -1069,8 +1227,181 @@ export class PaymentsService {
     };
   }
 
+  /**
+   * Log a transaction (cash or bank payment)
+   * Creates an order and payment record for manual transaction logging
+   */
+  async logTransaction(
+    body: LogTransactionDto,
+    req: Request,
+    receiptFile?: Express.Multer.File,
+  ) {
+    const membership = await this.requireMembership(req);
+
+    const amount = this.toDecimal(body.amount, 'amount');
+    const tipAmount =
+      body.tipAmount !== undefined && body.tipAmount > 0
+        ? this.toDecimal(body.tipAmount, 'tipAmount')
+        : null;
+
+    // Generate unique reference for the transaction
+    const generateReference = (prefix: string) => {
+      const timestamp = Date.now().toString(36).toUpperCase();
+      const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+      return `${prefix}-${timestamp}-${random}`;
+    };
+
+    // Create order
+    const order = await this.prisma.order.create({
+      data: {
+        merchantId: membership.merchantId,
+        expectedAmount: amount,
+        currency: 'ETB',
+        status: 'PAID', // Mark as paid immediately for logged transactions
+        payerName: null,
+      },
+    });
+
+    let provider: PrismaClient.TransactionProvider;
+    let reference: string;
+    let receiverAccountId: string | null = null;
+
+    if (body.paymentMethod === 'cash') {
+      // For cash transactions, use a special reference format
+      reference = generateReference('CASH');
+      // Cash doesn't have a provider in the enum, so we'll use CBE as a placeholder
+      // but store the payment method in verificationPayload
+      provider = 'CBE' as PrismaClient.TransactionProvider;
+    } else {
+      // For bank transactions
+      if (!body.provider && !body.otherBankName) {
+        throw new BadRequestException(
+          'Provider or otherBankName is required for bank transactions',
+        );
+      }
+
+      if (body.provider) {
+        provider = body.provider;
+        reference = generateReference(provider);
+      } else {
+        // For other banks, use CBE as placeholder but store bank name in payload
+        provider = 'CBE' as PrismaClient.TransactionProvider;
+        reference = generateReference('BANK');
+      }
+
+      // Try to get active receiver account for the provider
+      if (body.provider) {
+        const activeReceiver =
+          await this.prisma.merchantReceiverAccount.findFirst({
+            where: {
+              merchantId: membership.merchantId,
+              provider: body.provider,
+              status: 'ACTIVE',
+            },
+            orderBy: { updatedAt: 'desc' },
+          });
+        receiverAccountId = activeReceiver?.id ?? null;
+      }
+    }
+
+    // Handle receipt upload for bank transactions
+    let receiptUrl: string | undefined;
+    if (receiptFile && body.paymentMethod === 'bank') {
+      // Generate unique filename
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 8);
+      const ext = path.extname(receiptFile.originalname) || '.jpg';
+      const filename = `receipt-${timestamp}-${random}${ext}`;
+      const filePath = path.join(this.receiptsDir, filename);
+
+      // Save file
+      fs.writeFileSync(
+        filePath,
+        receiptFile.buffer || fs.readFileSync(receiptFile.path),
+      );
+
+      // Clean up temp file if it exists
+      if (receiptFile.path && fs.existsSync(receiptFile.path)) {
+        fs.unlinkSync(receiptFile.path);
+      }
+
+      receiptUrl = `/receipts/${filename}`;
+    } else if (receiptFile && body.paymentMethod === 'cash') {
+      // Reject receipt for cash transactions
+      throw new BadRequestException(
+        'Receipt upload is only allowed for bank transactions',
+      );
+    }
+
+    // Build verification payload with metadata
+    const verificationPayload: Record<string, unknown> = {
+      paymentMethod: body.paymentMethod,
+      loggedAt: new Date().toISOString(),
+    };
+
+    if (body.note) {
+      verificationPayload.note = body.note;
+    }
+
+    if (receiptUrl) {
+      verificationPayload.receiptUrl = receiptUrl;
+    }
+
+    if (body.paymentMethod === 'cash') {
+      verificationPayload.isCash = true;
+    } else if (body.otherBankName) {
+      verificationPayload.otherBankName = body.otherBankName;
+    }
+
+    // Create payment record
+    const payment = await this.prisma.payment.create({
+      data: {
+        merchantId: membership.merchantId,
+        orderId: order.id,
+        provider,
+        reference,
+        claimedAmount: amount,
+        tipAmount,
+        receiverAccountId,
+        status: 'VERIFIED', // Logged transactions are considered verified
+        verifiedAt: new Date(),
+        verifiedById: membership.merchantUserId,
+        verificationPayload: verificationPayload as Prisma.InputJsonValue,
+      },
+      include: {
+        order: true,
+        receiverAccount: true,
+        verifiedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return {
+      payment,
+      order,
+    };
+  }
+
   private async requireMembership(req: Request) {
-    // Better Auth attaches user to request
+    // Check if API key authentication was used
+    const reqWithAuth = req as any;
+    if (reqWithAuth.authType === 'api_key' && reqWithAuth.merchantId) {
+      // API key authentication - return merchant context directly
+      return {
+        merchantId: reqWithAuth.merchantId,
+        merchantUserId: null, // API keys don't have a specific merchant user
+        userId: null,
+        role: null,
+      };
+    }
+
+    // Fall back to session authentication (Better Auth)
     interface RequestWithUser extends Request {
       user?: { id: string };
     }

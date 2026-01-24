@@ -9,12 +9,24 @@ interface RevokeKeyModalProps {
   onClose: () => void;
   onConfirm: () => void;
   apiKeyName: string;
+  isLoading?: boolean;
+  isRegenerating?: boolean;
 }
 
-export default function RevokeKeyModal({ isOpen, onClose, onConfirm, apiKeyName }: RevokeKeyModalProps) {
+export default function RevokeKeyModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  apiKeyName,
+  isLoading,
+  isRegenerating = false,
+}: RevokeKeyModalProps) {
   const handleConfirm = () => {
     onConfirm();
-    onClose();
+    // Don't close immediately when regenerating - let the parent handle it after new key is created
+    if (!isRegenerating) {
+      onClose();
+    }
   };
 
   return (
@@ -25,17 +37,30 @@ export default function RevokeKeyModal({ isOpen, onClose, onConfirm, apiKeyName 
         </div>
         <div className="flex-1">
           <h4 className="font-semibold text-gray-800 mb-2 text-title-sm dark:text-white/90">
-            Revoke API Key
+            {isRegenerating ? "Regenerate API Key" : "Revoke API Key"}
           </h4>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Are you sure you want to revoke <strong>{apiKeyName}</strong>? This action cannot be undone. Any applications using this key will stop working immediately.
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {isRegenerating ? (
+              <>
+                This will revoke <strong>{apiKeyName}</strong> and create a new key. The old key
+                will stop working immediately.
+              </>
+            ) : (
+              <>
+                Are you sure you want to revoke <strong>{apiKeyName}</strong>? This action cannot be
+                undone. Any applications using this key will stop working immediately.
+              </>
+            )}
           </p>
         </div>
       </div>
 
       <div className="rounded-xl border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20 mb-6">
         <p className="text-sm text-error-800 dark:text-error-300">
-          <strong>Warning:</strong> Revoking this key will immediately invalidate it. Make sure no critical services are using this key.
+          <strong>Warning:</strong>{" "}
+          {isRegenerating
+            ? "The old key will be invalidated and a new key will be generated. Make sure to update all applications with the new key."
+            : "Revoking this key will immediately invalidate it. Make sure no critical services are using this key."}
         </p>
       </div>
 
@@ -48,8 +73,15 @@ export default function RevokeKeyModal({ isOpen, onClose, onConfirm, apiKeyName 
           variant="primary"
           onClick={handleConfirm}
           className="bg-error-500 hover:bg-error-600 text-white"
+          disabled={isLoading}
         >
-          Revoke Key
+          {isLoading
+            ? isRegenerating
+              ? "Regenerating..."
+              : "Revoking..."
+            : isRegenerating
+            ? "Regenerate Key"
+            : "Revoke Key"}
         </Button>
       </div>
     </Modal>

@@ -7,7 +7,7 @@ import {
   ApiBearerAuth,
   ApiCookieAuth,
 } from '@nestjs/swagger';
-import { MerchantUsersService } from './merchant-users.service';
+import { MerchantUsersService, MerchantMembershipResponse } from './merchant-users.service';
 
 @ApiTags('merchant-users')
 @ApiBearerAuth('bearer')
@@ -35,7 +35,7 @@ export class MerchantUsersController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async me(@Req() req: Request) {
+  async me(@Req() req: Request): Promise<MerchantMembershipResponse> {
     return this.merchantUsersService.me(req);
   }
 }

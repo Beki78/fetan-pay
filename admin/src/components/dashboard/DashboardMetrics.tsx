@@ -1,33 +1,57 @@
 "use client";
 import React from "react";
-import { GroupIcon, CheckCircleIcon, AlertIcon, PieChartIcon } from "@/icons";
-
-// Platform-wide metrics for Super Admin
-const platformMetrics = {
-  totalVendors: 47,
-  activeVendors: 42,
-  totalTransactions: 15420,
-  systemHealth: 98.5, // percentage
-  pendingVerifications: 23,
-  failedVerifications: 5,
-};
+import { GroupIcon, CheckCircleIcon, DollarLineIcon, PieChartIcon } from "@/icons";
+import { useGetAdminAnalyticsQuery } from "@/lib/services/adminDashboardApi";
 
 export default function DashboardMetrics() {
+  const { data: analytics, isLoading } = useGetAdminAnalyticsQuery();
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50 animate-pulse"
+          >
+            <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const metrics = analytics || {
+    userAnalytics: { totalUsers: 0, totalMerchants: 0 },
+    platformTransactions: {
+      totalTransactions: 0,
+      totalVerified: 0,
+      totalPending: 0,
+      totalUnsuccessful: 0,
+      totalTransactionAmount: 0,
+      totalTips: 0,
+    },
+    walletAnalytics: { totalDeposits: 0 },
+    transactionTypeBreakdown: { qr: 0, cash: 0, bank: 0 },
+    transactionStatusBreakdown: { successful: 0, failed: 0, pending: 0, expired: 0 },
+    providerUsage: [],
+  };
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {/* Total Vendors */}
+      {/* Total Merchants */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg">
             <GroupIcon className="text-blue-600 dark:text-blue-400 size-5" />
           </div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Total Vendors</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">Total Merchants</span>
         </div>
         <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-          {platformMetrics.totalVendors}
+          {(metrics.userAnalytics?.totalMerchants ?? 0).toLocaleString()}
         </h4>
-        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-          {platformMetrics.activeVendors} active
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Active merchants
         </p>
       </div>
 
@@ -37,45 +61,48 @@ export default function DashboardMetrics() {
           <div className="flex items-center justify-center w-10 h-10 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
             <PieChartIcon className="text-purple-600 dark:text-purple-400 size-5" />
           </div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Platform Transactions</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</span>
         </div>
         <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-          {platformMetrics.totalTransactions.toLocaleString()}
+          {(metrics.platformTransactions?.totalTransactions ?? 0).toLocaleString()}
         </h4>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          All vendors combined
+          All transactions
         </p>
       </div>
 
-      {/* System Health */}
+      {/* Total Verified */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex items-center justify-center w-10 h-10 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
             <CheckCircleIcon className="text-green-600 dark:text-green-400 size-5" />
           </div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">System Health</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">Total Verified</span>
         </div>
         <h4 className="text-2xl font-semibold text-green-600 dark:text-green-400">
-          {platformMetrics.systemHealth}%
+          {(metrics.platformTransactions?.totalVerified ?? 0).toLocaleString()}
         </h4>
-        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-          All systems operational
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Verified transactions
         </p>
       </div>
 
-      {/* Pending Issues */}
+      {/* Total Tips */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50">
         <div className="flex items-center gap-3 mb-3">
-          <div className="flex items-center justify-center w-10 h-10 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
-            <AlertIcon className="text-orange-600 dark:text-orange-400 size-5" />
+          <div className="flex items-center justify-center w-10 h-10 bg-yellow-500/10 dark:bg-yellow-500/20 rounded-lg">
+            <DollarLineIcon className="text-yellow-600 dark:text-yellow-400 size-5" />
           </div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Pending Issues</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">Total Tips</span>
         </div>
-        <h4 className="text-2xl font-semibold text-orange-600 dark:text-orange-400">
-          {platformMetrics.pendingVerifications + platformMetrics.failedVerifications}
+        <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
+          {(metrics.platformTransactions?.totalTips ?? 0).toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })} ETB
         </h4>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          {platformMetrics.pendingVerifications} pending, {platformMetrics.failedVerifications} failed
+          Total tips collected
         </p>
       </div>
     </div>

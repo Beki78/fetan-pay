@@ -1,12 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import Badge from "./Badge";
 
 export default function CallToAction() {
   return (
-    <section className="py-16 px-4 relative z-10 bg-white">
+    <section className="py-8 sm:py-12 md:py-16 px-4 relative z-10 bg-white">
       <div
-        className="max-w-7xl mx-auto rounded-[50px] py-16 px-8"
+        className="mx-auto rounded-[30px] sm:rounded-[40px] lg:rounded-[50px] py-8 sm:py-12 md:py-16 px-4 sm:px-6 md:px-8"
         style={{
+          maxWidth: "1450px",
           background: "linear-gradient(180deg, #FAFEFF 0%, #EAFCFD 100%)",
         }}
       >
@@ -22,12 +25,11 @@ export default function CallToAction() {
             </Badge>
           </div>
 
-          {/* Title */}
+          {/* Title - Responsive */}
           <h2
-            className="text-[72px] leading-[75px] font-normal opacity-0 animate-fade-in-up animation-delay-300 text-center mx-auto"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-tight sm:leading-[48px] md:leading-[60px] lg:leading-[75px] font-normal opacity-0 animate-fade-in-up animation-delay-300 text-center mx-auto tracking-tight lg:tracking-[-2.16px] px-4"
             style={{
               fontFamily: "var(--font-geist)",
-              letterSpacing: "-2.16px",
               background: "linear-gradient(to right, #061a32, #0d3463)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
@@ -39,13 +41,13 @@ export default function CallToAction() {
             Start verifying payments in minutes
           </h2>
 
-          {/* Description */}
+          {/* Description - Responsive */}
           <p
-            className="text-xl py-8 leading-[35px] text-[#4d4d4d] font-normal animate-fade-in-up animation-delay-400 text-center mx-auto"
+            className="text-base sm:text-lg md:text-xl lg:text-xl py-4 sm:py-6 md:py-8 leading-6 sm:leading-7 md:leading-8 lg:leading-[35px] text-[#4d4d4d] font-normal animate-fade-in-up animation-delay-400 text-center mx-auto px-4"
             style={{
               fontFamily: "var(--font-geist)",
               maxWidth: "720px",
-              marginBottom: "48px",
+              marginBottom: "32px",
             }}
           >
             Get started with Fetan Pay today and streamline your payment
@@ -60,7 +62,9 @@ export default function CallToAction() {
             }}
           >
             <Link
-              href="/get-started"
+              href="https://merchant.fetanpay.et/signup"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center bg-[#174686] text-[#f6f7fa] transition-all duration-300 hover:bg-[#0d3463] group"
               style={{
                 fontFamily: "var(--font-inter)",

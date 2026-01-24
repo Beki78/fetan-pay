@@ -11,7 +11,6 @@ import {
 export enum MerchantStatusDto {
   PENDING = 'PENDING',
   ACTIVE = 'ACTIVE',
-  SUSPENDED = 'SUSPENDED',
 }
 
 export class AdminCreateMerchantDto {

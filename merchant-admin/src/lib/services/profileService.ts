@@ -67,3 +67,32 @@ export async function findMerchantByEmail(email: string): Promise<MerchantProfil
   }
   return null;
 }
+
+export interface UpdateMerchantProfileInput {
+  name?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  tin?: string;
+}
+
+export async function updateMerchantProfile(
+  merchantId: string,
+  data: UpdateMerchantProfileInput
+): Promise<MerchantProfile> {
+  const res = await fetch(`${API_BASE_URL}/merchant-accounts/${merchantId}/profile`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(json?.message || json?.error || "Failed to update merchant profile");
+  }
+
+  return json as MerchantProfile;
+}

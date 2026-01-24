@@ -16,18 +16,20 @@ import { RejectMerchantDto } from './dto/reject-merchant.dto';
 import { CreateMerchantUserDto } from './dto/create-merchant-user.dto';
 import { UpdateMerchantUserDto } from './dto/update-merchant-user.dto';
 import { SetMerchantUserStatusDto } from './dto/set-merchant-user-status.dto';
+import { UpdateMerchantProfileDto } from './dto/update-merchant-profile.dto';
 import { QrCodeService } from './qr-code.service';
 import { auth } from '../../../auth';
 import * as CryptoJS from 'crypto-js';
+import type { Request } from 'express';
 
-type MerchantStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED';
+type MerchantStatus = 'PENDING' | 'ACTIVE';
 type MerchantUserRole =
   | 'MERCHANT_OWNER'
   | 'ADMIN'
   | 'ACCOUNTANT'
   | 'SALES'
   | 'WAITER';
-type MerchantUserStatus = 'INVITED' | 'ACTIVE' | 'SUSPENDED';
+type MerchantUserStatus = 'INVITED' | 'ACTIVE';
 
 @Injectable()
 export class MerchantsService {
@@ -80,11 +82,9 @@ export class MerchantsService {
     merchantUserId: string,
     _dto: SetMerchantUserStatusDto,
   ) {
-    await this.getUser(merchantId, merchantUserId);
-    return (this.prisma as any).merchantUser.update({
-      where: { id: merchantUserId },
-      data: { status: 'SUSPENDED' as MerchantUserStatus },
-    });
+    // Note: Banning is handled by the frontend using Better Auth admin API
+    // The frontend will call authClient.admin.banUser() directly
+    return this.getUser(merchantId, merchantUserId);
   }
 
   async activateUser(
@@ -92,7 +92,12 @@ export class MerchantsService {
     merchantUserId: string,
     _dto: SetMerchantUserStatusDto,
   ) {
-    await this.getUser(merchantId, merchantUserId);
+    const user = await this.getUser(merchantId, merchantUserId);
+    
+    // Note: Unbanning is handled by the frontend using Better Auth admin API
+    // The frontend will call authClient.admin.unbanUser() directly
+
+    // Ensure MerchantUser status is ACTIVE
     return (this.prisma as any).merchantUser.update({
       where: { id: merchantUserId },
       data: { status: 'ACTIVE' as MerchantUserStatus },
@@ -161,13 +166,80 @@ export class MerchantsService {
   async findOne(id: string) {
     const merchant = await (this.prisma as any).merchant.findUnique({
       where: { id },
-      include: { users: true },
+      include: {
+        users: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                banned: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!merchant) {
       throw new NotFoundException('Merchant not found');
     }
-    return merchant;
+
+    // Map users to include banned status and userId from Better Auth user
+    const usersWithBanned = merchant.users.map((mu: any) => {
+      const { user, ...rest } = mu;
+      return {
+        ...rest,
+        userId: user?.id ?? mu.userId, // Include Better Auth user ID
+        banned: user?.banned ?? false,
+      };
+    });
+
+    return {
+      ...merchant,
+      users: usersWithBanned,
+    };
+  }
+
+  async updateProfile(merchantId: string, dto: UpdateMerchantProfileDto, req: Request) {
+    // Verify merchant exists
+    const merchant = await this.findOne(merchantId);
+
+    // Get authenticated user from request
+    const authUser = (req as any)?.user;
+    const authUserId: string | undefined = authUser?.id;
+
+    if (!authUserId) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+
+    // Verify user is a member of this merchant
+    const membership = await (this.prisma as any).merchantUser.findFirst({
+      where: {
+        merchantId,
+        userId: authUserId,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (!membership) {
+      throw new UnauthorizedException(
+        'You do not have permission to update this merchant profile',
+      );
+    }
+
+    // Update merchant profile
+    const updated = await (this.prisma as any).merchant.update({
+      where: { id: merchantId },
+      data: {
+        name: dto.name,
+        contactEmail: dto.contactEmail,
+        contactPhone: dto.contactPhone,
+        tin: dto.tin,
+      },
+      include: { users: true },
+    });
+
+    return updated;
   }
 
   /**
@@ -192,16 +264,44 @@ export class MerchantsService {
         : undefined,
     };
 
-    const [data, total] = await this.prisma.$transaction([
+    const [rawData, total] = await this.prisma.$transaction([
       (this.prisma as any).merchant.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        include: { users: true },
+        include: {
+          users: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  banned: true,
+                },
+              },
+            },
+          },
+        },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
       (this.prisma as any).merchant.count({ where }),
     ]);
+
+    // Map merchants to include banned status for users
+    const data = rawData.map((merchant: any) => {
+      const usersWithBanned = merchant.users.map((mu: any) => {
+        const { user, ...rest } = mu;
+        return {
+          ...rest,
+          userId: user?.id ?? mu.userId, // Include Better Auth user ID
+          banned: user?.banned ?? false,
+        };
+      });
+
+      return {
+        ...merchant,
+        users: usersWithBanned,
+      };
+    });
 
     return {
       data,
@@ -228,11 +328,31 @@ export class MerchantsService {
       },
     });
 
-    // Activate any invited users for this merchant
-    await (this.prisma as any).merchantUser.updateMany({
+    // Activate any invited users for this merchant and link them to Better Auth users
+    const merchantUsers = await (this.prisma as any).merchantUser.findMany({
       where: { merchantId: id, status: 'INVITED' },
-      data: { status: 'ACTIVE' as MerchantUserStatus },
     });
+
+    for (const merchantUser of merchantUsers) {
+      // If userId is null, try to find the Better Auth user by email
+      let userId = merchantUser.userId;
+      if (!userId && merchantUser.email) {
+        const authUser = await this.findAuthUserByEmail(merchantUser.email);
+        userId = authUser?.id;
+      }
+
+      // Update the merchant user to ACTIVE status and link to Better Auth user
+      await (this.prisma as any).merchantUser.update({
+        where: { id: merchantUser.id },
+        data: { 
+          status: 'ACTIVE' as MerchantUserStatus,
+          userId: userId || merchantUser.userId, // Keep existing userId if no match found
+        },
+      });
+    }
+
+    // Note: Unbanning users is handled by the frontend using Better Auth admin API
+    // The frontend will call authClient.admin.unbanUser() for all team members
 
     return updated;
   }
@@ -248,18 +368,15 @@ export class MerchantsService {
     const updated = await (this.prisma as any).merchant.update({
       where: { id },
       data: {
-        status: 'SUSPENDED' as MerchantStatus,
+        status: 'PENDING' as MerchantStatus,
         approvedAt: null,
         approvedBy: null,
         source: merchant.source,
       },
     });
 
-    // Suspend any invited users as well
-    await (this.prisma as any).merchantUser.updateMany({
-      where: { merchantId: id },
-      data: { status: 'SUSPENDED' as MerchantUserStatus },
-    });
+    // Note: Banning users is handled by the frontend using Better Auth admin API
+    // The frontend will call authClient.admin.banUser() for all team members
 
     return updated;
   }

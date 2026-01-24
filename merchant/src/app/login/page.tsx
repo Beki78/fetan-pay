@@ -57,10 +57,10 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const ok = await signInWithEmailAndPassword(data.email, data.password);
+      const result = await signInWithEmailAndPassword(data.email, data.password);
 
-      if (!ok) {
-        throw new Error("Invalid email or password");
+      if (!result.success) {
+        throw new Error(result.error || "Invalid email or password");
       }
 
       toast.success("Login successful!", {
@@ -74,10 +74,9 @@ export default function LoginPage() {
         router.push("/scan");
       }
     } catch (error) {
+      const errorMessage = (error as Error)?.message || "Invalid email or password. Please try again.";
       toast.error("Login failed", {
-        description:
-          (error as Error)?.message ||
-          "Invalid email or password. Please try again.",
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -107,13 +106,13 @@ export default function LoginPage() {
       setTimeout(async () => {
         setIsLoading(true);
         try {
-          const ok = await signInWithEmailAndPassword(
+          const loginResult = await signInWithEmailAndPassword(
             result.email,
             result.password
           );
 
-          if (!ok) {
-            throw new Error("Invalid email or password");
+          if (!loginResult.success) {
+            throw new Error(loginResult.error || "Invalid email or password");
           }
 
           toast.success("Login successful!", {

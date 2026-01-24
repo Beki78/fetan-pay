@@ -15,6 +15,13 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { PaymentProvidersModule } from './modules/payment-providers/payment-providers.module';
 import { BrandingModule } from './modules/branding/branding.module';
 import { MerchantAdminDashboardModule } from './modules/merchant-admin-dashboard/merchant-admin-dashboard.module';
+import { WalletModule } from './modules/wallet/wallet.module';
+import { SystemMonitoringModule } from './modules/system-monitoring/system-monitoring.module';
+import { AdminPaymentsModule } from './modules/admin-payments/admin.module';
+import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { CommunicationsModule } from './modules/communications/communications.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -30,10 +37,16 @@ import { ThrottlerModule } from '@nestjs/throttler';
     MerchantsModule,
     MerchantUsersModule,
     PaymentsModule,
-    PaymentsModule,
     PaymentProvidersModule,
     BrandingModule,
     MerchantAdminDashboardModule,
+    WalletModule,
+    SystemMonitoringModule,
+    AdminPaymentsModule,
+    AdminDashboardModule,
+    ApiKeysModule,
+    WebhooksModule,
+    CommunicationsModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

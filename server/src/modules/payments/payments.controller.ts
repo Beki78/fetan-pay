@@ -3,13 +3,17 @@ import {
   Controller,
   Get,
   Param,
-  Patch,
   Post,
   Req,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiOperation,
   ApiTags,
@@ -19,6 +23,7 @@ import {
   ApiParam,
   ApiBearerAuth,
   ApiCookieAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -27,8 +32,11 @@ import { SubmitPaymentClaimDto } from './dto/submit-payment-claim.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
 import { ListVerificationHistoryDto } from './dto/list-verification-history.dto';
 import { VerifyMerchantPaymentDto } from './dto/verify-merchant-payment.dto';
+import { LogTransactionDto } from './dto/log-transaction.dto';
 import { ListTipsDto } from './dto/list-tips.dto';
 import { PaymentsService } from './payments.service';
+import { ApiKeyOrSessionGuard } from '../api-keys/guards/api-key-or-session.guard';
+import { ApiKeysModule } from '../api-keys/api-keys.module';
 
 @ApiTags('payments')
 @ApiBearerAuth('bearer')
@@ -134,6 +142,55 @@ export class PaymentsController {
     return this.paymentsService.createOrder(body, req);
   }
 
+  @Post('log-transaction')
+  @ApiOperation({
+    summary: 'Log a transaction (cash or bank payment)',
+    description:
+      'Creates an order and payment record for manually logged transactions. Supports both cash and bank payments with optional tips and notes. For bank transactions, a receipt image can be uploaded.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['paymentMethod', 'amount'],
+      properties: {
+        paymentMethod: { type: 'string', enum: ['cash', 'bank'] },
+        amount: { type: 'number' },
+        tipAmount: { type: 'number' },
+        note: { type: 'string' },
+        provider: { type: 'string', enum: ['CBE', 'TELEBIRR', 'AWASH', 'BOA', 'DASHEN'] },
+        otherBankName: { type: 'string' },
+        receipt: {
+          type: 'string',
+          format: 'binary',
+          description: 'Receipt image file (optional, for bank transactions)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Transaction logged successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        payment: { type: 'object' },
+        order: { type: 'object' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseInterceptors(FileInterceptor('receipt'))
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async logTransaction(
+    @Body() body: LogTransactionDto,
+    @UploadedFile() receiptFile: Express.Multer.File | undefined,
+    @Req() req: Request,
+  ) {
+    return this.paymentsService.logTransaction(body, req, receiptFile);
+  }
+
   @Post('claims')
   @ApiOperation({
     summary: 'Submit a waiter payment claim and verify against order amount + active receiver',
@@ -156,7 +213,7 @@ export class PaymentsController {
     summary:
       'Verify a payment by provider+reference+amount against the merchant configured receiver account',
     description:
-      'Verifies a payment transaction by checking the provider, reference, and amount against the merchant\'s configured receiver account. Rate-limited to prevent abuse. Only VERIFIED transactions are saved to the database.',
+      'Verifies a payment transaction by checking the provider, reference, and amount against the merchant\'s configured receiver account. Supports both API key and session authentication. Rate-limited to prevent abuse. Only VERIFIED transactions are saved to the database.',
   })
   @ApiBody({ type: VerifyMerchantPaymentDto })
   @ApiResponse({

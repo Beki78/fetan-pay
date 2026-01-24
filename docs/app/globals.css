@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --logo-filter: none;
 }
 
 @theme inline {
@@ -16,7 +17,12 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --logo-filter: brightness(0) invert(1);
   }
+}
+
+.dark {
+  --logo-filter: brightness(0) invert(1);
 }
 
 body {

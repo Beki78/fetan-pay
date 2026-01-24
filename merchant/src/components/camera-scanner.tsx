@@ -138,13 +138,26 @@ export function CameraScanner({
           aspectRatio: 1.0,
           disableFlip: true,
         },
-        (decodedText) => {
+        async (decodedText) => {
           // QR code scanned successfully - prevent multiple callbacks
           // Set flag immediately to prevent race conditions
           if (hasScannedRef.current) {
+            console.log("⚠️ [SCANNER] Duplicate scan detected, ignoring");
             return; // Already processing a scan
           }
           hasScannedRef.current = true;
+
+          // Stop scanning immediately to prevent duplicate callbacks
+          try {
+            if (scannerRef.current) {
+              await scannerRef.current.stop();
+              scannerRef.current = null;
+              setIsScanning(false);
+            }
+          } catch (err) {
+            // Ignore errors when stopping
+            console.log("Scanner stop error (expected):", err);
+          }
 
           // Call handler asynchronously to prevent blocking
           handleScanSuccess(decodedText).catch((error) => {
@@ -241,9 +254,7 @@ export function CameraScanner({
   const handleScanSuccess = async (scannedUrl: string) => {
     console.log("📷 [SCANNER] QR Code detected:", scannedUrl);
 
-    // Stop scanning (non-blocking)
-    stopScanning().catch(() => {});
-
+    // Scanner is already stopped in the callback, just clean up
     // Pass URL to parent - parent handles everything
     onScan(scannedUrl);
     onClose();

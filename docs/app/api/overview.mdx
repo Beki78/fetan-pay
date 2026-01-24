@@ -1,0 +1,149 @@
+# FetanPay API Documentation
+
+Welcome to the FetanPay API. This documentation covers everything you need to integrate payment verification from multiple Ethiopian banks into your application.
+
+## Quick Start
+
+<Steps>
+  <Steps.Step>
+    **Get your API key** from the [merchant dashboard](https://admin.fetanpay.et/api-keys)
+  </Steps.Step>
+  <Steps.Step>
+    **Create a payment verification request** with provider, reference, and amount
+  </Steps.Step>
+  <Steps.Step>
+    **Handle the response** to update your order status
+  </Steps.Step>
+  <Steps.Step>
+    **Set up webhooks** (optional) to receive real-time notifications
+  </Steps.Step>
+</Steps>
+
+## API Details
+
+<div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem'}}>
+
+<div style={{backgroundColor: '#f9fafb', padding: '1.25rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb'}}>
+
+### Base URL
+
+```
+https://api.fetanpay.et/api/v1
+```
+
+</div>
+
+<div style={{backgroundColor: '#f9fafb', padding: '1.25rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb'}}>
+
+### Response Format
+
+```
+application/json
+```
+
+</div>
+
+</div>
+
+## Authentication
+
+All API requests require authentication using your API key. You can find your API key in the [merchant dashboard](https://admin.fetanpay.et/api-keys).
+
+<Callout type="warning">
+  **Security:** Never expose your API key in client-side code. Always make API calls from your server.
+</Callout>
+
+### Authentication Methods
+
+**Bearer Token (Recommended)**
+
+Include your API key in the `Authorization` header:
+
+```http
+Authorization: Bearer YOUR_API_KEY
+```
+
+Example:
+
+```bash
+curl https://api.fetanpay.et/api/v1/payments/verify \
+  -H "Authorization: Bearer fetan_live_sk_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "CBE",
+    "reference": "FT26017MLDG7755415774",
+    "claimedAmount": 1000.00
+  }'
+```
+
+## Supported Payment Providers
+
+FetanPay supports payment verification for the following Ethiopian banks:
+
+| Provider | Code | Description |
+|----------|------|-------------|
+| Commercial Bank of Ethiopia | `CBE` | CBE mobile banking and bank transfers |
+| Bank of Abyssinia | `BOA` | BOA bank transfers |
+| Awash Bank | `Awash` | Awash Bank transfers |
+| Telebirr | `Telebirr` | Telebirr mobile money |
+| Dashen Bank | `Dashen` | Dashen Bank transfers |
+
+## Response Format
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "status": "VERIFIED",
+  "transaction": {
+    "id": "txn_123",
+    "reference": "FT26017MLDG7755415774",
+    "provider": "CBE",
+    "amount": 1000.00,
+    "status": "VERIFIED",
+    "verifiedAt": "2025-01-15T10:30:00Z"
+  }
+}
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message"
+  }
+}
+```
+
+## HTTP Status Codes
+
+| Code | Description |
+|------|-------------|
+| `200` | Success |
+| `201` | Created |
+| `400` | Bad Request |
+| `401` | Unauthorized |
+| `403` | Forbidden |
+| `404` | Not Found |
+| `422` | Validation Error |
+| `429` | Too Many Requests |
+| `500` | Internal Server Error |
+
+## Rate Limits
+
+API requests are rate-limited to ensure fair usage:
+
+- **Default**: 100 requests per minute per API key
+- Rate limit information is included in response headers
+- When exceeded, you'll receive a `429 Too Many Requests` response
+
+## Next Steps
+
+- Read the [Quick Start guide](/api/quickstart) to verify your first payment
+- Learn about [Authentication](/api/authentication) and API key management
+- Explore the [Payments API](/api/payments) for payment verification
+- Set up [Webhooks](/api/webhooks) for real-time notifications

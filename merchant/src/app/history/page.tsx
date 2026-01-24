@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/hooks/useSession";
-import { History as HistoryIcon, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { History as HistoryIcon, CheckCircle2, XCircle, Clock, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
@@ -11,7 +11,42 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { APP_CONFIG } from "@/lib/config";
 import Image from "next/image";
 import { formatNumberWithCommas } from "@/lib/validation";
-import { useListVerificationHistoryQuery } from "@/lib/services/paymentsServiceApi";
+import { useListVerificationHistoryQuery, type TransactionProvider } from "@/lib/services/paymentsServiceApi";
+import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
+
+/**
+ * Generate bank receipt URL based on provider and transaction reference
+ * Returns undefined if provider is not supported or if it's a cash transaction
+ */
+function getBankReceiptUrl(
+  provider: TransactionProvider | null | undefined,
+  reference: string | null | undefined,
+  paymentMethod: string | undefined
+): string | undefined {
+  // Only generate URL for bank transactions
+  if (paymentMethod === 'cash' || !provider || !reference) {
+    return undefined;
+  }
+
+  const ref = reference.trim();
+  if (!ref) return undefined;
+
+  switch (provider) {
+    case 'CBE':
+      return `https://apps.cbe.com.et/?id=${encodeURIComponent(ref)}`;
+    case 'TELEBIRR':
+      return `https://transactioninfo.ethiotelecom.et/receipt/${encodeURIComponent(ref)}`;
+    case 'BOA':
+      return `https://cs.bankofabyssinia.com/slip/?trx=${encodeURIComponent(ref)}`;
+    case 'AWASH':
+      return `https://awashpay.awashbank.com:8225/${encodeURIComponent(ref)}`;
+    case 'DASHEN':
+      // Dashen receipt URL pattern from verification service
+      return `https://receipt.dashensuperapp.com/receipt/${encodeURIComponent(ref)}`;
+    default:
+      return undefined;
+  }
+}
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -115,49 +150,85 @@ export default function HistoryPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {transactions.map((transaction: any) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        {transaction.status === "VERIFIED" ? (
-                          <CheckCircle2 className="size-4 text-secondary" />
-                        ) : (
-                          <XCircle className="size-4 text-destructive" />
+                {transactions.map((transaction) => {
+                  // Extract receipt URL and payment method from verificationPayload
+                  let receiptUrl: string | undefined;
+                  let paymentMethod: string | undefined;
+                  
+                  if (transaction.verificationPayload && typeof transaction.verificationPayload === 'object') {
+                    const payload = transaction.verificationPayload as Record<string, unknown>;
+                    paymentMethod = payload.paymentMethod as string | undefined;
+                    // Check for uploaded receipt (manually logged transactions)
+                    if (payload.receiptUrl && typeof payload.receiptUrl === 'string') {
+                      receiptUrl = `${STATIC_ASSETS_BASE_URL}${payload.receiptUrl}`;
+                    }
+                  }
+
+                  // If no uploaded receipt, try to generate bank receipt URL from provider + reference
+                  // Only for bank transactions (not cash)
+                  if (!receiptUrl && paymentMethod !== 'cash') {
+                    receiptUrl = getBankReceiptUrl(
+                      transaction.provider as TransactionProvider | null | undefined,
+                      transaction.reference,
+                      paymentMethod
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {transaction.status === "VERIFIED" ? (
+                            <CheckCircle2 className="size-4 text-secondary" />
+                          ) : (
+                            <XCircle className="size-4 text-destructive" />
+                          )}
+                          <span className="font-medium">
+                            {formatNumberWithCommas(String(transaction.claimedAmount || "0"))} ETB
+                          </span>
+                          <Badge
+                            variant={
+                              transaction.status === "VERIFIED"
+                                ? "default"
+                                : "destructive"
+                            }
+                            className="text-xs"
+                          >
+                            {transaction.status}
+                          </Badge>
+                          {paymentMethod !== 'cash' && receiptUrl && (
+                            <a
+                              href={receiptUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              View Receipt
+                              <ExternalLink className="size-3" />
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="font-mono text-xs">
+                            {transaction.reference}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="size-3" />
+                            {new Date(transaction.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {transaction.provider && (
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {transaction.provider}
+                          </p>
                         )}
-                        <span className="font-medium">
-                          {formatNumberWithCommas(String(transaction.claimedAmount || "0"))} ETB
-                        </span>
-                        <Badge
-                          variant={
-                            transaction.status === "VERIFIED"
-                              ? "default"
-                              : "destructive"
-                          }
-                          className="text-xs"
-                        >
-                          {transaction.status}
-                        </Badge>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="font-mono text-xs">
-                          {transaction.reference}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="size-3" />
-                          {new Date(transaction.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {transaction.provider && (
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {transaction.provider}
-                        </p>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

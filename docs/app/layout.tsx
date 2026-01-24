@@ -3,16 +3,34 @@ import { Banner, Head } from "nextra/components";
 import { getPageMap } from "nextra/page-map";
 import "nextra-theme-docs/style.css";
 import { APP_CONFIG } from "@/libs/config";
+import Image from "next/image";
 
 export const metadata = {
   // Define your metadata here
   // For more information on metadata API, see: https://nextjs.org/docs/app/building-your-application/optimizing/metadata
+  icons: {
+    icon: '/fetan-logo.png',
+    shortcut: '/fetan-logo.png',
+    apple: '/fetan-logo.png',
+  },
 };
 
 const banner = <Banner storageKey="some-key">{APP_CONFIG.name} 1.0 is released 🎉</Banner>;
 const navbar = (
   <Navbar
-    logo={<b>{APP_CONFIG.name}</b>}
+    logo={
+      <Image
+        src="/logo/headerlogo.svg"
+        alt="FetanPay"
+        width={140}
+        height={40}
+        style={{
+          filter: 'var(--logo-filter, none)',
+        }}
+        className="nextra-logo"
+        priority
+      />
+    }
     // ... Your additional navbar options
   />
 );
@@ -31,7 +49,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <Head
       // ... Your additional head options
       >
-        {/* Your additional tags should be passed as `children` of `<Head>` element */}
+        {/* Remove default favicon and use custom logo */}
+        <link rel="icon" href="/fetan-logo.png" type="image/png" />
+        <link rel="shortcut icon" href="/fetan-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/fetan-logo.png" />
       </Head>
       <body>
         <Layout
@@ -40,6 +61,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           pageMap={await getPageMap()}
           docsRepositoryBase="https://github.com/Fetan-System-Technology/kifiya-pay/tree/main/docs"
           footer={footer}
+          toc={{
+            float: false,
+          }}
           // ... Your additional layout options
         >
           {children}

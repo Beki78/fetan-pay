@@ -39,6 +39,19 @@ export function useSession() {
           if (r.ok) {
             const data = await r.json();
             setMembership(data);
+          } else if (r.status === 401) {
+            // User is banned or unauthorized - sign them out
+            console.log("[merchant] User is banned or unauthorized, signing out");
+            setUser(null);
+            setSession(null);
+            setMembership(null);
+            // Sign out from Better Auth as well
+            try {
+              await authClient.signOut();
+            } catch (e) {
+              console.error("[merchant] Error signing out:", e);
+            }
+            return false;
           } else {
             setMembership(null);
           }

@@ -75,6 +75,7 @@ function ScanPageContent() {
     null
   );
   const resultsRef = useRef<HTMLDivElement>(null);
+  const isVerifyingRef = useRef(false); // Prevent duplicate verification calls
 
   const schema = createScanSchema(
     selectedBank as BankId | null,
@@ -115,6 +116,12 @@ function ScanPageContent() {
   const handleCameraScan = async (scannedUrl: string) => {
     console.log("🔍 [SCAN] handleCameraScan called with:", scannedUrl);
 
+    // Prevent duplicate verification calls
+    if (isVerifyingRef.current) {
+      console.log("⚠️ [SCAN] Verification already in progress, ignoring duplicate scan");
+      return;
+    }
+
     // Close camera immediately
     setShowCamera(false);
 
@@ -134,10 +141,10 @@ function ScanPageContent() {
         ? extractedReference
         : scannedUrl;
 
-    // Set form values
+    // Set form values (but don't trigger form submission)
     setVerificationMethod("camera");
-    setValue("verificationMethod", "camera", { shouldValidate: false });
-    setValue("transactionId", finalReference, { shouldValidate: false });
+    setValue("verificationMethod", "camera", { shouldValidate: false, shouldDirty: false });
+    setValue("transactionId", finalReference, { shouldValidate: false, shouldDirty: false });
 
     const finalBank = detectedBank;
 
@@ -147,6 +154,9 @@ function ScanPageContent() {
       });
       return;
     }
+
+    // Set verifying flag to prevent duplicate calls
+    isVerifyingRef.current = true;
 
     // Show loading spinner with bank logo - verify immediately (no amount needed)
     setIsVerifyingWithBank(finalBank);
@@ -231,6 +241,7 @@ function ScanPageContent() {
       });
     } finally {
       setIsVerifyingWithBank(null);
+      isVerifyingRef.current = false; // Reset verification flag
     }
   };
 
@@ -402,6 +413,7 @@ function ScanPageContent() {
     } catch (error: unknown) {
       // Clear verifying state
       setIsVerifyingWithBank(null);
+      isVerifyingRef.current = false; // Reset verification flag
 
       console.error("❌ [VERIFY] Verification error:", error);
 
@@ -445,6 +457,9 @@ function ScanPageContent() {
           block: "center",
         });
       }, 300);
+    } finally {
+      // Always reset verification flag when done
+      isVerifyingRef.current = false;
     }
   };
 
@@ -563,7 +578,18 @@ function ScanPageContent() {
 
         <Card className="shadow-xl border-border/50 ">
           <CardContent className="space-y-4 px-4">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form 
+              onSubmit={(e) => {
+                // Prevent form submission if verification is already in progress
+                if (isVerifyingRef.current) {
+                  e.preventDefault();
+                  console.log("⚠️ [FORM] Preventing form submission - verification in progress");
+                  return false;
+                }
+                return handleSubmit(onSubmit)(e);
+              }} 
+              className="space-y-6"
+            >
               {/* Bank Selection */}
               {!selectedBank ? (
                 <BankSelection
