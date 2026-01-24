@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { UpdateBrandingDto } from './dto/update-branding.dto';
+import { NotificationService } from '../notifications/notification.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -13,7 +14,10 @@ export class BrandingService {
     'branding',
   );
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationService: NotificationService,
+  ) {
     // Ensure upload directory exists
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
@@ -188,6 +192,60 @@ export class BrandingService {
       create: createData,
       update: updateDataClean,
     });
+
+    // Send notification about branding update
+    try {
+      // Get merchant details for notification
+      const merchant = await (this.prisma as any).merchant.findUnique({
+        where: { id: merchantId },
+        select: {
+          name: true,
+          users: {
+            where: { role: 'MERCHANT_OWNER' },
+            select: { userId: true, email: true },
+          },
+        },
+      });
+
+      if (merchant) {
+        // Determine what was updated
+        const updatedElements: string[] = [];
+        if (logoUrl) updatedElements.push('Logo');
+        if (
+          updateData.primaryColor !== undefined ||
+          updateData.secondaryColor !== undefined
+        ) {
+          updatedElements.push('Brand colors');
+        }
+        if (updateData.displayName !== undefined)
+          updatedElements.push('Display name');
+        if (updateData.tagline !== undefined) updatedElements.push('Tagline');
+        if (updateData.showPoweredBy !== undefined)
+          updatedElements.push('Powered by FetanPay setting');
+
+        // Only send notification if something was actually updated
+        if (updatedElements.length > 0) {
+          const ownerUser = merchant.users.find((u) => u.userId);
+          if (ownerUser?.userId) {
+            await this.notificationService.notifyBrandingUpdated(
+              merchantId,
+              merchant.name,
+              ownerUser.userId,
+              updatedElements,
+            );
+          } else {
+            // For branding updates, we only send in-app notifications
+            // If no userId is found, we skip the notification as per requirements
+            console.log(
+              `Owner userId not found for merchant ${merchantId}, skipping branding notification (in-app only)`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send branding update notification:', error);
+      // Don't fail the branding update if notification fails
+    }
 
     return branding;
   }

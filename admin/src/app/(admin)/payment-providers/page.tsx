@@ -20,6 +20,14 @@ const CODE_OPTIONS: Array<{ code: ProviderCode; name: string; defaultLogo: strin
   { code: "AWASH", name: "Awash Bank", defaultLogo: "Awash.png" },
   { code: "BOA", name: "Bank of Abyssinia", defaultLogo: "BOA.png" },
   { code: "DASHEN", name: "Dashen Bank", defaultLogo: "" },
+  { code: "AMHARA", name: "Amhara Bank", defaultLogo: "Amhara.png" },
+  { code: "BIRHAN", name: "Birhan Bank", defaultLogo: "Birhan.png" },
+  { code: "CBEBIRR", name: "CBE Birr", defaultLogo: "CBEBIRR.png" },
+  { code: "COOP", name: "Cooperative Bank of Oromia", defaultLogo: "COOP.png" },
+  { code: "ENAT", name: "Enat Bank", defaultLogo: "Enat.jpg" },
+  { code: "GADDA", name: "Gadda Bank", defaultLogo: "Gadda.png" },
+  { code: "HIBRET", name: "Hibret Bank", defaultLogo: "Hibret.jpg" },
+  { code: "WEGAGEN", name: "Wegagen Bank", defaultLogo: "Wegagen.png" },
 ];
 
 const STATUS_OPTIONS: ProviderStatus[] = ["ACTIVE", "COMING_SOON", "DISABLED"];
@@ -33,7 +41,6 @@ export default function AdminPaymentProvidersPage() {
 
   const [code, setCode] = useState<ProviderCode>("CBE");
   const [name, setName] = useState<string>("Commercial Bank of Ethiopia");
-  const [logoKey, setLogoKey] = useState<string>("CBE.png");
   const [status, setStatus] = useState<ProviderStatus>("ACTIVE");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -48,13 +55,15 @@ export default function AdminPaymentProvidersPage() {
     const preset = CODE_OPTIONS.find((x) => x.code === next);
     if (preset) {
       setName(preset.name);
-      if (preset.defaultLogo) setLogoKey(preset.defaultLogo);
     }
   };
 
   const handleCreateOrUpdate = async () => {
     setMessage(null);
     try {
+      const preset = CODE_OPTIONS.find((x) => x.code === code);
+      const logoKey = preset?.defaultLogo || "";
+      
       await upsert({
         code,
         name: name.trim(),
@@ -104,7 +113,7 @@ export default function AdminPaymentProvidersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">Payment Providers</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Create and manage provider catalog (logo is a local filename under /images/banks).</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Create and manage provider catalog.</p>
       </div>
 
       {errorMessage && <Alert variant="error" title="Error" message={errorMessage} />}
@@ -114,7 +123,7 @@ export default function AdminPaymentProvidersPage() {
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800/50">
         <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Add / Update Provider</h2>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">Provider Code</label>
             <select
@@ -145,26 +154,26 @@ export default function AdminPaymentProvidersPage() {
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">Name</label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">Logo filename</label>
-            <Input placeholder="e.g. CBE.png" value={logoKey} onChange={(e) => setLogoKey(e.target.value)} />
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Put the file in <span className="font-mono">public/images/banks</span>. Example: CBE.png, Telebirr.png</p>
-          </div>
         </div>
 
         <div className="mt-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-gray-700 overflow-hidden shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-white dark:bg-gray-700 overflow-hidden shrink-0 border border-gray-200 dark:border-gray-600">
               <Image
-                src={logoKey?.trim() ? `/images/banks/${logoKey.trim()}` : "/images/banks/CBE.png"}
+                src={(() => {
+                  const preset = CODE_OPTIONS.find((x) => x.code === code);
+                  return preset?.defaultLogo ? `/images/banks/${preset.defaultLogo}` : "/images/banks/CBE.png";
+                })()}
                 alt={name}
-                width={40}
-                height={40}
+                width={56}
+                height={56}
                 className="object-contain"
               />
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300">Preview</div>
+            <div>
+              <div className="text-sm font-medium text-gray-800 dark:text-white">Preview</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Logo will be automatically selected</div>
+            </div>
           </div>
 
           <Button onClick={handleCreateOrUpdate} disabled={isSaving || !name.trim()} className="whitespace-nowrap">
@@ -189,12 +198,12 @@ export default function AdminPaymentProvidersPage() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-gray-700 overflow-hidden shrink-0">
+                    <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-white dark:bg-gray-700 overflow-hidden shrink-0 border border-gray-200 dark:border-gray-600">
                       <Image
                         src={p.logoUrl ? `/images/banks/${p.logoUrl}` : "/images/banks/CBE.png"}
                         alt={p.name}
-                        width={40}
-                        height={40}
+                        width={56}
+                        height={56}
                         className="object-contain"
                       />
                     </div>
@@ -214,7 +223,6 @@ export default function AdminPaymentProvidersPage() {
                       onClick={() => {
                         handlePickCode(p.code);
                         setName(p.name);
-                        setLogoKey(p.logoUrl ?? "");
                         setStatus(p.status);
                       }}
                       className="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs"

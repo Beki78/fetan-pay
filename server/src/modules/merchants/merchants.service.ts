@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
+import { NotificationService } from '../notifications/notification.service';
 import { SelfRegisterMerchantDto } from './dto/self-register-merchant.dto';
 import {
   AdminCreateMerchantDto,
@@ -38,6 +39,7 @@ export class MerchantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly qrCodeService: QrCodeService,
+    private readonly notificationService: NotificationService,
   ) {
     // Use same encryption key as QR service for password encryption
     this.encryptionKey =
@@ -93,7 +95,7 @@ export class MerchantsService {
     _dto: SetMerchantUserStatusDto,
   ) {
     const user = await this.getUser(merchantId, merchantUserId);
-    
+
     // Note: Unbanning is handled by the frontend using Better Auth admin API
     // The frontend will call authClient.admin.unbanUser() directly
 
@@ -128,6 +130,20 @@ export class MerchantsService {
       },
       include: { users: true },
     });
+
+    // Send notification to admins about new merchant registration
+    try {
+      await this.notificationService.notifyMerchantRegistration(
+        merchant.id,
+        merchant.name,
+      );
+    } catch (error) {
+      console.error(
+        'Failed to send merchant registration notification:',
+        error,
+      );
+      // Don't fail the registration if notification fails
+    }
 
     return merchant;
   }
@@ -200,7 +216,11 @@ export class MerchantsService {
     };
   }
 
-  async updateProfile(merchantId: string, dto: UpdateMerchantProfileDto, req: Request) {
+  async updateProfile(
+    merchantId: string,
+    dto: UpdateMerchantProfileDto,
+    req: Request,
+  ) {
     // Verify merchant exists
     const merchant = await this.findOne(merchantId);
 
@@ -314,6 +334,12 @@ export class MerchantsService {
   async approve(id: string, dto: ApproveMerchantDto) {
     const merchant = await (this.prisma as any).merchant.findUnique({
       where: { id },
+      include: {
+        users: {
+          where: { role: 'MERCHANT_OWNER' },
+          select: { userId: true, email: true },
+        },
+      },
     });
     if (!merchant) {
       throw new NotFoundException('Merchant not found');
@@ -344,11 +370,51 @@ export class MerchantsService {
       // Update the merchant user to ACTIVE status and link to Better Auth user
       await (this.prisma as any).merchantUser.update({
         where: { id: merchantUser.id },
-        data: { 
+        data: {
           status: 'ACTIVE' as MerchantUserStatus,
           userId: userId || merchantUser.userId, // Keep existing userId if no match found
         },
       });
+    }
+
+    // Send notification to merchant owner about approval
+    try {
+      const ownerUser = merchant.users.find((u) => u.userId);
+      if (ownerUser?.userId) {
+        await this.notificationService.notifyMerchantApproval(
+          merchant.id,
+          merchant.name,
+          ownerUser.userId,
+        );
+      } else {
+        // If no userId found, try to find by email and send notification
+        const ownerWithEmail = merchant.users.find((u) => u.email);
+        if (ownerWithEmail?.email) {
+          console.log(
+            `Owner userId not found for merchant ${merchant.id}, attempting to find by email: ${ownerWithEmail.email}`,
+          );
+          const authUser = await this.findAuthUserByEmail(ownerWithEmail.email);
+          if (authUser?.id) {
+            await this.notificationService.notifyMerchantApproval(
+              merchant.id,
+              merchant.name,
+              authUser.id,
+            );
+          } else {
+            console.log(
+              `No Better Auth user found for email ${ownerWithEmail.email}, sending email directly`,
+            );
+            await this.notificationService.notifyMerchantApprovalByEmail(
+              merchant.id,
+              merchant.name,
+              ownerWithEmail.email,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send merchant approval notification:', error);
+      // Don't fail the approval if notification fails
     }
 
     // Note: Unbanning users is handled by the frontend using Better Auth admin API
@@ -360,6 +426,12 @@ export class MerchantsService {
   async reject(id: string, dto: RejectMerchantDto) {
     const merchant = await (this.prisma as any).merchant.findUnique({
       where: { id },
+      include: {
+        users: {
+          where: { role: 'MERCHANT_OWNER' },
+          select: { userId: true, email: true },
+        },
+      },
     });
     if (!merchant) {
       throw new NotFoundException('Merchant not found');
@@ -374,6 +446,49 @@ export class MerchantsService {
         source: merchant.source,
       },
     });
+
+    // Send notification to merchant owner about rejection
+    try {
+      const ownerUser = merchant.users.find((u) => u.userId);
+      if (ownerUser?.userId) {
+        await this.notificationService.notifyMerchantRejection(
+          merchant.id,
+          merchant.name,
+          ownerUser.userId,
+          dto.reason,
+        );
+      } else {
+        // If no userId found, try to find by email and send notification
+        const ownerWithEmail = merchant.users.find((u) => u.email);
+        if (ownerWithEmail?.email) {
+          console.log(
+            `Owner userId not found for merchant ${merchant.id}, attempting to find by email: ${ownerWithEmail.email}`,
+          );
+          const authUser = await this.findAuthUserByEmail(ownerWithEmail.email);
+          if (authUser?.id) {
+            await this.notificationService.notifyMerchantRejection(
+              merchant.id,
+              merchant.name,
+              authUser.id,
+              dto.reason,
+            );
+          } else {
+            console.log(
+              `No Better Auth user found for email ${ownerWithEmail.email}, sending email directly`,
+            );
+            await this.notificationService.notifyMerchantRejectionByEmail(
+              merchant.id,
+              merchant.name,
+              ownerWithEmail.email,
+              dto.reason,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send merchant rejection notification:', error);
+      // Don't fail the rejection if notification fails
+    }
 
     // Note: Banning users is handled by the frontend using Better Auth admin API
     // The frontend will call authClient.admin.banUser() for all team members
@@ -634,5 +749,130 @@ export class MerchantsService {
       }
       throw new UnauthorizedException('Invalid or expired QR code');
     }
+  }
+
+  /**
+   * Send ban notification email to merchant owner
+   */
+  async sendBanNotification(merchantId: string) {
+    const merchant = await (this.prisma as any).merchant.findUnique({
+      where: { id: merchantId },
+      include: {
+        users: {
+          where: { role: 'MERCHANT_OWNER' },
+          select: { userId: true, email: true },
+        },
+      },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    // Send notification to merchant owner about ban
+    try {
+      const ownerUser = merchant.users.find((u) => u.userId);
+      if (ownerUser?.userId) {
+        await this.notificationService.notifyMerchantBan(
+          merchant.id,
+          merchant.name,
+          ownerUser.userId,
+          'Account suspended by administrator',
+        );
+      } else {
+        // If no userId found, try to find by email and send notification
+        const ownerWithEmail = merchant.users.find((u) => u.email);
+        if (ownerWithEmail?.email) {
+          console.log(
+            `Owner userId not found for merchant ${merchant.id}, attempting to find by email: ${ownerWithEmail.email}`,
+          );
+          const authUser = await this.findAuthUserByEmail(ownerWithEmail.email);
+          if (authUser?.id) {
+            await this.notificationService.notifyMerchantBan(
+              merchant.id,
+              merchant.name,
+              authUser.id,
+              'Account suspended by administrator',
+            );
+          } else {
+            console.log(
+              `No Better Auth user found for email ${ownerWithEmail.email}, sending email directly`,
+            );
+            await this.notificationService.notifyMerchantBanByEmail(
+              merchant.id,
+              merchant.name,
+              ownerWithEmail.email,
+              'Account suspended by administrator',
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send merchant ban notification:', error);
+      throw error; // Re-throw to let caller know notification failed
+    }
+
+    return { message: 'Ban notification sent successfully' };
+  }
+
+  /**
+   * Send unban notification email to merchant owner
+   */
+  async sendUnbanNotification(merchantId: string) {
+    const merchant = await (this.prisma as any).merchant.findUnique({
+      where: { id: merchantId },
+      include: {
+        users: {
+          where: { role: 'MERCHANT_OWNER' },
+          select: { userId: true, email: true },
+        },
+      },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    // Send notification to merchant owner about unban
+    try {
+      const ownerUser = merchant.users.find((u) => u.userId);
+      if (ownerUser?.userId) {
+        await this.notificationService.notifyMerchantUnban(
+          merchant.id,
+          merchant.name,
+          ownerUser.userId,
+        );
+      } else {
+        // If no userId found, try to find by email and send notification
+        const ownerWithEmail = merchant.users.find((u) => u.email);
+        if (ownerWithEmail?.email) {
+          console.log(
+            `Owner userId not found for merchant ${merchant.id}, attempting to find by email: ${ownerWithEmail.email}`,
+          );
+          const authUser = await this.findAuthUserByEmail(ownerWithEmail.email);
+          if (authUser?.id) {
+            await this.notificationService.notifyMerchantUnban(
+              merchant.id,
+              merchant.name,
+              authUser.id,
+            );
+          } else {
+            console.log(
+              `No Better Auth user found for email ${ownerWithEmail.email}, sending email directly`,
+            );
+            await this.notificationService.notifyMerchantUnbanByEmail(
+              merchant.id,
+              merchant.name,
+              ownerWithEmail.email,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send merchant unban notification:', error);
+      throw error; // Re-throw to let caller know notification failed
+    }
+
+    return { message: 'Unban notification sent successfully' };
   }
 }

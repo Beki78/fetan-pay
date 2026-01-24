@@ -21,9 +21,16 @@ interface ConfigureProviderModalProps {
 const providerInfo: { [key: string]: { name: string; imagePath: string } } = {
   cbe: { name: "Commercial Bank of Ethiopia", imagePath: "/images/banks/CBE.png" },
   telebirr: { name: "Telebirr", imagePath: "/images/banks/Telebirr.png" },
-  "cbe-birr": { name: "CBE Birr", imagePath: "/images/banks/CBE.png" },
+  "cbe-birr": { name: "CBE Birr", imagePath: "/images/banks/CBEBIRR.png" },
   awash: { name: "Awash Bank", imagePath: "/images/banks/Awash.png" },
   boa: { name: "Bank of Abyssinia", imagePath: "/images/banks/BOA.png" },
+  amhara: { name: "Amhara Bank", imagePath: "/images/banks/Amhara.png" },
+  birhan: { name: "Birhan Bank", imagePath: "/images/banks/Birhan.png" },
+  coop: { name: "Cooperative Bank of Oromia", imagePath: "/images/banks/COOP.png" },
+  enat: { name: "Enat Bank", imagePath: "/images/banks/Enat.jpg" },
+  gadda: { name: "Gadda Bank", imagePath: "/images/banks/Gadda.png" },
+  hibret: { name: "Hibret Bank", imagePath: "/images/banks/Hibret.jpg" },
+  wegagen: { name: "Wegagen Bank", imagePath: "/images/banks/Wegagen.png" },
 };
 
 export default function ConfigureProviderModal({
@@ -49,12 +56,24 @@ export default function ConfigureProviderModal({
     name: "Provider",
     imagePath: "/images/banks/CBE.png",
   };
-  const displayName =
-    providerId === "boa"
-      ? "BOA"
-      : providerId === "cbe"
-      ? "CBE"
-      : provider.name;
+  
+  const getDisplayName = (id: string, name: string) => {
+    const displayNames: { [key: string]: string } = {
+      boa: "BOA",
+      cbe: "CBE",
+      "cbe-birr": "CBE Birr",
+      coop: "COOP Bank",
+      amhara: "Amhara Bank",
+      birhan: "Birhan Bank",
+      enat: "Enat Bank",
+      gadda: "Gadda Bank",
+      hibret: "Hibret Bank",
+      wegagen: "Wegagen Bank",
+    };
+    return displayNames[id] || name;
+  };
+  
+  const displayName = getDisplayName(providerId, provider.name);
 
   // Update form when modal opens or initialData changes
   useEffect(() => {
@@ -127,23 +146,25 @@ export default function ConfigureProviderModal({
       <div className="rounded-3xl bg-white p-6 dark:bg-gray-900 lg:p-8">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-gray-700 overflow-hidden">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-white dark:bg-gray-700 overflow-hidden border border-gray-200 dark:border-gray-600">
               <Image
                 src={provider.imagePath}
                 alt={provider.name}
-                width={40}
-                height={40}
+                width={56}
+                height={56}
                 className="object-contain"
               />
             </div>
-            <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-              Configure {displayName}
-            </h4>
+            <div>
+              <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
+                Configure {displayName}
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Set up your {provider.name} account.
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Set up your {provider.name} account.
-          </p>
         </div>
 
         <div className="space-y-6">

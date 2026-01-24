@@ -13,7 +13,7 @@ import { authClient } from "@/lib/auth-client";
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
-  const [email, setEmail] = useState("superadmin@fetanpay.com");
+  const [email, setEmail] = useState("fetanpay@gmail.com");
   const [password, setPassword] = useState("12345678");
   const [roleError, setRoleError] = useState<string | null>(null);
   const { signInWithGoogle, signInWithEmailAndPassword, isLoading, error } =

@@ -36,7 +36,7 @@ const mockProviders: PaymentProvider[] = [
     id: "cbe-birr",
     name: "CBE Birr",
     type: "Phone-based wallet",
-    imagePath: "/images/banks/CBE.png",
+    imagePath: "/images/banks/CBEBIRR.png",
     status: "coming-soon",
   },
   {
@@ -51,6 +51,55 @@ const mockProviders: PaymentProvider[] = [
     name: "Bank of Abyssinia",
     type: "Bank account",
     imagePath: "/images/banks/BOA.png",
+    status: "not-configured",
+  },
+  {
+    id: "amhara",
+    name: "Amhara Bank",
+    type: "Bank account",
+    imagePath: "/images/banks/Amhara.png",
+    status: "not-configured",
+  },
+  {
+    id: "birhan",
+    name: "Birhan Bank",
+    type: "Bank account",
+    imagePath: "/images/banks/Birhan.png",
+    status: "not-configured",
+  },
+  {
+    id: "coop",
+    name: "Cooperative Bank of Oromia",
+    type: "Bank account",
+    imagePath: "/images/banks/COOP.png",
+    status: "not-configured",
+  },
+  {
+    id: "enat",
+    name: "Enat Bank",
+    type: "Bank account",
+    imagePath: "/images/banks/Enat.jpg",
+    status: "not-configured",
+  },
+  {
+    id: "gadda",
+    name: "Gadda Bank",
+    type: "Bank account",
+    imagePath: "/images/banks/Gadda.png",
+    status: "not-configured",
+  },
+  {
+    id: "hibret",
+    name: "Hibret Bank",
+    type: "Bank account",
+    imagePath: "/images/banks/Hibret.jpg",
+    status: "not-configured",
+  },
+  {
+    id: "wegagen",
+    name: "Wegagen Bank",
+    type: "Bank account",
+    imagePath: "/images/banks/Wegagen.png",
     status: "not-configured",
   },
 ];
@@ -133,12 +182,12 @@ export default function PaymentProvidersList({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1">
                   {/* Provider Icon */}
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-gray-700 overflow-hidden flex-shrink-0">
+                  <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-white dark:bg-gray-700 overflow-hidden shrink-0 border border-gray-200 dark:border-gray-600">
                     <Image
                       src={provider.imagePath}
                       alt={provider.name}
-                      width={40}
-                      height={40}
+                      width={56}
+                      height={56}
                       className="object-contain"
                     />
                   </div>
@@ -158,7 +207,7 @@ export default function PaymentProvidersList({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   {provider.status === "enabled" && (
                     <>
                       <Button
@@ -216,8 +265,8 @@ export default function PaymentProvidersList({
       {/* Information Box */}
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 dark:bg-blue-500/20 p-6">
         <div className="flex items-start gap-4">
-          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-500/20 flex-shrink-0">
-            <InfoIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/20 shrink-0">
+            <InfoIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">

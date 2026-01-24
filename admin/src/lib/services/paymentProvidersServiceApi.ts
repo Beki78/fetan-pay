@@ -1,7 +1,20 @@
 import { baseApi } from "../redux/api";
 
 export type ProviderStatus = "ACTIVE" | "COMING_SOON" | "DISABLED";
-export type ProviderCode = "CBE" | "TELEBIRR" | "AWASH" | "BOA" | "DASHEN";
+export type ProviderCode = 
+  | "CBE" 
+  | "TELEBIRR" 
+  | "AWASH" 
+  | "BOA" 
+  | "DASHEN" 
+  | "AMHARA" 
+  | "BIRHAN" 
+  | "CBEBIRR" 
+  | "COOP" 
+  | "ENAT" 
+  | "GADDA" 
+  | "HIBRET" 
+  | "WEGAGEN";
 
 export interface PaymentProviderRecord {
   id: string;

@@ -210,6 +210,9 @@ model Merchant {
   engagementEvents     EngagementEvent[]
   unsubscribeList      UnsubscribeList[]
 
+  // Notifications
+  notifications        Notification[]
+
   // Provider catalog is global (admin-managed), so no relation here.
 
   @@map("merchant")
@@ -549,6 +552,7 @@ model EmailLog {
   // Relations
   engagementEvents EngagementEvent[]
   emailClicks      EmailClick[]
+  notifications    Notification[]
 
   @@index([merchantId])
   @@index([sentByUserId])
@@ -939,4 +943,70 @@ model WebhookDelivery {
   @@index([status])
   @@index([createdAt])
   @@map("webhook_delivery")
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  MERCHANT_REGISTRATION
+  MERCHANT_APPROVED
+  MERCHANT_REJECTED
+  MERCHANT_BANNED
+  MERCHANT_UNBANNED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  WALLET_DEPOSIT_VERIFIED
+  WALLET_BALANCE_LOW
+  TEAM_MEMBER_INVITED
+  API_KEY_CREATED
+  WEBHOOK_FAILED
+  SYSTEM_ALERT
+  CAMPAIGN_COMPLETED
+  BRANDING_UPDATED
+}
+
+enum NotificationUserType {
+  ADMIN
+  MERCHANT_USER
+}
+
+model Notification {
+  id            String              @id @default(uuid())
+  
+  // Recipient
+  userId        String              // Better Auth user ID
+  userType      NotificationUserType
+  merchantId    String?             // NULL for admin notifications
+  merchant      Merchant?           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  // Notification content
+  type          NotificationType
+  title         String
+  message       String              // Plain text message
+  data          Json?               // Additional event data (JSON)
+  
+  // Priority and status
+  priority      NotificationPriority
+  isRead        Boolean             @default(false)
+  readAt        DateTime?
+  
+  // Email notification tracking
+  emailSent     Boolean             @default(false)
+  emailLogId    String?             // Reference to EmailLog if email was sent
+  emailLog      EmailLog?           @relation(fields: [emailLogId], references: [id], onDelete: SetNull)
+  
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  
+  @@index([userId, isRead])
+  @@index([userType, merchantId])
+  @@index([type])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("notification")
 }
