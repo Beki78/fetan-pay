@@ -46,28 +46,7 @@ export class EmailService {
       </div>
     `;
 
-    // Format sender with app name - always show "FetanPay" as the sender name
-    const smtpFrom = this.configService.get<string>('SMTP_FROM');
-    const smtpUser = this.configService.get<string>('SMTP_USER');
-    let fromAddress: string;
-
-    if (smtpFrom) {
-      // If SMTP_FROM is already formatted with a name, use it
-      // Otherwise, extract email and format with app name
-      if (smtpFrom.includes('<') && smtpFrom.includes('>')) {
-        // Already formatted, use as-is
-        fromAddress = smtpFrom;
-      } else {
-        // Just an email, format with app name
-        fromAddress = `"${appName}" <${smtpFrom}>`;
-      }
-    } else if (smtpUser) {
-      // Format as "FetanPay" <email@example.com>
-      fromAddress = `"${appName}" <${smtpUser}>`;
-    } else {
-      // Fallback
-      fromAddress = `"${appName}" <noreply@fetanpay.com>`;
-    }
+    const fromAddress = this.getFromAddress(appName);
 
     const mailOptions: nodemailer.SendMailOptions = {
       from: fromAddress,
@@ -99,6 +78,74 @@ export class EmailService {
         error: (err as Error)?.message,
       });
       throw err;
+    }
+  }
+
+  /**
+   * Send notification email with HTML content
+   */
+  async sendNotificationEmail(
+    email: string,
+    subject: string,
+    htmlContent: string,
+  ) {
+    const appName = this.configService.get<string>('APP_NAME') || 'FetanPay';
+    const fromAddress = this.getFromAddress(appName);
+
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: fromAddress,
+      to: email,
+      subject,
+      html: htmlContent,
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      const sentInfo = info as {
+        messageId?: string;
+        accepted?: string[];
+        rejected?: string[];
+        response?: string;
+      };
+      console.info('[EmailService] Notification email sent', {
+        to: email,
+        subject,
+        messageId: sentInfo.messageId,
+        accepted: sentInfo.accepted,
+        rejected: sentInfo.rejected,
+        response: sentInfo.response,
+      });
+      return sentInfo;
+    } catch (err) {
+      console.error('[EmailService] Notification email failed', {
+        to: email,
+        subject,
+        error: (err as Error)?.message,
+      });
+      throw err;
+    }
+  }
+
+  private getFromAddress(appName: string): string {
+    const smtpFrom = this.configService.get<string>('SMTP_FROM');
+    const smtpUser = this.configService.get<string>('SMTP_USER');
+
+    if (smtpFrom) {
+      // If SMTP_FROM is already formatted with a name, use it
+      // Otherwise, extract email and format with app name
+      if (smtpFrom.includes('<') && smtpFrom.includes('>')) {
+        // Already formatted, use as-is
+        return smtpFrom;
+      } else {
+        // Just an email, format with app name
+        return `"${appName}" <${smtpFrom}>`;
+      }
+    } else if (smtpUser) {
+      // Format as "FetanPay" <email@example.com>
+      return `"${appName}" <${smtpUser}>`;
+    } else {
+      // Fallback
+      return `"${appName}" <noreply@fetanpay.com>`;
     }
   }
 

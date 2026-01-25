@@ -11,6 +11,8 @@ import {
   useRejectMerchantMutation,
   useDeactivateUserMutation,
   useActivateUserMutation,
+  useNotifyMerchantBanMutation,
+  useNotifyMerchantUnbanMutation,
 } from "@/lib/redux/features/merchantsApi";
 import { useListAllPaymentsQuery } from "@/lib/services/adminApi";
 import { useGetMerchantBrandingQuery } from "@/lib/services/brandingApi";
@@ -58,6 +60,8 @@ export default function UserDetail({ userId }: UserDetailProps) {
   const [reject, { isLoading: rejecting }] = useRejectMerchantMutation();
   const [deactivateUser, { isLoading: deactivating }] = useDeactivateUserMutation();
   const [activateUser, { isLoading: activating }] = useActivateUserMutation();
+  const [notifyBan] = useNotifyMerchantBanMutation();
+  const [notifyUnban] = useNotifyMerchantUnbanMutation();
   const [error, setError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<null | "approve" | "reject" | "ban" | "unban">(null);
   const [isBanning, setIsBanning] = useState(false);
@@ -141,6 +145,14 @@ export default function UserDetail({ userId }: UserDetailProps) {
         )
       );
 
+      // Send ban notification email
+      try {
+        await notifyBan({ id: merchant.id }).unwrap();
+      } catch (emailError) {
+        console.warn("Failed to send ban notification email:", emailError);
+        // Don't fail the ban operation if email fails
+      }
+
       await refetch();
       setConfirmAction(null);
     } catch (e: any) {
@@ -167,6 +179,14 @@ export default function UserDetail({ userId }: UserDetailProps) {
           authClient.admin.unbanUser({ userId })
         )
       );
+
+      // Send unban notification email
+      try {
+        await notifyUnban({ id: merchant.id }).unwrap();
+      } catch (emailError) {
+        console.warn("Failed to send unban notification email:", emailError);
+        // Don't fail the unban operation if email fails
+      }
 
       await refetch();
       setConfirmAction(null);

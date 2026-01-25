@@ -9,6 +9,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import { Prisma, TransactionProvider } from '@prisma/client';
 import { VerificationService } from '../verifier/services/verification.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { NotificationService } from '../notifications/notification.service';
 import type { Request } from 'express';
 import { VerifyWalletDepositDto } from './dto/verify-wallet-deposit.dto';
 import { SetDepositReceiverDto } from './dto/set-deposit-receiver.dto';
@@ -23,6 +24,7 @@ export class WalletService {
     private readonly prisma: PrismaService,
     private readonly verificationService: VerificationService,
     private readonly webhooksService: WebhooksService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -113,22 +115,27 @@ export class WalletService {
     if (merchant.walletMinBalance) {
       if (newBalance.lt(merchant.walletMinBalance)) {
         // Trigger insufficient balance webhook
-        this.webhooksService.triggerWebhook('wallet.insufficient', merchantId, {
-          wallet: {
-            balance: currentBalance.toNumber(),
-            required: chargeAmount.toNumber(),
-            minimumBalance: merchant.walletMinBalance.toNumber(),
-          },
-          payment: {
-            id: paymentId,
-            amount: paymentAmount.toNumber(),
-          },
-          merchant: {
-            id: merchantId,
-          },
-        }).catch((error) => {
-          console.error('[Webhooks] Error triggering wallet.insufficient webhook:', error);
-        });
+        this.webhooksService
+          .triggerWebhook('wallet.insufficient', merchantId, {
+            wallet: {
+              balance: currentBalance.toNumber(),
+              required: chargeAmount.toNumber(),
+              minimumBalance: merchant.walletMinBalance.toNumber(),
+            },
+            payment: {
+              id: paymentId,
+              amount: paymentAmount.toNumber(),
+            },
+            merchant: {
+              id: merchantId,
+            },
+          })
+          .catch((error) => {
+            console.error(
+              '[Webhooks] Error triggering wallet.insufficient webhook:',
+              error,
+            );
+          });
 
         return {
           success: false,
@@ -141,22 +148,27 @@ export class WalletService {
       // No minimum balance set, but still check if balance goes negative
       if (newBalance.lt(0)) {
         // Trigger insufficient balance webhook
-        this.webhooksService.triggerWebhook('wallet.insufficient', merchantId, {
-          wallet: {
-            balance: currentBalance.toNumber(),
-            required: chargeAmount.toNumber(),
-            minimumBalance: null,
-          },
-          payment: {
-            id: paymentId,
-            amount: paymentAmount.toNumber(),
-          },
-          merchant: {
-            id: merchantId,
-          },
-        }).catch((error) => {
-          console.error('[Webhooks] Error triggering wallet.insufficient webhook:', error);
-        });
+        this.webhooksService
+          .triggerWebhook('wallet.insufficient', merchantId, {
+            wallet: {
+              balance: currentBalance.toNumber(),
+              required: chargeAmount.toNumber(),
+              minimumBalance: null,
+            },
+            payment: {
+              id: paymentId,
+              amount: paymentAmount.toNumber(),
+            },
+            merchant: {
+              id: merchantId,
+            },
+          })
+          .catch((error) => {
+            console.error(
+              '[Webhooks] Error triggering wallet.insufficient webhook:',
+              error,
+            );
+          });
 
         return {
           success: false,
@@ -184,11 +196,18 @@ export class WalletService {
         const finalNewBalance = lockedBalance.sub(chargeAmount);
 
         // Double-check balance after lock
-        if (merchant.walletMinBalance && finalNewBalance.lt(merchant.walletMinBalance)) {
-          throw new BadRequestException('Insufficient balance after lock check');
+        if (
+          merchant.walletMinBalance &&
+          finalNewBalance.lt(merchant.walletMinBalance)
+        ) {
+          throw new BadRequestException(
+            'Insufficient balance after lock check',
+          );
         }
         if (finalNewBalance.lt(0)) {
-          throw new BadRequestException('Insufficient balance after lock check');
+          throw new BadRequestException(
+            'Insufficient balance after lock check',
+          );
         }
 
         // Update merchant balance
@@ -229,25 +248,30 @@ export class WalletService {
       });
 
       // Trigger wallet charged webhook
-      this.webhooksService.triggerWebhook('wallet.charged', merchantId, {
-        wallet: {
-          balanceBefore: result.balanceBefore.toNumber(),
-          balanceAfter: result.balanceAfter.toNumber(),
-          chargeAmount: chargeAmount.toNumber(),
-        },
-        payment: {
-          id: paymentId,
-          amount: paymentAmount.toNumber(),
-        },
-        transaction: {
-          id: result.id,
-        },
-        merchant: {
-          id: merchantId,
-        },
-      }).catch((error) => {
-        console.error('[Webhooks] Error triggering wallet.charged webhook:', error);
-      });
+      this.webhooksService
+        .triggerWebhook('wallet.charged', merchantId, {
+          wallet: {
+            balanceBefore: result.balanceBefore.toNumber(),
+            balanceAfter: result.balanceAfter.toNumber(),
+            chargeAmount: chargeAmount.toNumber(),
+          },
+          payment: {
+            id: paymentId,
+            amount: paymentAmount.toNumber(),
+          },
+          transaction: {
+            id: result.id,
+          },
+          merchant: {
+            id: merchantId,
+          },
+        })
+        .catch((error) => {
+          console.error(
+            '[Webhooks] Error triggering wallet.charged webhook:',
+            error,
+          );
+        });
 
       return {
         success: true,
@@ -280,9 +304,10 @@ export class WalletService {
     const membership = await this.requireMembership(req);
 
     // Verify receiver account exists and is active
-    const receiverAccount = await this.prisma.walletDepositReceiverAccount.findUnique({
-      where: { id: body.receiverAccountId },
-    });
+    const receiverAccount =
+      await this.prisma.walletDepositReceiverAccount.findUnique({
+        where: { id: body.receiverAccountId },
+      });
 
     if (!receiverAccount) {
       throw new NotFoundException('Receiver account not found');
@@ -380,16 +405,17 @@ export class WalletService {
 
     // Check if there's a pending deposit that matches (by provider)
     // This allows updating a pending deposit with the actual reference
-    const pendingDeposit = existingDeposit?.status === 'PENDING' 
-      ? existingDeposit 
-      : await this.prisma.walletDeposit.findFirst({
-          where: {
-            merchantId: membership.merchantId,
-            provider: body.provider,
-            status: 'PENDING',
-          },
-          orderBy: { createdAt: 'desc' },
-        });
+    const pendingDeposit =
+      existingDeposit?.status === 'PENDING'
+        ? existingDeposit
+        : await this.prisma.walletDeposit.findFirst({
+            where: {
+              merchantId: membership.merchantId,
+              provider: body.provider,
+              status: 'PENDING',
+            },
+            orderBy: { createdAt: 'desc' },
+          });
 
     // Check expiration for pending deposits
     if (pendingDeposit?.expiresAt && new Date() > pendingDeposit.expiresAt) {
@@ -398,23 +424,27 @@ export class WalletService {
         where: { id: pendingDeposit.id },
         data: { status: 'EXPIRED' },
       });
-      throw new BadRequestException('This deposit request has expired. Please create a new deposit request.');
+      throw new BadRequestException(
+        'This deposit request has expired. Please create a new deposit request.',
+      );
     }
 
     // Get active wallet deposit receiver account
     // If we have a pending deposit, use its receiver account, otherwise find one
     let receiverAccount;
     if (pendingDeposit) {
-      receiverAccount = await this.prisma.walletDepositReceiverAccount.findUnique({
-        where: { id: pendingDeposit.receiverAccountId },
-      });
+      receiverAccount =
+        await this.prisma.walletDepositReceiverAccount.findUnique({
+          where: { id: pendingDeposit.receiverAccountId },
+        });
     } else {
-      receiverAccount = await this.prisma.walletDepositReceiverAccount.findFirst({
-        where: {
-          provider: body.provider,
-          status: 'ACTIVE',
-        },
-      });
+      receiverAccount =
+        await this.prisma.walletDepositReceiverAccount.findFirst({
+          where: {
+            provider: body.provider,
+            status: 'ACTIVE',
+          },
+        });
     }
 
     if (!receiverAccount) {
@@ -439,7 +469,8 @@ export class WalletService {
       payloadRecord.success !== false;
 
     const txAmount = this.extractVerifierAmount(payloadRecord);
-    const txReceiverAccount = this.extractVerifierReceiverAccount(payloadRecord);
+    const txReceiverAccount =
+      this.extractVerifierReceiverAccount(payloadRecord);
     const txReceiverName = this.extractVerifierReceiverName(payloadRecord);
 
     // Check receiver account matches
@@ -543,6 +574,65 @@ export class WalletService {
 
       walletDeposit = result.deposit;
       walletTransaction = result.transaction;
+
+      // Send notifications for successful deposit
+      try {
+        // Get merchant details for notifications
+        const merchant = await this.prisma.merchant.findUnique({
+          where: { id: membership.merchantId },
+          select: {
+            name: true,
+            users: {
+              where: { role: 'MERCHANT_OWNER' },
+              select: { userId: true, email: true },
+            },
+          },
+        });
+
+        if (merchant) {
+          const depositDetails = {
+            amount: depositAmount.toNumber(),
+            provider: body.provider,
+            reference: body.reference,
+            newBalance: walletTransaction.balanceAfter.toNumber(),
+          };
+
+          // Notify merchant owner
+          const ownerUser = merchant.users.find((u) => u.userId);
+          if (ownerUser?.userId) {
+            await this.notificationService.notifyWalletDepositVerified(
+              membership.merchantId,
+              merchant.name,
+              ownerUser.userId,
+              depositDetails,
+            );
+          } else {
+            // Fallback to email if no userId
+            const ownerWithEmail = merchant.users.find((u) => u.email);
+            if (ownerWithEmail?.email) {
+              console.log(
+                `Owner userId not found for merchant ${membership.merchantId}, sending deposit notification directly to email: ${ownerWithEmail.email}`,
+              );
+              await this.notificationService.notifyWalletDepositVerifiedByEmail(
+                membership.merchantId,
+                merchant.name,
+                ownerWithEmail.email,
+                depositDetails,
+              );
+            }
+          }
+
+          // Notify admins
+          await this.notificationService.notifyAdminsWalletDeposit(
+            membership.merchantId,
+            merchant.name,
+            depositDetails,
+          );
+        }
+      } catch (error) {
+        console.error('Failed to send wallet deposit notifications:', error);
+        // Don't fail the deposit if notifications fail
+      }
     } else {
       // Create UNVERIFIED deposit record
       walletDeposit = await this.prisma.walletDeposit.upsert({
@@ -625,9 +715,7 @@ export class WalletService {
   /**
    * Admin: Set wallet deposit receiver account
    */
-  async setDepositReceiverAccount(
-    body: SetDepositReceiverDto,
-  ): Promise<any> {
+  async setDepositReceiverAccount(body: SetDepositReceiverDto): Promise<any> {
     const account = await this.prisma.walletDepositReceiverAccount.upsert({
       where: {
         wallet_deposit_receiver_unique: {
@@ -684,8 +772,7 @@ export class WalletService {
           amount,
           balanceBefore,
           balanceAfter,
-          description:
-            body.description || 'Manual deposit by admin',
+          description: body.description || 'Manual deposit by admin',
           metadata: {
             type: 'manual',
             description: body.description,
@@ -747,7 +834,12 @@ export class WalletService {
   async getTransactionHistory(
     merchantId: string,
     query: WalletTransactionHistoryDto,
-  ): Promise<{ transactions: any[]; total: number; page: number; pageSize: number }> {
+  ): Promise<{
+    transactions: any[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
     const page = Math.max(1, query.page || 1);
     const pageSize = Math.min(100, Math.max(1, query.pageSize || 20));
     const skip = (page - 1) * pageSize;
@@ -823,7 +915,8 @@ export class WalletService {
           balanceBefore,
           balanceAfter,
           description:
-            body.description || `Balance adjustment: ${amount.gte(0) ? '+' : ''}${amount.toFixed(2)} ETB`,
+            body.description ||
+            `Balance adjustment: ${amount.gte(0) ? '+' : ''}${amount.toFixed(2)} ETB`,
           metadata: {
             type: 'adjustment',
             description: body.description,
@@ -1020,4 +1113,3 @@ export class WalletService {
     };
   }
 }
-
