@@ -444,7 +444,7 @@ export default function WebhooksPage() {
             Events that trigger webhook notifications
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Payment Verified Event */}
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
             <div className="flex items-center gap-3 mb-2">
@@ -472,6 +472,51 @@ export default function WebhooksPage() {
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400">
               Triggered when payment verification fails
+            </p>
+          </div>
+
+          {/* Payment Duplicate Event */}
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                <AlertIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                payment.duplicate
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Triggered when a duplicate payment is detected
+            </p>
+          </div>
+
+          {/* Wallet Charged Event */}
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                <InfoIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                wallet.charged
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Triggered when wallet is charged for verification fee
+            </p>
+          </div>
+
+          {/* Wallet Insufficient Event */}
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                <AlertIcon className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                wallet.insufficient
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Triggered when wallet has insufficient balance
             </p>
           </div>
 
@@ -577,25 +622,25 @@ $data = json_decode($payload, true);
         </div>
         <div className="space-y-3">
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Always verify the signature before processing
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Return a 2xx status code quickly to acknowledge receipt
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Process webhooks asynchronously if needed
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Handle duplicate events idempotently using payment reference
             </p>

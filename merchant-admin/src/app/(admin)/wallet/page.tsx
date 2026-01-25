@@ -281,9 +281,9 @@ export default function WalletPage() {
           </div>
           <Button
             onClick={handleTopUp}
-            className="bg-white text-blue-600 hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:hover:bg-blue-50 px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+            className="bg-white hover:bg-gray-50 px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-lg border border-white/20"
           >
-            Top Up
+            <span className="text-blue-600 font-semibold">Top Up</span>
           </Button>
         </div>
       </div>
