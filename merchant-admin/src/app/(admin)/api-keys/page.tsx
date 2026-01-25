@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
-import { EyeIcon, EyeCloseIcon, CopyIcon, AlertIcon } from "@/icons";
+import { EyeIcon, EyeCloseIcon, CopyIcon, AlertIcon, InfoIcon } from "@/icons";
 import {
   useListApiKeysQuery,
   useCreateApiKeyMutation,
@@ -291,7 +291,7 @@ export default function ApiKeysPage() {
         </div>
 
         {/* Verify Payment Example */}
-        <div>
+        <div className="mb-6">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
             Verify Payment
           </h3>
@@ -311,12 +311,38 @@ Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(
             Replace the masked key with your actual API key in the Authorization header.
           </p>
         </div>
+
+        {/* Get Verification History Example */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+            Get Verification History
+          </h3>
+          <CodeBlock
+            code={`GET /api/v1/payments/verification-history?page=1&pageSize=10
+Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(displayKey)}`}
+          />
+        </div>
+
+        {/* Get Active Receiver Accounts Example */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+            Get Active Receiver Accounts
+          </h3>
+          <CodeBlock
+            code={`GET /api/v1/payments/receiver-accounts/active
+Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(displayKey)}
+
+# Or for specific provider:
+GET /api/v1/payments/receiver-accounts/active?provider=CBE
+Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(displayKey)}`}
+          />
+        </div>
       </div>
 
       {/* Security Notice */}
       <div className="rounded-xl border border-warning-200 bg-warning-50 dark:border-warning-800 dark:bg-warning-900/20 p-6">
         <div className="flex items-start gap-3">
-          <AlertIcon className="w-5 h-5 text-warning-600 dark:text-warning-400 flex-shrink-0 mt-0.5" />
+          <AlertIcon className="w-5 h-5 text-warning-600 dark:text-warning-400 shrink-0 mt-0.5" />
           <div>
             <h3 className="text-sm font-semibold text-warning-800 dark:text-warning-300 mb-1">
               Security Notice
@@ -325,6 +351,26 @@ Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(
               Keep your API key secure and never share it publicly. If you believe your key has been
               compromised, regenerate it immediately.
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Rate Limiting Information */}
+      <div className="rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 p-6">
+        <div className="flex items-start gap-3">
+          <InfoIcon className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
+              Rate Limiting
+            </h3>
+            <p className="text-sm text-blue-800 dark:text-blue-300 mb-2">
+              API requests are rate-limited to prevent abuse:
+            </p>
+            <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
+              <li>• <strong>10 requests per minute</strong> per API key</li>
+              <li>• Rate limit resets every 60 seconds</li>
+              <li>• HTTP 429 status code returned when limit exceeded</li>
+            </ul>
           </div>
         </div>
       </div>

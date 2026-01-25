@@ -18,17 +18,20 @@ import {
   ApiCookieAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import type { Request } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { UpdateWebhookDto } from './dto/update-webhook.dto';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { ApiKeyOrSessionGuard } from '../api-keys/guards/api-key-or-session.guard';
 
 @ApiTags('webhooks')
 @ApiBearerAuth('bearer')
 @ApiCookieAuth('better-auth.session_token')
 @Controller('webhooks')
-@UseGuards(ThrottlerGuard)
+@AllowAnonymous()
+@UseGuards(ApiKeyOrSessionGuard, ThrottlerGuard)
 export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}
 

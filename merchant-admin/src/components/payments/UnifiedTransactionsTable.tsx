@@ -13,7 +13,8 @@ import Link from "next/link";
 import { useListTransactionsQuery } from "@/lib/services/transactionsServiceApi";
 import { useListVerificationHistoryQuery, type TransactionProvider } from "@/lib/services/paymentsServiceApi";
 import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Eye, Receipt } from "lucide-react";
+import { EyeIcon, DocsIcon } from "@/icons";
 
 /**
  * Generate bank receipt URL based on provider and transaction reference
@@ -101,7 +102,7 @@ export default function UnifiedTransactionsTable() {
       status: tx.status,
       createdAt: tx.createdAt || "",
       verifiedAt: tx.verifiedAt,
-      verifiedBy: tx.verifiedBy?.name || tx.verifiedBy?.email || null,
+      verifiedBy: tx.verifiedBy?.name || tx.verifiedBy?.email || "API/System", // Show API/System instead of null
       type: "transaction" as const,
     }));
 
@@ -147,7 +148,7 @@ export default function UnifiedTransactionsTable() {
         tipAmount: p.tipAmount ? Number(p.tipAmount) : undefined,
         createdAt: p.verifiedAt || "",
         verifiedAt: p.verifiedAt,
-        verifiedBy: p.verifiedBy?.name || p.verifiedBy?.email || null,
+        verifiedBy: p.verifiedBy?.name || p.verifiedBy?.email || "API/System", // Show API/System instead of null
         type: "payment" as const,
         receiptUrl,
         paymentMethod,
@@ -306,25 +307,29 @@ export default function UnifiedTransactionsTable() {
                       {record.createdAt ? new Date(record.createdAt).toLocaleString() : "—"}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-gray-700 dark:text-gray-300 text-sm">
-                      {record.verifiedBy || "—"}
+                      {record.verifiedBy || "API/System"}
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <Link
                           href={`/payments/${record.id}`}
-                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          title="View Details"
                         >
-                          View
+                          <EyeIcon className="w-4 h-4" />
+                          <span>View</span>
                         </Link>
                         {record.paymentMethod !== 'cash' && record.receiptUrl && (
                           <a
                             href={record.receiptUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                            title="View Receipt"
                           >
-                            View Receipt
-                            <ExternalLink className="size-3" />
+                            <DocsIcon className="w-4 h-4" />
+                            <span>Receipt</span>
+                            <ExternalLink className="w-3 h-3" />
                           </a>
                         )}
                       </div>

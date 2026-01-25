@@ -435,6 +435,7 @@ export class PaymentsService {
           receiverAccount: { connect: { id: activeReceiver.id } },
           verificationPayload: normalizedPayload as Prisma.InputJsonValue,
           verifiedAt: new Date(),
+          // Set verifiedBy based on authentication type
           ...(membership.merchantUserId
             ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
             : {}),
@@ -454,7 +455,7 @@ export class PaymentsService {
             },
           },
           provider: body.provider,
-          reference: effectiveReference,
+          reference: body.reference, // Store the original user-entered reference
           claimedAmount,
           tipAmount,
           status,
@@ -462,6 +463,7 @@ export class PaymentsService {
           receiverAccount: { connect: { id: activeReceiver.id } },
           verificationPayload: normalizedPayload as Prisma.InputJsonValue,
           verifiedAt: new Date(),
+          // Set verifiedBy based on authentication type
           ...(membership.merchantUserId
             ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
             : {}),

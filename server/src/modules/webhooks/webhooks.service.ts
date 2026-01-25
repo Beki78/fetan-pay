@@ -25,9 +25,17 @@ export class WebhooksService {
   ) {}
 
   /**
-   * Get merchant ID from request (for session-based auth)
+   * Get merchant ID from request (supports both API key and session auth)
    */
   private async getMerchantIdFromRequest(req: Request): Promise<string> {
+    // Check if API key authentication was used
+    const reqWithAuth = req as any;
+    if (reqWithAuth.authType === 'api_key' && reqWithAuth.merchantId) {
+      // API key authentication - return merchant ID directly
+      return reqWithAuth.merchantId;
+    }
+
+    // Fall back to session authentication (Better Auth)
     const membership = await this.merchantUsersService.me(req);
     const membershipData = membership as any;
     const merchantId = membershipData.membership?.merchant?.id;
@@ -59,10 +67,15 @@ export class WebhooksService {
   async createWebhook(dto: CreateWebhookDto, req: Request) {
     const merchantId = await this.getMerchantIdFromRequest(req);
 
-    // Get merchant user ID who is creating the webhook
-    const membership = await this.merchantUsersService.me(req);
-    const membershipData = membership as any;
-    const merchantUserId = membershipData.membership?.id;
+    // Get merchant user ID who is creating the webhook (only for session auth)
+    let merchantUserId = null;
+    const reqWithAuth = req as any;
+    if (reqWithAuth.authType !== 'api_key') {
+      // Only get merchant user ID for session authentication
+      const membership = await this.merchantUsersService.me(req);
+      const membershipData = membership as any;
+      merchantUserId = membershipData.membership?.id;
+    }
 
     // Check if merchant exists and is active
     const merchant = await this.prisma.merchant.findUnique({
@@ -95,7 +108,7 @@ export class WebhooksService {
         maxRetries: dto.maxRetries ?? 3,
         timeout: dto.timeout ?? 30000,
         status: 'ACTIVE',
-        createdBy: merchantUserId || null,
+        createdBy: merchantUserId,
       },
       select: {
         id: true,

@@ -25,6 +25,7 @@ import {
   ApiCookieAuth,
   ApiConsumes,
 } from '@nestjs/swagger';
+import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import type { Request } from 'express';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
@@ -63,6 +64,7 @@ export class PaymentsController {
   }
 
   @Get('receiver-accounts/active')
+  @AllowAnonymous()
   @ApiOperation({
     summary: 'Get the merchant active receiver account for a provider (or all providers)',
     description:
@@ -79,6 +81,7 @@ export class PaymentsController {
     description: 'Active receiver account(s) retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseGuards(ApiKeyOrSessionGuard)
   async getActiveReceiver(
     @Query('provider') provider: string | undefined,
     @Req() req: Request,
@@ -209,6 +212,7 @@ export class PaymentsController {
   }
 
   @Post('verify')
+  @AllowAnonymous()
   @ApiOperation({
     summary:
       'Verify a payment by provider+reference+amount against the merchant configured receiver account',
@@ -233,7 +237,7 @@ export class PaymentsController {
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 429, description: 'Too many requests (rate limited)' })
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ApiKeyOrSessionGuard, ThrottlerGuard)
   async verifyMerchantPayment(
     @Body() body: VerifyMerchantPaymentDto,
     @Req() req: Request,
@@ -242,6 +246,7 @@ export class PaymentsController {
   }
 
   @Get('verification-history')
+  @AllowAnonymous()
   @ApiOperation({
     summary: 'List merchant payment verification history',
     description: 'Retrieves paginated list of payment verification history for the authenticated merchant.',
@@ -251,6 +256,7 @@ export class PaymentsController {
     description: 'Verification history retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseGuards(ApiKeyOrSessionGuard)
   async listVerificationHistory(
     @Query() query: ListVerificationHistoryDto,
     @Req() req: Request,
