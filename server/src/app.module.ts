@@ -23,6 +23,8 @@ import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { NotificationModule } from './modules/notifications/notification.module';
+import { IPAddressesModule } from './modules/ip-addresses/ip-addresses.module';
+import { AdminWebhooksModule } from './modules/admin-webhooks/admin-webhooks.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -49,6 +51,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
     WebhooksModule,
     CommunicationsModule,
     NotificationModule,
+    IPAddressesModule,
+    AdminWebhooksModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

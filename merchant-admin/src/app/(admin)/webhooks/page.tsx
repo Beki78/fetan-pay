@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import {
@@ -12,6 +12,7 @@ import {
   CopyIcon,
 } from "@/icons";
 import RegenerateSecretModal from "@/components/webhooks/RegenerateSecretModal";
+import IPWhitelistManager from "@/components/webhooks/IPWhitelistManager";
 import {
   useListWebhooksQuery,
   useCreateWebhookMutation,
@@ -344,6 +345,9 @@ export default function WebhooksPage() {
           </div>
         </div>
       )}
+
+      {/* IP Address Whitelisting Section */}
+      <IPWhitelistManager />
 
       {/* Recent Deliveries Section */}
       <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">

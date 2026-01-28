@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import { useGetWalletTransactionsQuery } from "@/lib/services/walletServiceApi";
 import Button from "@/components/ui/button/Button";
 

@@ -29,7 +29,10 @@ export class ApiKeyGuard implements CanActivate {
 
     try {
       // Validate API key and get merchant info
-      const validation = await this.apiKeysService.validateApiKey(apiKey);
+      const validation = await this.apiKeysService.validateApiKey(
+        apiKey,
+        request,
+      );
 
       // Attach merchant context to request
       // This mimics the session-based auth structure

@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import UserTable from "@/components/users/UserTable";
 import UserModal from "@/components/users/UserModal";
 import QRCodeModal from "@/components/users/QRCodeModal";

@@ -204,6 +204,10 @@ model Merchant {
   apiKeys              ApiKey[]
   webhooks             Webhook[]
 
+  // IP Whitelisting
+  ipWhitelistEnabled   Boolean     @default(false)
+  ipAddresses          IpAddress[]
+
   // Email Communications
   emailLogs            EmailLog[]
   smsLogs              SmsLog[]
@@ -968,11 +972,18 @@ enum NotificationType {
   SYSTEM_ALERT
   CAMPAIGN_COMPLETED
   BRANDING_UPDATED
+  IP_ADDRESS_DISABLED
+  IP_ADDRESS_ENABLED
 }
 
 enum NotificationUserType {
   ADMIN
   MERCHANT_USER
+}
+
+enum IPAddressStatus {
+  ACTIVE
+  INACTIVE
 }
 
 model Notification {
@@ -1009,4 +1020,22 @@ model Notification {
   @@index([priority])
   @@index([createdAt])
   @@map("notification")
+}
+
+model IpAddress {
+  id          String          @id @default(uuid())
+  merchantId  String
+  merchant    Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  ipAddress   String          // IP address or CIDR range (e.g., "192.168.1.100" or "192.168.1.0/24")
+  description String?         // Optional description
+  status      IPAddressStatus @default(ACTIVE)
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  @@index([merchantId])
+  @@index([merchantId, status])
+  @@unique([merchantId, ipAddress], name: "merchant_ip_unique")
+  @@map("ip_address")
 }

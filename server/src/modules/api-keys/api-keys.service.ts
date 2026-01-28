@@ -217,10 +217,139 @@ export class ApiKeysService {
   }
 
   /**
+   * Extract client IP address from request
+   */
+  private getClientIP(req: Request): string {
+    // Check various headers for the real IP address
+    const forwarded = req.headers['x-forwarded-for'] as string;
+    const realIP = req.headers['x-real-ip'] as string;
+    const cfConnectingIP = req.headers['cf-connecting-ip'] as string;
+
+    if (forwarded) {
+      // X-Forwarded-For can contain multiple IPs, take the first one
+      return forwarded.split(',')[0].trim();
+    }
+
+    if (realIP) {
+      return realIP;
+    }
+
+    if (cfConnectingIP) {
+      return cfConnectingIP;
+    }
+
+    // Fallback to socket remote address
+    const socketIP = req.socket.remoteAddress || 'unknown';
+
+    // Convert IPv6 localhost to IPv4 localhost for consistency
+    if (socketIP === '::1') {
+      return '127.0.0.1';
+    }
+
+    // Remove IPv6 prefix if present (::ffff:192.168.1.1 -> 192.168.1.1)
+    if (socketIP.startsWith('::ffff:')) {
+      return socketIP.substring(7);
+    }
+
+    return socketIP;
+  }
+
+  /**
+   * Simple IP range checking function
+   */
+  private isIPInRange(ip: string, range: string): boolean {
+    if (range.includes('/')) {
+      // CIDR notation
+      const [rangeIP, prefixLength] = range.split('/');
+      const prefix = parseInt(prefixLength, 10);
+
+      // Convert IP addresses to integers for comparison
+      const ipToInt = (ipStr: string) => {
+        return (
+          ipStr
+            .split('.')
+            .reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0
+        );
+      };
+
+      const ipInt = ipToInt(ip);
+      const rangeInt = ipToInt(rangeIP);
+      const mask = (0xffffffff << (32 - prefix)) >>> 0;
+
+      return (ipInt & mask) === (rangeInt & mask);
+    } else {
+      // Exact match
+      return ip === range;
+    }
+  }
+
+  /**
+   * Check if an IP address is allowed for a merchant
+   */
+  private async isIPAllowed(
+    merchantId: string,
+    clientIP: string,
+  ): Promise<boolean> {
+    try {
+      // Get merchant's IP whitelist settings
+      const merchant = await this.prisma.merchant.findUnique({
+        where: { id: merchantId },
+        select: {
+          ipWhitelistEnabled: true,
+        },
+      });
+
+      if (!merchant) {
+        return false;
+      }
+
+      // If IP whitelisting is not enabled, allow all IPs
+      if (!merchant.ipWhitelistEnabled) {
+        return true;
+      }
+
+      // Get IP addresses for this merchant
+      const ipAddresses = await this.prisma.ipAddress.findMany({
+        where: {
+          merchantId,
+          status: 'ACTIVE',
+        },
+      });
+
+      // If no IP addresses are configured, deny access
+      if (!ipAddresses || ipAddresses.length === 0) {
+        return false;
+      }
+
+      // Check if client IP matches any of the allowed IPs/ranges
+      for (const allowedIP of ipAddresses) {
+        try {
+          if (this.isIPInRange(clientIP, allowedIP.ipAddress)) {
+            return true;
+          }
+        } catch (error) {
+          // If IP range check fails, try exact match
+          if (clientIP === allowedIP.ipAddress) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    } catch (error) {
+      // If there's any error with IP checking, allow the request
+      // This ensures backward compatibility
+      return true;
+    }
+  }
+  /**
    * Validate API key and return merchant info
    * Used by API key guard
    */
-  async validateApiKey(key: string): Promise<{
+  async validateApiKey(
+    key: string,
+    req?: Request,
+  ): Promise<{
     merchantId: string;
     apiKeyId: string;
     scopes: string[];
@@ -256,6 +385,25 @@ export class ApiKeysService {
     // Check if merchant is active
     if (apiKey.merchant.status !== 'ACTIVE') {
       throw new ForbiddenException('Merchant account is not active');
+    }
+
+    // Check IP whitelisting if request is provided
+    if (req) {
+      const clientIP = this.getClientIP(req);
+      const isAllowed = await this.isIPAllowed(apiKey.merchantId, clientIP);
+
+      if (!isAllowed) {
+        let errorMessage: string;
+
+        // If the request is coming from localhost, guide user to add their public IP
+        if (clientIP === '127.0.0.1' || clientIP === '::1') {
+          errorMessage = `Your request is coming from localhost (${clientIP}). For security, please add your actual public IP address to the whitelist instead. You can find your public IP at https://whatismyipaddress.com or by running 'curl https://api.ipify.org' in your terminal. Then go to the dashboard → webhook page → IP Address Whitelisting to add your public IP.`;
+        } else {
+          errorMessage = `Your IP address (${clientIP}) is not whitelisted. Please go to the dashboard and open the webhook page and on the IP Address Whitelisting add your IP address: ${clientIP}`;
+        }
+
+        throw new ForbiddenException(errorMessage);
+      }
     }
 
     // Update last used timestamp

@@ -19,7 +19,9 @@ export type NotificationType =
   | 'WEBHOOK_FAILED'
   | 'SYSTEM_ALERT'
   | 'CAMPAIGN_COMPLETED'
-  | 'BRANDING_UPDATED';
+  | 'BRANDING_UPDATED'
+  | 'IP_ADDRESS_DISABLED'
+  | 'IP_ADDRESS_ENABLED';
 
 export type NotificationUserType = 'ADMIN' | 'MERCHANT_USER';
 
@@ -955,5 +957,268 @@ export class NotificationService {
       data: { merchantId, merchantName, updatedElements },
       sendEmail: false, // In-app notification only as per requirements
     });
+  }
+
+  /**
+   * Notify merchant about IP address being disabled by admin
+   */
+  async notifyIPAddressDisabled(
+    merchantId: string,
+    merchantName: string,
+    ownerUserId: string,
+    ipAddress: string,
+    reason?: string,
+  ) {
+    await this.createNotification({
+      userId: ownerUserId,
+      userType: 'MERCHANT_USER',
+      merchantId,
+      type: 'IP_ADDRESS_DISABLED',
+      title: 'IP Address Disabled',
+      message: `Your IP address ${ipAddress} has been disabled by an administrator. ${reason ? `Reason: ${reason}` : 'This may affect your API access. Please contact support if you need assistance.'}`,
+      priority: 'HIGH',
+      data: { merchantId, merchantName, ipAddress, reason },
+      sendEmail: true,
+      emailTemplate: 'ip-address-disabled',
+      emailVariables: {
+        merchantName,
+        ipAddress,
+        reason: reason || 'No specific reason provided',
+      },
+    });
+  }
+
+  /**
+   * Send IP address disabled notification directly to email (fallback when no Better Auth user exists)
+   */
+  async notifyIPAddressDisabledByEmail(
+    merchantId: string,
+    merchantName: string,
+    ownerEmail: string,
+    ipAddress: string,
+    reason?: string,
+  ) {
+    try {
+      // Get email template
+      const emailTemplate = await (this.prisma as any).emailTemplate.findFirst({
+        where: {
+          name: 'ip-address-disabled',
+          isActive: true,
+        },
+      });
+
+      if (!emailTemplate) {
+        this.logger.warn(
+          `Email template 'ip-address-disabled' not found or inactive`,
+        );
+        // Send a basic email without template
+        const subject = 'IP Address Disabled - FetanPay';
+        const content = `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+            <h2 style="margin-bottom: 12px;">IP Address Disabled</h2>
+            <p>Dear ${merchantName},</p>
+            <p>Your IP address <strong>${ipAddress}</strong> has been disabled by an administrator.</p>
+            ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+            <p>This may affect your API access. Please contact support if you need assistance.</p>
+            <hr style="margin: 24px 0; border: none; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0; color: #475569; font-size: 14px;">
+              This is an automated notification from FetanPay.
+            </p>
+          </div>
+        `;
+
+        await this.emailService.sendNotificationEmail(
+          ownerEmail,
+          subject,
+          content,
+        );
+
+        this.logger.log(
+          `IP address disabled email sent directly to ${ownerEmail}`,
+        );
+        return;
+      }
+
+      const variables = {
+        merchantName,
+        ipAddress,
+        reason: reason || 'No specific reason provided',
+      };
+      const subject = this.substituteVariables(
+        emailTemplate.subject,
+        variables,
+      );
+      const content = this.substituteVariables(
+        emailTemplate.content,
+        variables,
+      );
+
+      // Create email log entry
+      const emailLog = await (this.prisma as any).emailLog.create({
+        data: {
+          toEmail: ownerEmail,
+          subject,
+          content,
+          templateId: emailTemplate.id,
+          merchantId: merchantId,
+          sentByUserId: 'system',
+          status: 'PENDING',
+        },
+      });
+
+      // Send email directly
+      await this.emailService.sendNotificationEmail(
+        ownerEmail,
+        subject,
+        content,
+      );
+
+      // Update email log status
+      await (this.prisma as any).emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+
+      this.logger.log(
+        `IP address disabled email sent directly to ${ownerEmail}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send IP address disabled email to ${ownerEmail}: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Notify merchant about IP address being enabled by admin
+   */
+  async notifyIPAddressEnabled(
+    merchantId: string,
+    merchantName: string,
+    ownerUserId: string,
+    ipAddress: string,
+  ) {
+    await this.createNotification({
+      userId: ownerUserId,
+      userType: 'MERCHANT_USER',
+      merchantId,
+      type: 'IP_ADDRESS_ENABLED',
+      title: 'IP Address Enabled',
+      message: `Your IP address ${ipAddress} has been enabled by an administrator. You can now make API requests from this IP address.`,
+      priority: 'MEDIUM',
+      data: { merchantId, merchantName, ipAddress },
+      sendEmail: true,
+      emailTemplate: 'ip-address-enabled',
+      emailVariables: {
+        merchantName,
+        ipAddress,
+      },
+    });
+  }
+
+  /**
+   * Send IP address enabled notification directly to email (fallback when no Better Auth user exists)
+   */
+  async notifyIPAddressEnabledByEmail(
+    merchantId: string,
+    merchantName: string,
+    ownerEmail: string,
+    ipAddress: string,
+  ) {
+    try {
+      // Get email template
+      const emailTemplate = await (this.prisma as any).emailTemplate.findFirst({
+        where: {
+          name: 'ip-address-enabled',
+          isActive: true,
+        },
+      });
+
+      if (!emailTemplate) {
+        this.logger.warn(
+          `Email template 'ip-address-enabled' not found or inactive`,
+        );
+        // Send a basic email without template
+        const subject = 'IP Address Enabled - FetanPay';
+        const content = `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+            <h2 style="margin-bottom: 12px;">IP Address Enabled</h2>
+            <p>Dear ${merchantName},</p>
+            <p>Your IP address <strong>${ipAddress}</strong> has been enabled by an administrator.</p>
+            <p>You can now make API requests from this IP address.</p>
+            <hr style="margin: 24px 0; border: none; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0; color: #475569; font-size: 14px;">
+              This is an automated notification from FetanPay.
+            </p>
+          </div>
+        `;
+
+        await this.emailService.sendNotificationEmail(
+          ownerEmail,
+          subject,
+          content,
+        );
+
+        this.logger.log(
+          `IP address enabled email sent directly to ${ownerEmail}`,
+        );
+        return;
+      }
+
+      const variables = {
+        merchantName,
+        ipAddress,
+      };
+      const subject = this.substituteVariables(
+        emailTemplate.subject,
+        variables,
+      );
+      const content = this.substituteVariables(
+        emailTemplate.content,
+        variables,
+      );
+
+      // Create email log entry
+      const emailLog = await (this.prisma as any).emailLog.create({
+        data: {
+          toEmail: ownerEmail,
+          subject,
+          content,
+          templateId: emailTemplate.id,
+          merchantId: merchantId,
+          sentByUserId: 'system',
+          status: 'PENDING',
+        },
+      });
+
+      // Send email directly
+      await this.emailService.sendNotificationEmail(
+        ownerEmail,
+        subject,
+        content,
+      );
+
+      // Update email log status
+      await (this.prisma as any).emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+
+      this.logger.log(
+        `IP address enabled email sent directly to ${ownerEmail}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send IP address enabled email to ${ownerEmail}: ${error.message}`,
+        error.stack,
+      );
+    }
   }
 }
