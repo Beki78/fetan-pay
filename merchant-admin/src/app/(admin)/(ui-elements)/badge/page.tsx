@@ -1,4 +1,4 @@
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import Badge from "@/components/ui/badge/Badge";
 import { PlusIcon } from "@/icons";
 import { Metadata } from "next";

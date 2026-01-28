@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ApiKeyGuard } from './api-key.guard';
 import { ApiKeysService } from '../api-keys.service';
 
@@ -24,7 +29,12 @@ export class ApiKeyOrSessionGuard implements CanActivate {
         // Try API key authentication
         return await this.apiKeyGuard.canActivate(context);
       } catch (error) {
-        // If API key auth fails, fall through to session auth
+        // If it's an IP whitelisting error, don't fall back to session auth
+        // Re-throw the ForbiddenException so the user gets the proper error message
+        if (error instanceof ForbiddenException) {
+          throw error;
+        }
+        // For other API key errors, fall through to session auth
         // Better Auth will handle session authentication
       }
     }

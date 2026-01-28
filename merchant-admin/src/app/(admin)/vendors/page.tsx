@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import VendorTable from "@/components/vendors/VendorTable";
 import VendorModal from "@/components/vendors/VendorModal";
 import Button from "@/components/ui/button/Button";

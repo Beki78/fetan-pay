@@ -318,6 +318,104 @@ async function seedNotificationTemplates() {
       variables: ['merchantName', 'updatedElements'],
       isSystem: true,
     },
+    {
+      name: 'ip-address-disabled',
+      category: 'NOTIFICATION' as EmailTemplateCategory,
+      subject: 'IP Address Disabled - Security Alert',
+      content: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto;">
+          <div style="background: #EF4444; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; color: white; font-size: 24px;">🔒 IP Address Disabled</h1>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Hello {{merchantName}},</h2>
+            
+            <p style="margin: 16px 0;">We're writing to inform you that one of your whitelisted IP addresses has been disabled by our administrators.</p>
+            
+            <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #EF4444;">
+              <h3 style="margin: 0 0 12px 0; color: #991b1b;">Disabled IP Address:</h3>
+              <p style="margin: 4px 0; color: #991b1b; font-family: monospace; font-size: 16px; font-weight: bold;">{{ipAddress}}</p>
+              <h3 style="margin: 16px 0 8px 0; color: #991b1b;">Reason:</h3>
+              <p style="margin: 0; color: #991b1b;">{{reason}}</p>
+            </div>
+            
+            <div style="background: #fff7ed; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #F59E0B;">
+              <h3 style="margin: 0 0 12px 0; color: #92400e;">⚠️ Important:</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #92400e;">
+                <li>API requests from this IP address will now be blocked</li>
+                <li>This may affect your payment processing if you're using this IP</li>
+                <li>Other whitelisted IP addresses remain active</li>
+              </ul>
+            </div>
+            
+            <p style="margin: 16px 0;">If you believe this is an error or need to restore access from this IP address, please contact our support team immediately.</p>
+            
+            <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
+              <p style="margin: 0; color: #1e40af; font-size: 14px;">
+                <strong>💡 Need Help?</strong> You can view and manage your IP addresses in your merchant dashboard under Security Settings.
+              </p>
+            </div>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e2e8f0;">
+            
+            <p style="margin: 0; color: #64748b; font-size: 14px; text-align: center;">
+              This is an automated security notification from FetanPay.
+            </p>
+          </div>
+        </div>
+      `,
+      variables: ['merchantName', 'ipAddress', 'reason'],
+      isSystem: true,
+    },
+    {
+      name: 'ip-address-enabled',
+      category: 'NOTIFICATION' as EmailTemplateCategory,
+      subject: 'IP Address Enabled - Access Restored',
+      content: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto;">
+          <div style="background: #10B981; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; color: white; font-size: 24px;">🔓 IP Address Enabled</h1>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Hello {{merchantName}},</h2>
+            
+            <p style="margin: 16px 0;">Good news! One of your IP addresses has been enabled by our administrators and is now active for API access.</p>
+            
+            <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+              <h3 style="margin: 0 0 12px 0; color: #166534;">Enabled IP Address:</h3>
+              <p style="margin: 4px 0; color: #166534; font-family: monospace; font-size: 16px; font-weight: bold;">{{ipAddress}}</p>
+            </div>
+            
+            <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
+              <h3 style="margin: 0 0 12px 0; color: #1e40af;">✅ What this means:</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #1e40af;">
+                <li>You can now make API requests from this IP address</li>
+                <li>Payment processing from this IP is fully restored</li>
+                <li>All FetanPay API endpoints are accessible</li>
+              </ul>
+            </div>
+            
+            <p style="margin: 16px 0;">Your API access from this IP address is now fully functional. You can resume normal operations immediately.</p>
+            
+            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #64748b;">
+              <p style="margin: 0; color: #475569; font-size: 14px;">
+                <strong>💡 Reminder:</strong> You can view and manage all your IP addresses in your merchant dashboard under Security Settings.
+              </p>
+            </div>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e2e8f0;">
+            
+            <p style="margin: 0; color: #64748b; font-size: 14px; text-align: center;">
+              This is an automated notification from FetanPay.
+            </p>
+          </div>
+        </div>
+      `,
+      variables: ['merchantName', 'ipAddress'],
+      isSystem: true,
+    },
   ];
 
   for (const template of templates) {

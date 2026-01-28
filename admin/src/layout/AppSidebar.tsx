@@ -20,6 +20,7 @@ import {
   TaskIcon,
   DocsIcon,
   BellIcon,
+  WebhookIcon,
 } from "../icons/index";
 
 // Custom icon components for better representation
@@ -237,6 +238,11 @@ const mainItems: NavItem[] = [
     icon: <PieChartIcon />,
     name: "Plan Stats",
     path: "/plan-stats",
+  },
+  {
+    icon: <WebhookIcon />,
+    name: "Webhooks",
+    path: "/webhooks-management",
   },
   {
     icon: <BoltIcon />,

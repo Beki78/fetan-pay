@@ -1,4 +1,4 @@
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import CheckboxComponents from "@/components/form/form-elements/CheckboxComponents";
 import DefaultInputs from "@/components/form/form-elements/DefaultInputs";
 import DropzoneComponent from "@/components/form/form-elements/DropZone";

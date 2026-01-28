@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import TipsOverview from "@/components/tips/TipsOverview";
 import TipsByVendor from "@/components/tips/TipsByVendor";
 import TipsByTransaction from "@/components/tips/TipsByTransaction";
