@@ -20,7 +20,9 @@ import {
   TaskIcon,
   DocsIcon,
   BellIcon,
+  NotificationBellIcon,
   WebhookIcon,
+  ChatIcon,
 } from "../icons/index";
 
 // Custom icon components for better representation
@@ -48,7 +50,7 @@ const NotificationMenuItem = ({ isExpanded, isHovered, isMobileOpen, pathname }:
             : "menu-item-icon-inactive"
         }`}
       >
-        <BellIcon />
+        <NotificationBellIcon />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center min-w-4 text-[10px] font-medium">
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -221,7 +223,7 @@ const mainItems: NavItem[] = [
   path: "/users",
   },
   {
-    icon: <PaperPlaneIcon />,
+    icon: <ChatIcon />,
     name: "Communications",
     path: "/communications",
   },
@@ -240,7 +242,7 @@ const mainItems: NavItem[] = [
     path: "/plan-stats",
   },
   {
-    icon: <WebhookIcon />,
+    icon: <PaperPlaneIcon />,
     name: "Webhooks",
     path: "/webhooks-management",
   },

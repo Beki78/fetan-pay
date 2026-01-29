@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import { useGetStatisticsTrendQuery } from "@/lib/services/dashboardServiceApi";
@@ -122,7 +122,7 @@ export default function StatisticsChart({ period }: StatisticsChartProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
+      <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Statistics
@@ -137,20 +137,38 @@ export default function StatisticsChart({ period }: StatisticsChartProps) {
   }
 
   if (isError) {
+    // Don't show error messages on analytics - just show empty state with empty chart
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 px-5 pb-5 pt-5 dark:border-red-800 dark:bg-red-900/20 sm:px-6 sm:pt-6">
+      <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Statistics
           </h3>
+          <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">
+            Revenue, Users, and Tips trend
+          </p>
         </div>
-        <p className="text-red-600 dark:text-red-400">Failed to load statistics.</p>
+
+        <div className="max-w-full overflow-x-auto custom-scrollbar">
+          <div className="min-w-[600px] xl:min-w-full">
+            <ReactApexChart
+              options={options}
+              series={[
+                { name: "Revenue", data: [] },
+                { name: "Users", data: [] },
+                { name: "Tips", data: [] },
+              ]}
+              type="area"
+              height={310}
+            />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
+    <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
           Statistics

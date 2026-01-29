@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import { EyeIcon, EyeCloseIcon, CopyIcon, AlertIcon, InfoIcon } from "@/icons";
 import {
   useListApiKeysQuery,
@@ -12,6 +13,7 @@ import { toast } from "sonner";
 import GenerateKeyModal from "@/components/api/GenerateKeyModal";
 import RevokeKeyModal from "@/components/api/RevokeKeyModal";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 
 interface CodeBlockProps {
   code: string;
@@ -47,13 +49,11 @@ function CodeBlock({ code, language }: CodeBlockProps) {
 }
 
 export default function ApiKeysPage() {
+  // All hooks must be called at the top level, before any early returns
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const { data: apiKeys = [], isLoading, refetch } = useListApiKeysQuery();
   const [createApiKey, { isLoading: isCreating }] = useCreateApiKeyMutation();
   const [revokeApiKey, { isLoading: isRevoking }] = useRevokeApiKeyMutation();
-
-  // Get the first active API key
-  const currentApiKey = apiKeys.find((key) => key.status === "ACTIVE") || apiKeys[0] || null;
-
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -61,7 +61,10 @@ export default function ApiKeysPage() {
   const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
 
-  // Store newly created key in localStorage so we can show it
+  // Get the first active API key
+  const currentApiKey = apiKeys.find((key) => key.status === "ACTIVE") || apiKeys[0] || null;
+
+  // Store newly created key in localStorage so we can show it - must be called before early returns
   useEffect(() => {
     const storedKey = localStorage.getItem("fetanpay_new_api_key");
     if (storedKey) {
@@ -81,6 +84,20 @@ export default function ApiKeysPage() {
       setApiKeyValue("");
     }
   }, [currentApiKey, newlyCreatedKey]);
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const handleCopy = () => {
     // If we have a newly created key, copy that

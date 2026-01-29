@@ -1,12 +1,30 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 import TransactionMetrics from "@/components/analytics/TransactionMetrics";
 import StatisticsChart from "@/components/ecommerce/StatisticsChart";
+import ConfirmationChart from "@/components/analytics/ConfirmationChart";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import Button from "@/components/ui/button/Button";
 import { BoltIcon } from "@/icons";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 
 export default function AnalyticsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState("Last 7 Days");
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   return (
     <div className="space-y-6">
@@ -64,6 +82,9 @@ export default function AnalyticsPage() {
 
       {/* Statistics Chart - Full Width */}
       <StatisticsChart period={selectedPeriod} />
+
+      {/* Status Distribution Chart */}
+      <ConfirmationChart period={selectedPeriod} />
     </div>
   );
 }

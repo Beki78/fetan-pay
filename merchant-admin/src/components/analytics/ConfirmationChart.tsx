@@ -126,6 +126,64 @@ export default function ConfirmationChart({ period }: ConfirmationChartProps) {
   }
 
   if (isError || !statusData || statusData.total === 0) {
+    // Don't show error messages - show empty state with empty chart
+    const emptyOptions: ApexOptions = {
+      colors: ["#E5E7EB"], // Light gray for empty state
+      chart: {
+        fontFamily: "Outfit, sans-serif",
+        type: "donut",
+        height: 300,
+        toolbar: {
+          show: false,
+        },
+      },
+      labels: ["No Data"],
+      legend: {
+        show: true,
+        position: "bottom",
+        horizontalAlign: "center",
+        fontFamily: "Outfit, sans-serif",
+        fontSize: "12px",
+        markers: {
+          size: 8,
+          strokeWidth: 0,
+        },
+      },
+      dataLabels: {
+        enabled: false,
+      },
+      plotOptions: {
+        pie: {
+          donut: {
+            size: "65%",
+            labels: {
+              show: true,
+              name: {
+                show: true,
+                fontSize: "14px",
+                fontWeight: 600,
+                color: "#6B7280",
+              },
+              value: {
+                show: false,
+              },
+              total: {
+                show: true,
+                label: "Total",
+                fontSize: "14px",
+                fontWeight: 600,
+                color: "#6B7280",
+                formatter: () => "0",
+              },
+            },
+          },
+        },
+      },
+      tooltip: {
+        enabled: false,
+      },
+    };
+
     return (
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
         <div className="flex items-center justify-between mb-6">
@@ -135,10 +193,16 @@ export default function ConfirmationChart({ period }: ConfirmationChartProps) {
             </h3>
           </div>
         </div>
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          {isError
-            ? "Failed to load status distribution. Please try again later."
-            : "No transaction data available for the selected period."}
+
+        <div className="max-w-full overflow-x-auto custom-scrollbar">
+          <div className="min-w-[300px] xl:min-w-full">
+            <ReactApexChart
+              options={emptyOptions}
+              series={[1]}
+              type="donut"
+              height={300}
+            />
+          </div>
         </div>
       </div>
     );

@@ -90,13 +90,61 @@ export default function RecentTransactions() {
   }
 
   if (isError) {
+    // Don't show error messages on dashboard - just show empty state
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Recent Transactions</h3>
+          <Link href="/payments" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+            View all
+          </Link>
         </div>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20">
-          <p className="text-red-600 dark:text-red-400">Failed to load transactions.</p>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="border-b border-gray-200 dark:border-gray-700">
+                <TableRow className="bg-gray-50 dark:bg-gray-800/80">
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                    Reference
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                    Provider
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                    Status
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                    Created
+                  </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                    Action
+                  </TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
+                <TableRow>
+                  <TableCell colSpan={5} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                    No transactions found
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
     );

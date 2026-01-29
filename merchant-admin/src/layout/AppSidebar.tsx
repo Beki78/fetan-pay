@@ -21,6 +21,7 @@ import {
   TaskIcon,
   DocsIcon,
   BellIcon,
+  NotificationBellIcon,
 } from "../icons/index";
 
 // Custom icon components for better representation
@@ -48,7 +49,7 @@ const NotificationMenuItem = ({ isExpanded, isHovered, isMobileOpen, pathname }:
             : "menu-item-icon-inactive"
         }`}
       >
-        <BellIcon />
+        <NotificationBellIcon />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center min-w-4 text-[10px] font-medium">
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -206,6 +207,11 @@ const mainItems: NavItem[] = [
     name: "Users",
     path: "/users",
   },
+  {
+    icon: <NotificationBellIcon />,
+    name: "Notifications",
+    path: "/notifications",
+  },
 ];
 
 // CONFIGURATION section items
@@ -327,6 +333,13 @@ const AppSidebar: React.FC = () => {
                     <span className={`menu-item-text`}>{nav.name}</span>
                   )}
                 </a>
+              ) : nav.name === "Notifications" ? (
+                <NotificationMenuItem 
+                  isExpanded={isExpanded} 
+                  isHovered={isHovered} 
+                  isMobileOpen={isMobileOpen} 
+                  pathname={pathname} 
+                />
               ) : (
                 <Link
                   href={nav.path}
@@ -407,17 +420,6 @@ const AppSidebar: React.FC = () => {
           )}
         </li>
       ))}
-      {/* Add notifications as a special item for main menu */}
-      {menuType === "main" && (
-        <li>
-          <NotificationMenuItem 
-            isExpanded={isExpanded} 
-            isHovered={isHovered} 
-            isMobileOpen={isMobileOpen} 
-            pathname={pathname} 
-          />
-        </li>
-      )}
     </ul>
   );
 

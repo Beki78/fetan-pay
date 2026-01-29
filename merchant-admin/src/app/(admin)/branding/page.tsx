@@ -4,7 +4,9 @@ import Image from "next/image";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Checkbox from "@/components/form/input/Checkbox";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import { useSession } from "@/hooks/useSession";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 import {
   useGetBrandingQuery,
   useUpdateBrandingMutation,
@@ -16,6 +18,8 @@ import { Trash2, Plus, Edit2 } from "lucide-react";
 import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
 
 export default function BrandingPage() {
+  // All hooks must be called at the top level, before any early returns
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const { user } = useSession();
   const { showToast, ToastComponent } = useToast();
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -42,7 +46,7 @@ export default function BrandingPage() {
     return null;
   })();
 
-  // Fetch existing branding
+  // Fetch existing branding - must be called before early returns
   const {
     data: brandingData,
     isLoading: isLoadingBranding,
@@ -51,14 +55,14 @@ export default function BrandingPage() {
     skip: !merchantId,
   });
 
-  // Check if branding exists (has an ID)
-  const hasBranding = brandingData?.id !== null && brandingData?.id !== undefined;
-
-  // Update mutation
+  // Update mutation - must be called before early returns
   const [updateBranding, { isLoading: isSaving }] = useUpdateBrandingMutation();
   const [deleteBranding, { isLoading: isDeleting }] = useDeleteBrandingMutation();
 
-  // Load branding data into form
+  // Check if branding exists (has an ID)
+  const hasBranding = brandingData?.id !== null && brandingData?.id !== undefined;
+
+  // Load branding data into form - must be called before early returns
   useEffect(() => {
     if (brandingData && hasBranding) {
       setPrimaryColor(brandingData.primaryColor || "#5CFFCE");
@@ -88,6 +92,20 @@ export default function BrandingPage() {
       setLogoFile(null);
     }
   }, [brandingData, hasBranding]);
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

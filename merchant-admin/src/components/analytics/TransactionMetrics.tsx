@@ -1,5 +1,4 @@
 "use client";
-import React from "react";
 import { useGetAnalyticsMetricsQuery } from "@/lib/services/dashboardServiceApi";
 
 interface TransactionMetricsProps {
@@ -28,11 +27,38 @@ export default function TransactionMetrics({ period }: TransactionMetricsProps) 
   }
 
   if (isError || !metrics) {
+    // Don't show error messages on analytics - just show empty state with zero values
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-900/20">
-        <p className="text-red-600 dark:text-red-400">
-          Failed to load analytics metrics. Please try again later.
-        </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* Total Revenue */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800/50">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            Total Revenue
+          </p>
+          <h4 className="text-2xl font-bold text-green-600 dark:text-green-400">
+            0.00 ETB
+          </h4>
+        </div>
+
+        {/* Total Users */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800/50">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            Total Users
+          </p>
+          <h4 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            0
+          </h4>
+        </div>
+
+        {/* Total Tips */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800/50">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            Total Tips
+          </p>
+          <h4 className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            0.00 ETB
+          </h4>
+        </div>
       </div>
     );
   }

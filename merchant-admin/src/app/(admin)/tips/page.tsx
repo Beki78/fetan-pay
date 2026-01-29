@@ -6,11 +6,28 @@ import TipsOverview from "@/components/tips/TipsOverview";
 import TipsByVendor from "@/components/tips/TipsByVendor";
 import TipsByTransaction from "@/components/tips/TipsByTransaction";
 import PayoutTracking from "@/components/tips/PayoutTracking";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import { Tabs, TabPanel } from "@/components/common/Tabs";
 import { DollarLineIcon, GroupIcon, TableIcon, CheckCircleIcon } from "@/icons";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 
 export default function TipsPage() {
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const tabs = [
     {
