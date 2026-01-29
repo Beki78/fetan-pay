@@ -217,6 +217,11 @@ model Merchant {
   // Notifications
   notifications        Notification[]
 
+  // Pricing System
+  subscriptions        Subscription[]
+  planAssignments      PlanAssignment[]
+  billingTransactions  BillingTransaction[]
+
   // Provider catalog is global (admin-managed), so no relation here.
 
   @@map("merchant")
@@ -1038,4 +1043,184 @@ model IpAddress {
   @@index([merchantId, status])
   @@unique([merchantId, ipAddress], name: "merchant_ip_unique")
   @@map("ip_address")
+}
+// Pricing System Models
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  SUSPENDED
+  PENDING
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+  WEEKLY
+  DAILY
+}
+
+enum PlanAssignmentType {
+  IMMEDIATE
+  SCHEDULED
+}
+
+enum PlanDurationType {
+  PERMANENT
+  TEMPORARY
+}
+
+model Plan {
+  id                String              @id @default(uuid())
+  
+  // Basic plan information
+  name              String              @unique
+  description       String
+  price             Decimal             @db.Decimal(10, 2) // Monthly price in ETB
+  billingCycle      BillingCycle        @default(MONTHLY)
+  
+  // Plan limits and features
+  verificationLimit Int?                // NULL for unlimited
+  apiLimit          Int                 @default(60) // API requests per minute
+  features          String[]            // Array of feature strings
+  
+  // Plan settings
+  status            PlanStatus          @default(ACTIVE)
+  isPopular         Boolean             @default(false)
+  displayOrder      Int                 @default(1)
+  
+  // Metadata
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  createdBy         String?             // Admin user ID who created the plan
+  
+  // Relations
+  subscriptions     Subscription[]
+  planAssignments   PlanAssignment[]
+  billingTransactions BillingTransaction[]
+  
+  @@index([status])
+  @@index([displayOrder])
+  @@map("plan")
+}
+
+model Subscription {
+  id                String              @id @default(uuid())
+  
+  // Merchant and plan
+  merchantId        String
+  merchant          Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
+  
+  // Subscription details
+  status            SubscriptionStatus  @default(ACTIVE)
+  startDate         DateTime            @default(now())
+  endDate           DateTime?           // NULL for permanent subscriptions
+  nextBillingDate   DateTime?           // When the next payment is due
+  
+  // Billing information
+  monthlyPrice      Decimal             @db.Decimal(10, 2) // Price at time of subscription
+  billingCycle      BillingCycle        @default(MONTHLY)
+  
+  // Usage tracking
+  currentUsage      Json?               // Track current month usage (verifications, API calls, etc.)
+  
+  // Metadata
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  cancelledAt       DateTime?
+  cancelledBy       String?             // Admin user ID who cancelled
+  cancellationReason String?
+  
+  // Relations
+  billingTransactions BillingTransaction[]
+  
+  @@index([merchantId])
+  @@index([planId])
+  @@index([status])
+  @@index([nextBillingDate])
+  @@unique([merchantId], name: "merchant_active_subscription") // One active subscription per merchant
+  @@map("subscription")
+}
+
+model PlanAssignment {
+  id                String              @id @default(uuid())
+  
+  // Target merchant and plan
+  merchantId        String
+  merchant          Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
+  
+  // Assignment details
+  assignmentType    PlanAssignmentType  @default(IMMEDIATE)
+  scheduledDate     DateTime?           // When to apply the plan (for SCHEDULED type)
+  durationType      PlanDurationType    @default(PERMANENT)
+  endDate           DateTime?           // When the assignment expires (for TEMPORARY type)
+  
+  // Assignment metadata
+  notes             String?             // Admin notes about the assignment
+  isApplied         Boolean             @default(false) // Whether the assignment has been processed
+  appliedAt         DateTime?           // When the assignment was applied
+  
+  // Audit trail
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  assignedBy        String              // Admin user ID who made the assignment
+  
+  @@index([merchantId])
+  @@index([planId])
+  @@index([scheduledDate])
+  @@index([isApplied])
+  @@map("plan_assignment")
+}
+
+model BillingTransaction {
+  id                String              @id @default(uuid())
+  
+  // Transaction details
+  transactionId     String              @unique // Human-readable transaction ID (e.g., TXN-2024-001)
+  merchantId        String
+  merchant          Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
+  subscriptionId    String?
+  subscription      Subscription?       @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  
+  // Payment information
+  amount            Decimal             @db.Decimal(10, 2)
+  currency          String              @default("ETB")
+  paymentReference  String?             // External payment reference (bank transfer, etc.)
+  paymentMethod     String?             // How the payment was made
+  
+  // Transaction status and processing
+  status            TransactionStatus   @default(PENDING)
+  processedAt       DateTime?
+  processedBy       String?             // Admin user ID who processed the transaction
+  
+  // Billing period
+  billingPeriodStart DateTime
+  billingPeriodEnd   DateTime
+  
+  // Metadata
+  notes             String?             // Admin notes
+  receiptUrl        String?             // URL to receipt/invoice
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([merchantId])
+  @@index([planId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([transactionId])
+  @@map("billing_transaction")
 }

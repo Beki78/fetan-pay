@@ -10,6 +10,7 @@ import { apiKeysServiceApi } from './services/apiKeysServiceApi';
 import { webhooksServiceApi } from './services/webhooksServiceApi';
 import { notificationsServiceApi } from './services/notificationsServiceApi';
 import { ipAddressesServiceApi } from './services/ipAddressesServiceApi';
+import { pricingServiceApi } from './services/pricingServiceApi';
 
 export const store = configureStore({
   reducer: {
@@ -24,6 +25,7 @@ export const store = configureStore({
     [webhooksServiceApi.reducerPath]: webhooksServiceApi.reducer,
     [notificationsServiceApi.reducerPath]: notificationsServiceApi.reducer,
     [ipAddressesServiceApi.reducerPath]: ipAddressesServiceApi.reducer,
+    [pricingServiceApi.reducerPath]: pricingServiceApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -38,6 +40,7 @@ export const store = configureStore({
       webhooksServiceApi.middleware,
       notificationsServiceApi.middleware,
       ipAddressesServiceApi.middleware,
+      pricingServiceApi.middleware,
     ),
 });
 

@@ -1,5 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import Badge from "./Badge";
+import { fetchPublicPlans } from "../../lib/api";
+import { Plan } from "../../lib/types";
+import { MERCHANT_SIGNUP_URL } from "../../lib/config";
 
 interface PricingTierProps {
   name: string;
@@ -10,6 +16,7 @@ interface PricingTierProps {
   isPopular?: boolean;
   buttonText: string;
   buttonHref: string;
+  verificationLimit?: number | null;
 }
 
 function PricingTier({
@@ -21,6 +28,7 @@ function PricingTier({
   isPopular = false,
   buttonText,
   buttonHref,
+  verificationLimit,
 }: PricingTierProps) {
   return (
     <div
@@ -167,59 +175,276 @@ function PricingTier({
 }
 
 export default function Pricing() {
-  const pricingTiers = [
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadPlans() {
+      try {
+        setLoading(true);
+        const response = await fetchPublicPlans();
+        // Sort plans by display order
+        const sortedPlans = response.data.sort(
+          (a, b) => a.displayOrder - b.displayOrder,
+        );
+        setPlans(sortedPlans);
+      } catch (err) {
+        console.error("Error loading plans:", err);
+        setError("Failed to load pricing plans");
+        // Fallback to hardcoded data if API fails
+        setPlans(fallbackPlans);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadPlans();
+  }, []);
+
+  // Fallback data in case API fails
+  const fallbackPlans: Plan[] = [
     {
-      name: "Starter",
-      price: "Free",
-      period: "month",
+      id: "starter",
+      name: "Free",
       description: "Perfect for small businesses getting started",
+      price: 0,
+      billingCycle: "MONTHLY",
+      verificationLimit: 100,
+      apiLimit: 1000,
       features: [
-        "Up to 100 verifications per month",
-        "Basic transaction history",
-        "Email support",
+        "100 verifications/month",
+        "Full API access",
+        "2 API keys",
+        "Vendor dashboard",
+        "Basic analytics",
+        "All verification methods",
         "Multi-bank support",
-        "API access",
+        "Frontend UI (with watermark)",
+        "Bank account management (up to 2 accounts)",
+        "Transaction history (30 days)",
       ],
+      status: "ACTIVE",
       isPopular: false,
-      buttonText: "Get Started",
-      buttonHref: "https://merchant.fetanpay.et/signup",
+      displayOrder: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
     {
-      name: "Professional",
-      price: "ETB 2,500",
-      period: "month",
-      description: "Ideal for growing businesses with higher volume",
+      id: "professional",
+      name: "Starter",
+      description: "Perfect for small businesses and startups",
+      price: 1740,
+      billingCycle: "MONTHLY",
+      verificationLimit: 1000,
+      apiLimit: 10000,
       features: [
-        "Up to 5,000 verifications per month",
-        "Advanced transaction history",
-        "Priority email support",
-        "Sales reports & analytics",
-        "Tip collection & tracking",
-        "API access with webhooks",
+        "1,000 verifications/month",
+        "Full API access",
+        "2 API keys",
+        "Vendor dashboard",
+        "Webhook support",
+        "Advanced analytics",
+        "Transaction history (6 months)",
+        "All verification methods",
+        "Bank account management (up to 5 accounts)",
+        "Frontend UI (with watermark)",
+        "Overage: ETB 6 per additional verification",
       ],
+      status: "ACTIVE",
       isPopular: true,
-      buttonText: "Get Started",
-      buttonHref: "https://merchant.fetanpay.et/signup",
+      displayOrder: 2,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
     {
-      name: "Enterprise",
-      price: "Custom",
-      period: "month",
-      description: "For large organizations with custom needs",
+      id: "business",
+      name: "Business",
+      description: "Perfect for growing businesses and medium-sized companies",
+      price: 11940,
+      billingCycle: "MONTHLY",
+      verificationLimit: 10000,
+      apiLimit: 100000,
       features: [
-        "Unlimited verifications",
-        "Custom transaction limits",
-        "Dedicated account manager",
+        "10,000 verifications/month",
+        "Full API access",
+        "2 API keys",
+        "Vendor dashboard",
+        "Webhook support",
         "Advanced analytics & reporting",
-        "Custom integrations",
-        "SLA guarantee",
-        "24/7 priority support",
+        "Transaction history (12 months)",
+        "All verification methods",
+        "Bank account management (unlimited)",
+        "Custom webhook endpoints",
+        "Export functionality (CSV, PDF)",
+        "Frontend UI Package (NO watermark)",
+        "Custom integration support",
+        "Overage: ETB 4.8 per additional verification",
       ],
+      status: "ACTIVE",
       isPopular: false,
-      buttonText: "Contact Sales",
-      buttonHref: "mailto:fetanpay@gmail.com",
+      displayOrder: 3,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: "enterprise",
+      name: "Custom",
+      description:
+        "Perfect for large enterprises, fintech companies, and businesses with specific needs",
+      price: 0, // Custom pricing
+      billingCycle: "MONTHLY",
+      verificationLimit: null, // Unlimited
+      apiLimit: 100000,
+      features: [
+        "Custom verification limits",
+        "Full API access",
+        "Unlimited API keys",
+        "Vendor dashboard",
+        "Webhook support",
+        "Advanced analytics & reporting",
+        "Transaction history (unlimited)",
+        "All verification methods",
+        "Bank account management (unlimited)",
+        "Custom webhook endpoints",
+        "Export functionality (CSV, PDF)",
+        "Frontend UI Package (NO watermark)",
+        "White-label solution",
+        "On-premise deployment option",
+        "Custom integrations",
+        "Dedicated support",
+        "Volume discounts",
+        "Custom pricing",
+      ],
+      status: "ACTIVE",
+      isPopular: false,
+      displayOrder: 4,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
   ];
+
+  // Transform API data to display format
+  const transformPlanToDisplay = (plan: Plan) => {
+    const formatPrice = (price: number) => {
+      if (price === 0) return "Free";
+      if (plan.name.toLowerCase().includes("enterprise")) return "Custom";
+      return `ETB ${price.toLocaleString()}`;
+    };
+
+    const formatPeriod = (billingCycle: string) => {
+      switch (billingCycle) {
+        case "MONTHLY":
+          return "month";
+        case "YEARLY":
+          return "year";
+        case "WEEKLY":
+          return "week";
+        case "DAILY":
+          return "day";
+        default:
+          return "month";
+      }
+    };
+
+    const getButtonText = (plan: Plan) => {
+      if (plan.name.toLowerCase().includes("enterprise"))
+        return "Contact Sales";
+      return "Get Started";
+    };
+
+    const getButtonHref = (plan: Plan) => {
+      if (plan.name.toLowerCase().includes("enterprise"))
+        return "mailto:fetanpay@gmail.com";
+      return MERCHANT_SIGNUP_URL;
+    };
+
+    return {
+      name: plan.name,
+      price: formatPrice(plan.price),
+      period: formatPeriod(plan.billingCycle),
+      description: plan.description,
+      features: plan.features,
+      isPopular: plan.isPopular,
+      buttonText: getButtonText(plan),
+      buttonHref: getButtonHref(plan),
+      verificationLimit: plan.verificationLimit,
+    };
+  };
+
+  if (loading) {
+    return (
+      <section className="py-8 sm:py-12 md:py-16 px-4 bg-white relative z-10">
+        <div className="mx-auto" style={{ maxWidth: "1450px" }}>
+          <div className="flex justify-center mb-6">
+            <Badge
+              icon="/icons/howitworks/howitworksbadgeicon.svg"
+              iconAlt="pricing"
+              animationDelay="200"
+            >
+              Pricing
+            </Badge>
+          </div>
+          <h2
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-tight sm:leading-[48px] md:leading-[60px] lg:leading-[75px] font-normal text-center mx-auto tracking-tight lg:tracking-[-2.16px] px-4"
+            style={{
+              fontFamily: "var(--font-geist)",
+              background: "linear-gradient(to right, #061a32, #0d3463)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              maxWidth: "1200px",
+            }}
+          >
+            Simple, transparent pricing for every business
+          </h2>
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#174686]"></div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error && plans.length === 0) {
+    return (
+      <section className="py-8 sm:py-12 md:py-16 px-4 bg-white relative z-10">
+        <div className="mx-auto" style={{ maxWidth: "1450px" }}>
+          <div className="flex justify-center mb-6">
+            <Badge
+              icon="/icons/howitworks/howitworksbadgeicon.svg"
+              iconAlt="pricing"
+              animationDelay="200"
+            >
+              Pricing
+            </Badge>
+          </div>
+          <h2
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-tight sm:leading-[48px] md:leading-[60px] lg:leading-[75px] font-normal text-center mx-auto tracking-tight lg:tracking-[-2.16px] px-4"
+            style={{
+              fontFamily: "var(--font-geist)",
+              background: "linear-gradient(to right, #061a32, #0d3463)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              maxWidth: "1200px",
+            }}
+          >
+            Simple, transparent pricing for every business
+          </h2>
+          <div className="text-center py-12">
+            <p className="text-red-600 mb-4">Unable to load pricing plans</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-[#174686] text-white rounded-full hover:bg-[#0d3463] transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-8 sm:py-12 md:py-16 px-4 bg-white relative z-10">
@@ -262,28 +487,41 @@ export default function Pricing() {
           instant verification and multi-bank support.
         </p>
 
+        {/* Error message if API failed but we have fallback data */}
+        {error && (
+          <div className="text-center mb-4">
+            <p className="text-amber-600 text-sm">
+              Using cached pricing data. Some information may be outdated.
+            </p>
+          </div>
+        )}
+
         {/* Pricing Cards - Responsive */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mt-8 sm:mt-10 md:mt-12">
-          {pricingTiers.map((tier, index) => (
-            <div
-              key={tier.name}
-              className="opacity-0 animate-fade-in-up"
-              style={{
-                animationDelay: `${500 + index * 100}ms`,
-              }}
-            >
-              <PricingTier
-                name={tier.name}
-                price={tier.price}
-                period={tier.period}
-                description={tier.description}
-                features={tier.features}
-                isPopular={tier.isPopular}
-                buttonText={tier.buttonText}
-                buttonHref={tier.buttonHref}
-              />
-            </div>
-          ))}
+          {plans.map((plan, index) => {
+            const displayPlan = transformPlanToDisplay(plan);
+            return (
+              <div
+                key={plan.id}
+                className="opacity-0 animate-fade-in-up"
+                style={{
+                  animationDelay: `${500 + index * 100}ms`,
+                }}
+              >
+                <PricingTier
+                  name={displayPlan.name}
+                  price={displayPlan.price}
+                  period={displayPlan.period}
+                  description={displayPlan.description}
+                  features={displayPlan.features}
+                  isPopular={displayPlan.isPopular}
+                  buttonText={displayPlan.buttonText}
+                  buttonHref={displayPlan.buttonHref}
+                  verificationLimit={displayPlan.verificationLimit}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

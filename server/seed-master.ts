@@ -22,6 +22,11 @@ const seedFiles = [
     file: 'seed-notification-templates.ts',
     description: 'Seeds notification email templates for system events',
   },
+  {
+    name: 'Pricing Plans Seed',
+    file: 'seed-pricing-plans.ts',
+    description: 'Seeds pricing plans for subscription system',
+  },
 ];
 
 async function runMasterSeed() {

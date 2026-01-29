@@ -25,6 +25,7 @@ import { CommunicationsModule } from './modules/communications/communications.mo
 import { NotificationModule } from './modules/notifications/notification.module';
 import { IPAddressesModule } from './modules/ip-addresses/ip-addresses.module';
 import { AdminWebhooksModule } from './modules/admin-webhooks/admin-webhooks.module';
+import { PricingModule } from './modules/pricing/pricing.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -53,6 +54,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     NotificationModule,
     IPAddressesModule,
     AdminWebhooksModule,
+    PricingModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
