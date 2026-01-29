@@ -215,7 +215,11 @@ const mainItems: NavItem[] = [
   {
     icon: <CreditCardIcon />,
     name: "Plans",
-    path: "/plans",
+    subItems: [
+      { name: "Plans", path: "/plans" },
+      { name: "Plan Stats", path: "/plan-stats" },
+      { name: "Transactions", path: "/plans/transactions" },
+    ],
   },
   {
   icon: <UsersIcon />,
@@ -235,11 +239,6 @@ const mainItems: NavItem[] = [
       { name: "Merchant Wallets", path: "/wallet/merchants" },
       { name: "Transactions", path: "/wallet/transactions" },
     ],
-  },
-  {
-    icon: <PieChartIcon />,
-    name: "Plan Stats",
-    path: "/plan-stats",
   },
   {
     icon: <PaperPlaneIcon />,

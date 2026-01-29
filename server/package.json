@@ -11,6 +11,7 @@
     "seed:main": "node -r ts-node/register prisma/seed.ts",
     "seed:email-templates": "node -r ts-node/register seed-email-templates.ts",
     "seed:notification-templates": "node -r ts-node/register seed-notification-templates.ts",
+    "seed:pricing-plans": "node -r ts-node/register seed-pricing-plans.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

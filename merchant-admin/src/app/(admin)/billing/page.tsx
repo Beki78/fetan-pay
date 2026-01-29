@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import AlertBanner from "@/components/ui/alert/AlertBanner";
@@ -13,147 +13,109 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAccountStatus } from "@/hooks/useAccountStatus";
+import { 
+  useGetPublicPlansQuery, 
+  useGetMerchantSubscriptionQuery,
+  useGetMerchantBillingTransactionsQuery 
+} from "@/lib/services/pricingServiceApi";
 
-// TODO: Replace mock subscription + history with API data
-
-// Mock subscription data
-const currentSubscription = {
-  planName: "Free Plan",
-  subtitle: "1 Day free trial",
-  status: "Active",
-  verificationsUsed: 0,
-  verificationsLimit: 100,
-  daysRemaining: 1,
-  expiresAt: "Dec 31, 2025",
-  amountPaid: 0.00,
-  startedAt: "Dec 30, 2025",
-  features: [
-    "100 verifications",
-    "Analytics",
-    "60 API req/min",
-    "Webhooks",
-    "Priority support",
-  ],
-};
-
-// Mock subscription history
-const subscriptionHistory = [
-  {
-    plan: "Free",
-    status: "Active",
-    period: "Dec 30, 2025 - Dec 31, 2025",
-    usage: "0 / 100",
-    amount: "ETB 0.00",
-    paymentRef: "—",
-  },
-];
-
-// All available plans - Based on kifiya-pricing.md
-// Pricing converted from USD to ETB (approximate 1 USD = 60 ETB)
-const plans = [
-  {
-    id: "free",
-    name: "Free",
-    price: 0,
-    billingCycle: "month",
-    description: "Perfect for testing the platform and small businesses getting started",
-    features: [
-      "100 verifications/month",
-      "Full API access",
-      "2 API keys",
-      "Vendor dashboard",
-      "Basic analytics",
-      "All verification methods",
-      "Multi-bank support",
-      "Frontend UI (with watermark)",
-      "Bank account management (up to 2 accounts)",
-    ],
-    popular: false,
-  },
-  {
-    id: "starter",
-    name: "Starter",
-    price: 1740, // $29/month ≈ ETB 1,740
-    billingCycle: "month",
-    description: "Perfect for small businesses and startups",
-    features: [
-      "1,000 verifications/month",
-      "Full API access",
-      "2 API keys",
-      "Vendor dashboard",
-      "Webhook support",
-      "Advanced analytics",
-      "Transaction history (6 months)",
-      "All verification methods",
-      "Bank account management (up to 5 accounts)",
-      "Frontend UI (with watermark)",
-    ],
-    popular: true,
-  },
-  {
-    id: "business", // Renamed from 'growth' to 'business' to match markdown
-    name: "Business",
-    price: 11940, // $199/month ≈ ETB 11,940
-    billingCycle: "month",
-    description: "Perfect for growing businesses and medium-sized companies",
-    features: [
-      "10,000 verifications/month",
-      "Full API access",
-      "2 API keys",
-      "Vendor dashboard",
-      "Webhook support",
-      "Advanced analytics & reporting",
-      "Transaction history (12 months)",
-      "Unlimited bank accounts",
-      "Custom webhook endpoints",
-      "Export functionality (CSV, PDF)",
-      "Frontend UI (NO watermark)",
-      "Custom integration support",
-    ],
-    popular: false,
-  },
-  {
-    id: "custom",
-    name: "Custom",
-    price: 0, // Custom pricing
-    billingCycle: "month",
-    description: "Perfect for large enterprises and businesses with specific needs",
-    features: [
-      "Custom verification limits",
-      "Full API access",
-      "2 API keys",
-      "Vendor dashboard",
-      "Webhook support",
-      "Advanced analytics & reporting",
-      "Unlimited transaction history",
-      "Unlimited bank accounts",
-      "Custom webhook endpoints",
-      "Export functionality (all formats)",
-      "Frontend UI (NO watermark + white-label)",
-      "Custom system integration",
-      "Volume discounts",
-      "White-label options",
-      "Custom features development",
-      "On-premise deployment (optional)",
-    ],
-    popular: false,
-    isCustom: true,
-  },
-];
+// TODO: Get merchant ID from auth context
+// For now, we'll use a placeholder that should be replaced with actual auth context
+const MERCHANT_ID = "current-merchant-id"; // This should come from auth context
 
 export default function BillingPage() {
-  const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showUpgradePlans, setShowUpgradePlans] = useState(false);
   const { status: accountStatus, isPending } = useAccountStatus();
 
+  // Skip API calls if we don't have a real merchant ID
+  const hasRealMerchantId = MERCHANT_ID !== "current-merchant-id";
+
+  // API queries - only run if we have a real merchant ID
+  const { data: plansResponse, isLoading: plansLoading } = useGetPublicPlansQuery({
+    status: 'ACTIVE',
+    limit: 100,
+    sortBy: 'displayOrder',
+    sortOrder: 'asc'
+  });
+  
+  const { data: subscriptionResponse, isLoading: subscriptionLoading, error: subscriptionError } = useGetMerchantSubscriptionQuery(
+    MERCHANT_ID,
+    { skip: !hasRealMerchantId }
+  );
+  
+  const { data: transactionsResponse, isLoading: transactionsLoading } = useGetMerchantBillingTransactionsQuery({
+    merchantId: MERCHANT_ID,
+    limit: 10
+  }, { skip: !hasRealMerchantId });
+
+  const plans = plansResponse?.data || [];
+  const currentSubscription = subscriptionResponse?.subscription;
+  const subscriptionHistory = transactionsResponse?.data || [];
+
+  // Debug logging
+  console.log('Has Real Merchant ID:', hasRealMerchantId);
+  console.log('Subscription Response:', subscriptionResponse);
+  console.log('Current Subscription:', currentSubscription);
+  console.log('Subscription Error:', subscriptionError);
+
+  // If we don't have a real merchant ID, create a mock free plan subscription for demo
+  const mockFreeSubscription = !hasRealMerchantId ? {
+    id: 'demo-free-subscription',
+    merchantId: MERCHANT_ID,
+    planId: 'demo-free-plan',
+    status: 'ACTIVE' as const,
+    startDate: new Date().toISOString(),
+    endDate: null,
+    nextBillingDate: null,
+    monthlyPrice: 0,
+    billingCycle: 'MONTHLY' as const,
+    currentUsage: { verifications: 15, apiCalls: 120 },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    cancelledAt: null,
+    cancelledBy: null,
+    cancellationReason: null,
+    plan: {
+      id: 'demo-free-plan',
+      name: 'Free',
+      description: 'Perfect for testing the platform and small businesses getting started',
+      price: 0,
+      billingCycle: 'MONTHLY' as const,
+      verificationLimit: 100,
+      apiLimit: 60,
+      features: [
+        '100 verifications/month',
+        'Full API access',
+        '2 API keys',
+        'Vendor dashboard',
+        'Basic analytics',
+        'All verification methods',
+        'Multi-bank support',
+        'Frontend UI (with watermark)',
+        'Bank account management (up to 2 accounts)',
+        'Transaction history (30 days)',
+      ],
+      status: 'ACTIVE' as const,
+      isPopular: false,
+      displayOrder: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: null,
+    }
+  } : null;
+
+  // Use real subscription or mock subscription for demo
+  const effectiveSubscription = hasRealMerchantId ? currentSubscription : mockFreeSubscription;
+  
   // TODO: Replace with subscription status from API/context
-  const hasActiveSubscription = accountStatus === "active";
+  const hasActiveSubscription = !!effectiveSubscription;
+  const currentPlan = effectiveSubscription?.plan;
 
   // Helper function to check if account is pending (avoids TypeScript narrowing issues)
   const isAccountPending = (): boolean => isPending;
 
-  const handleGetStarted = (plan: typeof plans[0]) => {
+  const handleGetStarted = (plan: any) => {
     if (isAccountPending()) {
       // Don't open modal if account is pending
       return;
@@ -163,8 +125,7 @@ export default function BillingPage() {
   };
 
   const handleUpgradePlan = () => {
-    // Show plans section and scroll to it
-    setShowUpgradePlans(true);
+    // Scroll to plans section
     setTimeout(() => {
       const plansSection = document.getElementById("plans-section");
       if (plansSection) {
@@ -183,15 +144,26 @@ export default function BillingPage() {
     setSelectedPlan(null);
   };
 
-  const usagePercentage =
-    currentSubscription.verificationsLimit > 0
-      ? Math.min(
-          (currentSubscription.verificationsUsed /
-            currentSubscription.verificationsLimit) *
-            100,
-          100
-        )
-      : 0;
+  // Calculate usage percentage
+  const usagePercentage = effectiveSubscription?.plan?.verificationLimit && effectiveSubscription?.currentUsage?.verifications
+    ? Math.min((effectiveSubscription.currentUsage.verifications / effectiveSubscription.plan.verificationLimit) * 100, 100)
+    : 0;
+
+  // Calculate days remaining
+  const daysRemaining = effectiveSubscription?.endDate 
+    ? Math.max(0, Math.ceil((new Date(effectiveSubscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  if (plansLoading || subscriptionLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <div className="text-gray-500 dark:text-gray-400">Loading subscription data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -214,22 +186,37 @@ export default function BillingPage() {
         />
       )}
 
+      {/* Demo Notice */}
+      {!hasRealMerchantId && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 p-4">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              <strong>Demo Mode:</strong> This is showing sample data. In production, this would show your actual subscription details.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Active Subscription View */}
-      {hasActiveSubscription && accountStatus === "active" ? (
+      {hasActiveSubscription && effectiveSubscription && accountStatus === "active" ? (
         <>
           {/* Current Plan Card */}
           <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-1">
-                  {currentSubscription.planName}
+                  {effectiveSubscription.plan.name}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {currentSubscription.subtitle}
+                  {effectiveSubscription.plan.description}
                 </p>
               </div>
-              <Badge color="success" size="sm">
-                {currentSubscription.status}
+              <Badge 
+                color={effectiveSubscription.status === "ACTIVE" ? "success" : "info"} 
+                size="sm"
+              >
+                {effectiveSubscription.status}
               </Badge>
             </div>
 
@@ -241,45 +228,53 @@ export default function BillingPage() {
                   Verifications Used
                 </p>
                 <p className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-                  {currentSubscription.verificationsUsed} /{" "}
-                  {currentSubscription.verificationsLimit}
+                  {effectiveSubscription.currentUsage?.verifications || 0} /{" "}
+                  {effectiveSubscription.plan.verificationLimit || "Unlimited"}
                 </p>
-                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-1">
-                  <div
-                    className="h-full bg-purple-500 dark:bg-purple-400 transition-all duration-300"
-                    style={{ width: `${usagePercentage}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {currentSubscription.verificationsLimit -
-                    currentSubscription.verificationsUsed}{" "}
-                  remaining
-                </p>
+                {effectiveSubscription.plan.verificationLimit && (
+                  <>
+                    <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-1">
+                      <div
+                        className="h-full bg-purple-500 dark:bg-purple-400 transition-all duration-300"
+                        style={{ width: `${usagePercentage}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {effectiveSubscription.plan.verificationLimit - (effectiveSubscription.currentUsage?.verifications || 0)}{" "}
+                      remaining
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Days Remaining */}
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  Days Remaining
+                  {effectiveSubscription.plan.name === 'Free' ? 'Plan Status' : 'Days Remaining'}
                 </p>
                 <p className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-                  {currentSubscription.daysRemaining}
+                  {effectiveSubscription.plan.name === 'Free' ? '∞' : daysRemaining}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Expires {currentSubscription.expiresAt}
+                  {effectiveSubscription.plan.name === 'Free' 
+                    ? 'No expiration'
+                    : effectiveSubscription.endDate 
+                      ? `Expires ${new Date(effectiveSubscription.endDate).toLocaleDateString()}`
+                      : "No expiration"
+                  }
                 </p>
               </div>
 
               {/* Amount Paid */}
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  Amount Paid
+                  Monthly Price
                 </p>
                 <p className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-                  ETB {currentSubscription.amountPaid.toFixed(2)}
+                  {effectiveSubscription.plan.name === 'Free' ? 'Free' : `ETB ${effectiveSubscription.monthlyPrice.toLocaleString()}`}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Started {currentSubscription.startedAt}
+                  Started {new Date(effectiveSubscription.startDate).toLocaleDateString()}
                 </p>
               </div>
             </div>
@@ -290,7 +285,7 @@ export default function BillingPage() {
                 Plan Features
               </h3>
               <div className="flex flex-wrap gap-4 mb-4">
-                {currentSubscription.features.map((feature, index) => (
+                {effectiveSubscription.plan.features.map((feature, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -309,50 +304,34 @@ export default function BillingPage() {
             </div>
           </div>
 
-          {/* Upgrade Banner */}
-          {!showUpgradePlans && (
-            <div className="rounded-xl border border-purple-200 bg-purple-50 dark:border-purple-500/30 dark:bg-purple-500/10 p-4 mb-6">
-              <div className="flex items-center justify-between">
-    <div>
-                  <h3 className="text-base font-semibold text-gray-800 dark:text-white mb-1">
-                    Want more features?
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Upgrade your plan to unlock more verifications and features.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleUpgradePlan}
-                  className="bg-purple-500 hover:bg-purple-600 text-white border-0 shrink-0"
-                >
-                  Upgrade Plan
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* Subscription History */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-                Subscription History
+                Billing History
               </h3>
-              {!showUpgradePlans && (
-                <button
-                  onClick={handleUpgradePlan}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
-                >
-                  Upgrade Plan
-                  <ArrowRightIcon className="w-4 h-4" />
-                </button>
-              )}
             </div>
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/5 dark:bg-white/3">
               <div className="w-full overflow-x-auto">
-                <Table className="w-full">
+                {transactionsLoading ? (
+                  <div className="p-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                    <div className="text-gray-500 dark:text-gray-400">Loading billing history...</div>
+                  </div>
+                ) : subscriptionHistory.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                    No billing history available
+                  </div>
+                ) : (
+                  <Table className="w-full">
                     <TableHeader className="border-b border-gray-100 dark:border-white/5">
                       <TableRow>
+                        <TableCell
+                          isHeader
+                          className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                        >
+                          TRANSACTION ID
+                        </TableCell>
                         <TableCell
                           isHeader
                           className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
@@ -375,12 +354,6 @@ export default function BillingPage() {
                           isHeader
                           className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                         >
-                          USAGE
-                        </TableCell>
-                        <TableCell
-                          isHeader
-                          className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                        >
                           AMOUNT
                         </TableCell>
                         <TableCell
@@ -392,41 +365,49 @@ export default function BillingPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y divide-gray-100 dark:divide-white/5">
-                      {subscriptionHistory.map((item, index) => (
-                        <TableRow key={index}>
+                      {subscriptionHistory.map((transaction) => (
+                        <TableRow key={transaction.id}>
                           <TableCell className="px-5 py-4 sm:px-6 text-start">
-                            <span className="font-medium text-gray-800 dark:text-white">
-                              {item.plan}
+                            <span className="font-mono text-sm text-gray-800 dark:text-white">
+                              {transaction.transactionId}
                             </span>
                           </TableCell>
                           <TableCell className="px-5 py-4 sm:px-6 text-start">
-                            <Badge color="success" size="sm">
-                              {item.status}
+                            <span className="font-medium text-gray-800 dark:text-white">
+                              {transaction.plan.name}
+                            </span>
+                          </TableCell>
+                          <TableCell className="px-5 py-4 sm:px-6 text-start">
+                            <Badge 
+                              color={
+                                transaction.status === "VERIFIED" ? "success" :
+                                transaction.status === "PENDING" ? "warning" : "info"
+                              } 
+                              size="sm"
+                            >
+                              {transaction.status}
                             </Badge>
                           </TableCell>
                           <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-gray-200">
-                            {item.period}
+                            {new Date(transaction.billingPeriodStart).toLocaleDateString()} - {new Date(transaction.billingPeriodEnd).toLocaleDateString()}
                           </TableCell>
                           <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-gray-200">
-                            {item.usage}
+                            {transaction.currency} {transaction.amount.toLocaleString()}
                           </TableCell>
                           <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-gray-200">
-                            {item.amount}
-                          </TableCell>
-                          <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-gray-200">
-                            {item.paymentRef}
+                            {transaction.paymentReference || "—"}
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Plans Section (for upgrade) - Only show when showUpgradePlans is true */}
-          {showUpgradePlans && (
-            <div id="plans-section" className="mt-8 scroll-mt-6 transition-all duration-300">
+          {/* Plans Section (for upgrade) - Always visible */}
+          <div id="plans-section" className="mt-8 scroll-mt-6 transition-all duration-300">
               <div className="mb-6">
                 <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
                   Upgrade Your Plan
@@ -438,17 +419,17 @@ export default function BillingPage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {plans
-                  .filter((p) => p.id !== "free")
+                  .filter((p) => p.name !== "Free" && p.id !== currentSubscription?.planId)
                   .map((plan) => (
                     <div
                       key={plan.id}
                       className={`relative rounded-xl border p-5 transition-all flex flex-col justify-between ${
-                        plan.popular
+                        plan.isPopular
                           ? "border-purple-500 bg-white dark:border-purple-500 dark:bg-gray-800/50"
                           : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50"
                         }`}
                     >
-                      {plan.popular && (
+                      {plan.isPopular && (
                         <div className="absolute -top-3 right-3">
                           <Badge color="primary" size="sm">
                             Most Popular
@@ -464,7 +445,7 @@ export default function BillingPage() {
                           {plan.description}
                         </p>
                         <div className="mb-3">
-                          {plan.isCustom ? (
+                          {plan.price === 0 && plan.name !== "Free" ? (
                             <span className="text-2xl font-bold text-gray-800 dark:text-white">
                               Custom Pricing
                             </span>
@@ -474,7 +455,7 @@ export default function BillingPage() {
                                 ETB {plan.price.toLocaleString()}
                               </span>
                               <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">
-                                /{plan.billingCycle}
+                                /{plan.billingCycle.toLowerCase()}
                               </span>
                             </>
                           )}
@@ -496,7 +477,7 @@ export default function BillingPage() {
                         size="sm"
                         onClick={() => {
                           if (isAccountPending()) return;
-                          if (plan.isCustom) {
+                          if (plan.price === 0 && plan.name !== "Free") {
                             window.open('mailto:sales@fetanpay.com', '_blank');
                           } else {
                             handleGetStarted(plan);
@@ -506,16 +487,16 @@ export default function BillingPage() {
                         className={`w-full ${
                           isAccountPending()
                             ? "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed border-0"
-                            : plan.id === "starter"
+                            : plan.isPopular
                               ? "bg-purple-500 hover:bg-purple-600 text-white border-0"
-                              : plan.isCustom
+                              : plan.price === 0 && plan.name !== "Free"
                                 ? "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-0"
                                 : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-0"
                           }`}
                       >
                         {isAccountPending()
                           ? "Approval Required"
-                          : plan.isCustom
+                          : plan.price === 0 && plan.name !== "Free"
                             ? "Contact Sales"
                             : "Upgrade Now"}
                       </Button>
@@ -523,7 +504,6 @@ export default function BillingPage() {
                   ))}
                 </div>
             </div>
-          )}
         </>
       ) : (
         /* No Active Subscription - Show Plans */
@@ -572,12 +552,12 @@ export default function BillingPage() {
                 <div
                   key={plan.id}
                   className={`relative rounded-xl border p-5 transition-all flex flex-col justify-between ${
-                    plan.popular
+                    plan.isPopular
                       ? "border-purple-500 bg-white dark:border-purple-500 dark:bg-gray-800/50"
                       : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50"
                   }`}
                 >
-                  {plan.popular && (
+                  {plan.isPopular && (
                     <div className="absolute -top-3 right-3">
                       <Badge color="primary" size="sm">
                         Most Popular
@@ -593,7 +573,7 @@ export default function BillingPage() {
                       {plan.description}
                     </p>
                     <div className="mb-3">
-                      {plan.isCustom ? (
+                      {plan.price === 0 && plan.name !== "Free" ? (
                         <span className="text-2xl font-bold text-gray-800 dark:text-white">
                           Custom Pricing
                         </span>
@@ -603,7 +583,7 @@ export default function BillingPage() {
                             ETB {plan.price.toLocaleString()}
                           </span>
                           <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">
-                            /{plan.billingCycle}
+                            /{plan.billingCycle.toLowerCase()}
                           </span>
                         </>
                       )}
@@ -625,8 +605,8 @@ export default function BillingPage() {
                     size="sm"
                     onClick={() => {
                       if (isAccountPending()) return;
-                      if (plan.isCustom) {
-                        window.open('mailto:sales@kifiya-auth.com', '_blank');
+                      if (plan.price === 0 && plan.name !== "Free") {
+                        window.open('mailto:sales@fetanpay.com', '_blank');
                       } else {
                         handleGetStarted(plan);
                       }
@@ -635,23 +615,23 @@ export default function BillingPage() {
                     className={`w-full ${
                       isAccountPending()
                         ? "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed border-0"
-                        : plan.id === "starter"
+                        : plan.isPopular
                           ? "bg-purple-500 hover:bg-purple-600 text-white border-0"
-                          : plan.isCustom
+                          : plan.price === 0 && plan.name !== "Free"
                             ? "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-0"
                             : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-0"
                     }`}
                   >
                     {isAccountPending()
                       ? "Approval Required"
-                      : plan.isCustom
+                      : plan.price === 0 && plan.name !== "Free"
                         ? "Contact Sales"
                         : "Get Started"}
                   </Button>
                 </div>
               ))}
             </div>
-      </div>
+          </div>
         </>
       )}
 
