@@ -50,9 +50,15 @@ export default function UserTable({
   const [statusFilter, setStatusFilter] = useState<"All" | "ACTIVE" | "INVITED" | "SUSPENDED">("All");
   const [roleFilter, setRoleFilter] = useState<string>("All");
 
-  // Get unique roles for filter
+  // Get unique roles for filter (exclude MERCHANT_OWNER)
   const roles = useMemo(() => {
-    const uniqueRoles = Array.from(new Set(users.map((u) => u.role).filter(Boolean)));
+    const uniqueRoles = Array.from(
+      new Set(
+        users
+          .filter((u) => u.role && u.role !== "MERCHANT_OWNER") // Exclude MERCHANT_OWNER from filter options
+          .map((u) => u.role)
+      )
+    );
     return ["All", ...uniqueRoles];
   }, [users]);
 
@@ -71,20 +77,26 @@ export default function UserTable({
 
   // Filter users
   const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const matchesSearch =
-        (user.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (user.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (user.phone || "").includes(searchQuery);
+    return users
+      .filter((user) => {
+        // Hide merchant owner/admin users from the list
+        if (user.role === "MERCHANT_OWNER") {
+          return false;
+        }
 
-      const matchesStatus =
-        statusFilter === "All" || user.status === statusFilter;
+        const matchesSearch =
+          (user.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (user.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (user.phone || "").includes(searchQuery);
 
-      const matchesRole =
-        roleFilter === "All" || user.role === roleFilter;
+        const matchesStatus =
+          statusFilter === "All" || user.status === statusFilter;
 
-      return matchesSearch && matchesStatus && matchesRole;
-    });
+        const matchesRole =
+          roleFilter === "All" || user.role === roleFilter;
+
+        return matchesSearch && matchesStatus && matchesRole;
+      });
   }, [searchQuery, statusFilter, roleFilter, users]);
 
   return (

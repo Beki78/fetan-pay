@@ -6,29 +6,25 @@ import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import UserTable from "@/components/users/UserTable";
 import UserModal from "@/components/users/UserModal";
 import QRCodeModal from "@/components/users/QRCodeModal";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import Button from "@/components/ui/button/Button";
 import { PlusIcon } from "@/icons";
 import { Modal } from "@/components/ui/modal";
 import { useSession } from "@/hooks/useSession";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 import { useGetMerchantUsersQuery, MerchantUser } from "@/lib/services/merchantUsersServiceApi";
 
 type User = MerchantUser;
 
 export default function UsersPage() {
+  // All hooks must be called at the top level, before any early returns
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const router = useRouter();
   const { user } = useSession();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [qrModalUser, setQrModalUser] = useState<MerchantUser | null>(null);
 
-  const handleAdd = () => {
-    setIsAddModalOpen(true);
-  };
-
-  const handleView = (user: User) => {
-    // Navigate to user detail page
-    router.push(`/users/${user.id}`);
-  };
-
+  // Get merchantId from session or localStorage
   const merchantId = (() => {
     const meta = (user as any)?.metadata;
     if (meta?.merchantId) return meta.merchantId as string;
@@ -42,9 +38,33 @@ export default function UsersPage() {
     return null;
   })();
 
+  // Fetch users - must be called before early returns
   const { data: users = [], isFetching: isUsersLoading, refetch } = useGetMerchantUsersQuery(merchantId ?? "", {
     skip: !merchantId,
   });
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
+
+  const handleAdd = () => {
+    setIsAddModalOpen(true);
+  };
+
+  const handleView = (user: User) => {
+    // Navigate to user detail page
+    router.push(`/users/${user.id}`);
+  };
 
   const handleSave = (_user?: User) => {
     refetch();

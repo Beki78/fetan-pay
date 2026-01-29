@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import {
   CheckCircleIcon,
   AlertIcon,
@@ -21,6 +22,7 @@ import {
   useTestWebhookMutation,
   useRegenerateSecretMutation,
 } from "@/lib/services/webhooksServiceApi";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 import { toast } from "sonner";
 
 interface CodeBlockProps {
@@ -57,15 +59,13 @@ function CodeBlock({ code, language }: CodeBlockProps) {
 }
 
 export default function WebhooksPage() {
+  // All hooks must be called at the top level, before any early returns
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const { data: webhooks = [], isLoading, refetch } = useListWebhooksQuery();
   const [createWebhook, { isLoading: isCreating }] = useCreateWebhookMutation();
   const [updateWebhook, { isLoading: isUpdating }] = useUpdateWebhookMutation();
   const [testWebhook, { isLoading: isTesting }] = useTestWebhookMutation();
   const [regenerateSecret, { isLoading: isRegenerating }] = useRegenerateSecretMutation();
-
-  // Get the first webhook or use empty state
-  const currentWebhook = webhooks.length > 0 ? webhooks[0] : null;
-
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
@@ -76,7 +76,16 @@ export default function WebhooksPage() {
     "payment.unverified",
   ]);
 
-  // Check localStorage for stored secret
+  // Get the first webhook or use empty state
+  const currentWebhook = webhooks.length > 0 ? webhooks[0] : null;
+
+  // Get delivery stats - must be called before early returns
+  const { data: deliveries = [] } = useGetDeliveryLogsQuery(
+    { webhookId: currentWebhook?.id || "", limit: 100 },
+    { skip: !currentWebhook?.id }
+  );
+
+  // Check localStorage for stored secret - must be called before early returns
   useEffect(() => {
     if (currentWebhook) {
       setWebhookUrl(currentWebhook.url);
@@ -95,6 +104,20 @@ export default function WebhooksPage() {
       setWebhookSecret("");
     }
   }, [currentWebhook]);
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const handleCopy = () => {
     // Only copy if we have the actual secret (not masked)
@@ -191,12 +214,6 @@ export default function WebhooksPage() {
       );
     }
   };
-
-  // Get delivery stats
-  const { data: deliveries = [] } = useGetDeliveryLogsQuery(
-    { webhookId: currentWebhook?.id || "", limit: 100 },
-    { skip: !currentWebhook?.id }
-  );
 
   const successCount = deliveries.filter((d) => d.status === "SUCCESS").length;
   const failureCount = deliveries.filter((d) => d.status === "FAILED").length;

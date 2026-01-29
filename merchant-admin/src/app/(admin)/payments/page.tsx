@@ -4,19 +4,37 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import UnifiedTransactionsTable from "@/components/payments/UnifiedTransactionsTable";
 import CreatePaymentIntentModal from "@/components/payments/CreatePaymentIntentModal";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import { useCreateOrderMutation, TransactionProvider } from "@/lib/services/paymentsServiceApi";
 import { transactionsServiceApi } from "@/lib/services/transactionsServiceApi";
 import { useAppDispatch } from "@/lib/store";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 import Button from "@/components/ui/button/Button";
 import { PlusIcon } from "@/icons";
 import { useToast } from "@/components/ui/toast/useToast";
 
 export default function PaymentsPage() {
+  // All hooks must be called at the top level, before any early returns
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createOrder] = useCreateOrderMutation();
   const { showToast } = useToast();
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const handleCreateTransaction = async (data: { payerName: string; amount: number; notes?: string; provider?: TransactionProvider }) => {
     try {
