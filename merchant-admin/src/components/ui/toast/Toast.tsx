@@ -2,7 +2,7 @@
 import React, { useEffect } from "react";
 import { CheckCircleIcon, AlertIcon, InfoIcon } from "@/icons";
 
-export type ToastType = "success" | "error" | "info";
+export type ToastType = "success" | "error" | "info" | "warning";
 
 interface ToastProps {
   message: string;
@@ -39,6 +39,8 @@ export default function Toast({
         return "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400";
       case "info":
         return "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400";
+      case "warning":
+        return "bg-yellow-500/10 border-yellow-500/20 text-yellow-600 dark:text-yellow-400";
     }
   };
 
@@ -50,6 +52,8 @@ export default function Toast({
         return <AlertIcon className="w-5 h-5" />;
       case "info":
         return <InfoIcon className="w-5 h-5" />;
+      case "warning":
+        return <AlertIcon className="w-5 h-5" />;
     }
   };
 

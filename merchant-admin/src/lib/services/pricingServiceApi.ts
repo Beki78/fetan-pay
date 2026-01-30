@@ -13,8 +13,9 @@ export interface Plan {
   description: string;
   price: number;
   billingCycle: BillingCycle;
-  verificationLimit?: number | null;
-  apiLimit: number;
+  limits?: Record<string, any>; // Flexible limits from JSON field
+  verificationLimit?: number | null; // Legacy field for backward compatibility
+  apiLimit?: number | null; // Legacy field for backward compatibility
   features: string[];
   status: PlanStatus;
   isPopular: boolean;

@@ -14,8 +14,9 @@ export interface Plan {
   description: string;
   price: number;
   billingCycle: BillingCycle;
-  verificationLimit?: number | null;
-  apiLimit: number;
+  limits?: Record<string, any>; // Flexible limits from JSON field
+  verificationLimit?: number | null; // Legacy field for backward compatibility
+  apiLimit?: number | null; // Legacy field for backward compatibility
   features: string[];
   status: PlanStatus;
   isPopular: boolean;
@@ -138,8 +139,9 @@ export interface CreatePlanRequest {
   description: string;
   price: number;
   billingCycle?: BillingCycle;
-  verificationLimit?: number;
-  apiLimit?: number;
+  limits?: Record<string, any>; // Flexible limits configuration
+  verificationLimit?: number; // Legacy field for backward compatibility
+  apiLimit?: number; // Legacy field for backward compatibility
   features: string[];
   isPopular?: boolean;
   displayOrder?: number;
@@ -151,8 +153,9 @@ export interface UpdatePlanRequest {
   description?: string;
   price?: number;
   billingCycle?: BillingCycle;
-  verificationLimit?: number;
-  apiLimit?: number;
+  limits?: Record<string, any>; // Flexible limits configuration
+  verificationLimit?: number; // Legacy field for backward compatibility
+  apiLimit?: number; // Legacy field for backward compatibility
   features?: string[];
   status?: PlanStatus;
   isPopular?: boolean;

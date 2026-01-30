@@ -5,115 +5,158 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
-import { ArrowLeftIcon, CheckCircleIcon, CalenderIcon } from "@/icons";
-
-// Mock merchant data
-const mockMerchant = {
-  id: "USR001",
-  firstName: "John",
-  lastName: "Doe", 
-  email: "john.doe@example.com",
-  currentPlan: "Starter",
-  status: "active"
-};
-
-// Mock available plans
-const availablePlans = [
-  {
-    id: "free",
-    name: "Free",
-    price: 0,
-    billingCycle: "month",
-    description: "Perfect for testing the platform and small businesses getting started",
-    features: [
-      "100 verifications/month",
-      "Full API access",
-      "2 API keys",
-      "Vendor dashboard",
-      "Basic analytics"
-    ],
-    isEnabled: true,
-    isPopular: false
-  },
-  {
-    id: "starter",
-    name: "Starter", 
-    price: 1740,
-    billingCycle: "month",
-    description: "Perfect for small businesses and startups",
-    features: [
-      "1,000 verifications/month",
-      "Full API access",
-      "2 API keys", 
-      "Vendor dashboard",
-      "Webhook support",
-      "Advanced analytics"
-    ],
-    isEnabled: true,
-    isPopular: true
-  },
-  {
-    id: "business",
-    name: "Business",
-    price: 11940,
-    billingCycle: "month", 
-    description: "Perfect for growing businesses and medium-sized companies",
-    features: [
-      "10,000 verifications/month",
-      "Full API access",
-      "2 API keys",
-      "Vendor dashboard", 
-      "Webhook support",
-      "Advanced analytics & reporting",
-      "Export functionality",
-      "Custom integration support"
-    ],
-    isEnabled: true,
-    isPopular: false
-  }
-];
+import { ArrowLeftIcon, CheckCircleIcon } from "@/icons";
+import { toast } from "sonner";
+import { 
+  useGetMerchantQuery 
+} from "@/lib/redux/features/merchantsApi";
+import { 
+  useGetPlansQuery, 
+  useAssignPlanMutation,
+  useGetMerchantSubscriptionQuery,
+  type PlanAssignmentType,
+  type PlanDurationType 
+} from "@/lib/redux/features/pricingApi";
 export default function ChangePlanPage() {
   const params = useParams();
   const router = useRouter();
   const merchantId = params.id as string;
   
   const [selectedPlan, setSelectedPlan] = useState("");
-  const [assignmentType, setAssignmentType] = useState<"immediate" | "scheduled">("immediate");
+  const [assignmentType, setAssignmentType] = useState<PlanAssignmentType>("IMMEDIATE");
   const [scheduledDate, setScheduledDate] = useState("");
-  const [duration, setDuration] = useState<"permanent" | "temporary">("permanent");
+  const [durationType, setDurationType] = useState<PlanDurationType>("PERMANENT");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // API queries
+  const { data: merchant, isLoading: merchantLoading, error: merchantError } = useGetMerchantQuery(merchantId);
+  const { data: plansResponse, isLoading: plansLoading, error: plansError } = useGetPlansQuery({ 
+    status: "ACTIVE", 
+    limit: 100,
+    sortBy: "displayOrder",
+    sortOrder: "asc"
+  });
+  const { data: subscriptionResponse, isLoading: subscriptionLoading } = useGetMerchantSubscriptionQuery(merchantId);
+  const [assignPlan] = useAssignPlanMutation();
+
+  const plans = plansResponse?.data || [];
+  const currentSubscription = subscriptionResponse?.subscription;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!selectedPlan) {
-      alert("Please select a plan");
+      toast.error("Please select a plan");
       return;
     }
 
-    const assignment = {
-      merchantId,
-      planId: selectedPlan,
-      assignmentType,
-      scheduledDate: assignmentType === "scheduled" ? scheduledDate : null,
-      duration,
-      endDate: duration === "temporary" ? endDate : null,
-      notes,
-      assignedBy: "Admin", // In real app, get from auth context
-      assignedAt: new Date().toISOString()
-    };
+    if (assignmentType === "SCHEDULED" && !scheduledDate) {
+      toast.error("Please select a scheduled date");
+      return;
+    }
 
-    console.log("Plan assignment:", assignment);
-    alert(`Plan assigned successfully to ${mockMerchant.firstName} ${mockMerchant.lastName}`);
-    router.push(`/merchants/${merchantId}`);
+    if (durationType === "TEMPORARY" && !endDate) {
+      toast.error("Please select an end date for temporary assignment");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const assignmentData = {
+        merchantId,
+        planId: selectedPlan,
+        assignmentType,
+        scheduledDate: assignmentType === "SCHEDULED" ? scheduledDate : undefined,
+        durationType,
+        endDate: durationType === "TEMPORARY" ? endDate : undefined,
+        notes: notes.trim() || undefined,
+      };
+
+      await assignPlan(assignmentData).unwrap();
+      
+      const selectedPlanData = plans.find(p => p.id === selectedPlan);
+      toast.success(`Plan "${selectedPlanData?.name}" assigned successfully to ${merchant?.name}`);
+      router.push(`/merchants/${merchantId}`);
+    } catch (error: any) {
+      console.error("Error assigning plan:", error);
+      
+      // Handle specific error cases
+      if (error?.data?.message?.includes("already a pending assignment")) {
+        toast.error("There is already a pending plan assignment for this merchant. Please wait for it to be processed or contact support.");
+      } else if (error?.data?.message?.includes("Plan assignment already applied")) {
+        toast.error("This plan assignment has already been processed. Please refresh the page to see the current status.");
+      } else if (error?.data?.message?.includes("Merchant not found")) {
+        toast.error("Merchant not found. Please verify the merchant ID and try again.");
+      } else if (error?.data?.message?.includes("Plan not found")) {
+        toast.error("Selected plan not found. Please refresh the page and try again.");
+      } else if (error?.data?.message?.includes("Cannot assign inactive plan")) {
+        toast.error("Cannot assign inactive plan. Please select an active plan.");
+      } else {
+        toast.error(error?.data?.message || "Failed to assign plan. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
     router.push(`/merchants/${merchantId}`);
   };
 
-  const selectedPlanData = availablePlans.find(p => p.id === selectedPlan);
+  const selectedPlanData = plans.find(p => p.id === selectedPlan);
+
+  // Loading states
+  if (merchantLoading || plansLoading || subscriptionLoading) {
+    return (
+      <div>
+        <PageBreadcrumb pageTitle="Change Plan" />
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error states
+  if (merchantError || plansError) {
+    return (
+      <div>
+        <PageBreadcrumb pageTitle="Change Plan" />
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-red-600 dark:text-red-400 mb-4">
+              {merchantError ? "Failed to load merchant details" : "Failed to load plans"}
+            </p>
+            <Button onClick={() => router.push(`/merchants/${merchantId}`)}>
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!merchant) {
+    return (
+      <div>
+        <PageBreadcrumb pageTitle="Change Plan" />
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">Merchant not found</p>
+            <Button onClick={() => router.push("/merchants")}>
+              Back to Merchants
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -136,7 +179,7 @@ export default function ChangePlanPage() {
                 Change Plan
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                Assign a new plan to {mockMerchant.firstName} {mockMerchant.lastName}
+                Assign a new plan to {merchant.name}
               </p>
             </div>
           </div>
@@ -150,15 +193,15 @@ export default function ChangePlanPage() {
           <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
             <div>
               <div className="font-medium text-gray-900 dark:text-white">
-                {mockMerchant.firstName} {mockMerchant.lastName}
+                {merchant.name}
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                {mockMerchant.email}
+                {merchant.contactEmail}
               </div>
             </div>
             <div className="text-right">
-              <Badge color="info" size="sm">
-                {mockMerchant.currentPlan}
+              <Badge color={currentSubscription?.status === "ACTIVE" ? "success" : "warning"} size="sm">
+                {currentSubscription?.plan?.name || "No Plan"}
               </Badge>
               <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Current Plan
@@ -179,66 +222,72 @@ export default function ChangePlanPage() {
                 Available Plans
               </h3>
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                {availablePlans.filter(plan => plan.isEnabled).map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                      selectedPlan === plan.id
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                    onClick={() => setSelectedPlan(plan.id)}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="plan"
-                          value={plan.id}
-                          checked={selectedPlan === plan.id}
-                          onChange={(e) => setSelectedPlan(e.target.value)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                        />
-                        <h4 className="font-semibold text-gray-900 dark:text-white">
-                          {plan.name}
-                        </h4>
-                      </div>
-                      {plan.isPopular && (
-                        <Badge color="info" size="sm">Popular</Badge>
-                      )}
-                    </div>
-                    
-                    <div className="mb-3">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-bold text-gray-900 dark:text-white">
-                          ETB {plan.price.toLocaleString()}
-                        </span>
-                        {plan.price > 0 && (
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            /{plan.billingCycle}
-                          </span>
+                {plans.filter(plan => plan.status === "ACTIVE").length === 0 ? (
+                  <div className="col-span-full text-center py-8">
+                    <p className="text-gray-500 dark:text-gray-400">No active plans available</p>
+                  </div>
+                ) : (
+                  plans.filter(plan => plan.status === "ACTIVE").map((plan) => (
+                    <div
+                      key={plan.id}
+                      className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                        selectedPlan === plan.id
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                      onClick={() => setSelectedPlan(plan.id)}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="plan"
+                            value={plan.id}
+                            checked={selectedPlan === plan.id}
+                            onChange={(e) => setSelectedPlan(e.target.value)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                          />
+                          <h4 className="font-semibold text-gray-900 dark:text-white">
+                            {plan.name}
+                          </h4>
+                        </div>
+                        {plan.isPopular && (
+                          <Badge color="info" size="sm">Popular</Badge>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {plan.description}
-                      </p>
-                    </div>
+                      
+                      <div className="mb-3">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-xl font-bold text-gray-900 dark:text-white">
+                            ETB {Number(plan.price).toLocaleString()}
+                          </span>
+                          {plan.price > 0 && (
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              /{plan.billingCycle.toLowerCase()}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          {plan.description}
+                        </p>
+                      </div>
 
-                    <div className="space-y-1">
-                      {plan.features.slice(0, 3).map((feature, index) => (
-                        <div key={index} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                          <CheckCircleIcon className="w-3 h-3 text-green-500" />
-                          {feature}
-                        </div>
-                      ))}
-                      {plan.features.length > 3 && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          +{plan.features.length - 3} more features
-                        </div>
-                      )}
+                      <div className="space-y-1">
+                        {plan.features.slice(0, 3).map((feature, index) => (
+                          <div key={index} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                            <CheckCircleIcon className="w-3 h-3 text-green-500" />
+                            {feature}
+                          </div>
+                        ))}
+                        {plan.features.length > 3 && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            +{plan.features.length - 3} more features
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
@@ -260,9 +309,9 @@ export default function ChangePlanPage() {
                         type="radio"
                         id="immediate"
                         name="assignmentType"
-                        value="immediate"
-                        checked={assignmentType === "immediate"}
-                        onChange={(e) => setAssignmentType(e.target.value as "immediate" | "scheduled")}
+                        value="IMMEDIATE"
+                        checked={assignmentType === "IMMEDIATE"}
+                        onChange={(e) => setAssignmentType(e.target.value as PlanAssignmentType)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                       />
                       <label htmlFor="immediate" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -274,9 +323,9 @@ export default function ChangePlanPage() {
                         type="radio"
                         id="scheduled"
                         name="assignmentType"
-                        value="scheduled"
-                        checked={assignmentType === "scheduled"}
-                        onChange={(e) => setAssignmentType(e.target.value as "immediate" | "scheduled")}
+                        value="SCHEDULED"
+                        checked={assignmentType === "SCHEDULED"}
+                        onChange={(e) => setAssignmentType(e.target.value as PlanAssignmentType)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                       />
                       <label htmlFor="scheduled" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -285,7 +334,7 @@ export default function ChangePlanPage() {
                     </div>
                   </div>
                   
-                  {assignmentType === "scheduled" && (
+                  {assignmentType === "SCHEDULED" && (
                     <div className="mt-3">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Scheduled Date
@@ -311,10 +360,10 @@ export default function ChangePlanPage() {
                       <input
                         type="radio"
                         id="permanent"
-                        name="duration"
-                        value="permanent"
-                        checked={duration === "permanent"}
-                        onChange={(e) => setDuration(e.target.value as "permanent" | "temporary")}
+                        name="durationType"
+                        value="PERMANENT"
+                        checked={durationType === "PERMANENT"}
+                        onChange={(e) => setDurationType(e.target.value as PlanDurationType)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                       />
                       <label htmlFor="permanent" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -325,10 +374,10 @@ export default function ChangePlanPage() {
                       <input
                         type="radio"
                         id="temporary"
-                        name="duration"
-                        value="temporary"
-                        checked={duration === "temporary"}
-                        onChange={(e) => setDuration(e.target.value as "permanent" | "temporary")}
+                        name="durationType"
+                        value="TEMPORARY"
+                        checked={durationType === "TEMPORARY"}
+                        onChange={(e) => setDurationType(e.target.value as PlanDurationType)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                       />
                       <label htmlFor="temporary" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -337,7 +386,7 @@ export default function ChangePlanPage() {
                     </div>
                   </div>
                   
-                  {duration === "temporary" && (
+                  {durationType === "TEMPORARY" && (
                     <div className="mt-3">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         End Date
@@ -375,9 +424,9 @@ export default function ChangePlanPage() {
                     </h4>
                     <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                       <div>Plan: <span className="font-medium">{selectedPlanData.name}</span></div>
-                      <div>Price: <span className="font-medium">ETB {selectedPlanData.price.toLocaleString()}/{selectedPlanData.billingCycle}</span></div>
-                      <div>Apply: <span className="font-medium">{assignmentType === "immediate" ? "Immediately" : `On ${new Date(scheduledDate).toLocaleString()}`}</span></div>
-                      <div>Duration: <span className="font-medium">{duration === "permanent" ? "Permanent" : `Until ${new Date(endDate).toLocaleString()}`}</span></div>
+                      <div>Price: <span className="font-medium">ETB {Number(selectedPlanData.price).toLocaleString()}/{selectedPlanData.billingCycle.toLowerCase()}</span></div>
+                      <div>Apply: <span className="font-medium">{assignmentType === "IMMEDIATE" ? "Immediately" : `On ${new Date(scheduledDate).toLocaleString()}`}</span></div>
+                      <div>Duration: <span className="font-medium">{durationType === "PERMANENT" ? "Permanent" : `Until ${new Date(endDate).toLocaleString()}`}</span></div>
                     </div>
                   </div>
                 )}
@@ -386,11 +435,11 @@ export default function ChangePlanPage() {
 
             {/* Form Actions */}
             <div className="flex justify-end gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <Button type="button" variant="outline" onClick={handleCancel}>
+              <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!selectedPlan}>
-                Assign Plan
+              <Button type="submit" disabled={!selectedPlan || isSubmitting}>
+                {isSubmitting ? "Assigning..." : "Assign Plan"}
               </Button>
             </div>
           </form>

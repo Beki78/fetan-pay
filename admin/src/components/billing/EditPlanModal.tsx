@@ -51,13 +51,17 @@ export default function EditPlanModal({
   // Update form data when plan changes
   useEffect(() => {
     if (plan) {
+      // Extract limits from either direct fields or limits object
+      const verificationLimit = plan.verificationLimit || plan.limits?.verifications_monthly || "";
+      const apiLimit = plan.apiLimit || plan.limits?.api_calls_monthly || "";
+      
       setFormData({
         name: plan.name || "",
         description: plan.description || "",
         price: plan.price?.toString() || "",
         billingCycle: plan.billingCycle || "month",
-        verificationLimit: plan.verificationLimit?.toString() || "",
-        apiLimit: plan.apiLimit?.toString() || "",
+        verificationLimit: verificationLimit.toString(),
+        apiLimit: apiLimit.toString(),
         isPopular: plan.isPopular || false,
         displayOrder: plan.displayOrder?.toString() || "1",
         isEnabled: plan.isEnabled !== undefined ? plan.isEnabled : true
@@ -93,14 +97,23 @@ export default function EditPlanModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const verificationLimit = parseInt(formData.verificationLimit) || 0;
+    const apiLimit = parseInt(formData.apiLimit) || 60;
+    
     const updatedPlan = {
       ...plan,
       name: formData.name,
       description: formData.description,
       price: parseInt(formData.price) || 0,
       billingCycle: formData.billingCycle,
-      verificationLimit: parseInt(formData.verificationLimit) || 0,
-      apiLimit: parseInt(formData.apiLimit) || 60,
+      limits: {
+        verifications_monthly: verificationLimit,
+        api_calls_monthly: apiLimit,
+        ...plan.limits // Preserve other limits
+      },
+      // Keep legacy fields for backward compatibility
+      verificationLimit: verificationLimit,
+      apiLimit: apiLimit,
       features: features,
       isPopular: formData.isPopular,
       displayOrder: parseInt(formData.displayOrder) || 1,
@@ -113,13 +126,13 @@ export default function EditPlanModal({
   if (!plan) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose}>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Edit Plan: {plan.name}
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="outline" size="sm" onClick={onClose}>
             <CloseIcon className="w-4 h-4" />
           </Button>
         </div>
@@ -294,7 +307,6 @@ export default function EditPlanModal({
                 value={newFeature}
                 onChange={(e) => setNewFeature(e.target.value)}
                 placeholder="Add a custom feature..."
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddFeature())}
               />
               <Button type="button" onClick={handleAddFeature} variant="outline">
                 <PlusIcon className="w-4 h-4" />
@@ -321,7 +333,7 @@ export default function EditPlanModal({
                       </div>
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleRemoveFeature(feature)}
                       >

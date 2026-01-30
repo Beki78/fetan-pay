@@ -13,6 +13,7 @@ import type { Request } from 'express';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { UpdateWebhookDto } from './dto/update-webhook.dto';
 import { MerchantUsersService } from '../merchant-users/merchant-users.service';
+import { UsageTrackerService } from '../../common/services/usage-tracker.service';
 import { encrypt, decrypt } from '../../common/encryption.util';
 
 @Injectable()
@@ -22,6 +23,7 @@ export class WebhooksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly merchantUsersService: MerchantUsersService,
+    private readonly usageTracker: UsageTrackerService,
   ) {}
 
   /**
@@ -454,10 +456,10 @@ export class WebhooksService {
     }
 
     const payloadString = JSON.stringify(payload);
-    
+
     // Decrypt secret for signature generation
     const secret = decrypt(webhook.secret);
-    
+
     const signature = this.generateSignature(payloadString, secret);
 
     // Create delivery record
@@ -519,6 +521,19 @@ export class WebhooksService {
           },
         },
       });
+
+      // Track webhook delivery usage for successful deliveries
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          await this.usageTracker.trackWebhookDelivery(webhook.merchantId);
+        } catch (error) {
+          this.logger.error(
+            '[Usage] Error tracking webhook delivery usage:',
+            error,
+          );
+          // Don't fail the webhook delivery if usage tracking fails
+        }
+      }
 
       // If failed and retries remaining, schedule retry
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -699,4 +714,3 @@ export class WebhooksService {
     return { message: 'Delivery retry initiated' };
   }
 }
-

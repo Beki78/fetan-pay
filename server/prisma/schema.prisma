@@ -221,6 +221,7 @@ model Merchant {
   subscriptions        Subscription[]
   planAssignments      PlanAssignment[]
   billingTransactions  BillingTransaction[]
+  subscriptionUsage    SubscriptionUsage[]
 
   // Provider catalog is global (admin-managed), so no relation here.
 
@@ -1086,10 +1087,9 @@ model Plan {
   price             Decimal             @db.Decimal(10, 2) // Monthly price in ETB
   billingCycle      BillingCycle        @default(MONTHLY)
   
-  // Plan limits and features
-  verificationLimit Int?                // NULL for unlimited
-  apiLimit          Int                 @default(60) // API requests per minute
-  features          String[]            // Array of feature strings
+  // Plan limits and features (flexible JSON structure)
+  limits            Json                @default("{}")  // Flexible limits configuration
+  features          String[]            // Array of feature strings for display
   
   // Plan settings
   status            PlanStatus          @default(ACTIVE)
@@ -1223,4 +1223,26 @@ model BillingTransaction {
   @@index([createdAt])
   @@index([transactionId])
   @@map("billing_transaction")
+}
+
+// Usage tracking for subscription limits
+model SubscriptionUsage {
+  id              String    @id @default(uuid())
+  merchantId      String
+  merchant        Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  // Usage period (monthly reset)
+  period          String    // Format: "YYYY-MM" (e.g., "2024-01")
+  
+  // Usage counters (JSON for flexibility)
+  usage           Json      @default("{}")  // Current usage counts
+  
+  // Metadata
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([merchantId, period])
+  @@index([merchantId])
+  @@index([period])
+  @@map("subscription_usage")
 }

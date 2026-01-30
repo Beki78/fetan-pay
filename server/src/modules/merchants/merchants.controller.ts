@@ -9,6 +9,7 @@ import {
   Put,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
@@ -35,6 +36,8 @@ import { QrLoginDto } from './dto/qr-login.dto';
 import { WalletService } from '../wallet/wallet.service';
 import { UpdateMerchantWalletConfigDto } from '../wallet/dto/update-merchant-wallet-config.dto';
 import { UpdateMerchantProfileDto } from './dto/update-merchant-profile.dto';
+import { SubscriptionGuard } from '../../common/guards/subscription.guard';
+import { ProtectTeamMembers } from '../../common/decorators/subscription-protection.decorator';
 
 // This controller handles merchant onboarding and account provisioning. Authentication itself is handled
 // by Better Auth (see auth.ts). Routes here stay focused on merchant + staff membership records and
@@ -237,10 +240,12 @@ export class MerchantsController {
   }
 
   @Post(':id/users')
+  @UseGuards(SubscriptionGuard)
+  @ProtectTeamMembers()
   @ApiOperation({
     summary: 'Create a merchant employee with auth account',
     description:
-      'Creates a new employee user for a merchant account. Also creates the corresponding Better Auth user account.',
+      'Creates a new employee user for a merchant account. Also creates the corresponding Better Auth user account. Limited by subscription plan.',
   })
   @ApiParam({
     name: 'id',
@@ -255,6 +260,10 @@ export class MerchantsController {
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Merchant not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Plan limit exceeded - upgrade required',
+  })
   async createUser(
     @Param('id') id: string,
     @Body() body: CreateMerchantUserDto,

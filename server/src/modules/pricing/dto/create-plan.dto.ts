@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsArray,
   IsEnum,
+  IsObject,
   Min,
   Max,
 } from 'class-validator';
@@ -38,29 +39,31 @@ export class CreatePlanDto {
   billingCycle?: BillingCycle = BillingCycle.MONTHLY;
 
   @ApiProperty({
-    description: 'Verification limit per month (null for unlimited)',
-    example: 1000,
+    description: 'Plan limits configuration (flexible JSON object)',
+    example: {
+      verifications_monthly: 1000,
+      api_keys: 2,
+      team_members: 5,
+      webhooks: 3,
+      bank_accounts: 5,
+      custom_branding: false,
+      advanced_analytics: true,
+      export_functionality: true,
+      transaction_history_days: 180,
+    },
     required: false,
   })
-  @IsNumber()
+  @IsObject()
   @IsOptional()
-  @Min(0)
-  verificationLimit?: number;
+  limits?: Record<string, any> = {};
 
   @ApiProperty({
-    description: 'API requests per minute',
-    example: 60,
-    required: false,
-  })
-  @IsNumber()
-  @IsOptional()
-  @Min(1)
-  @Max(1000)
-  apiLimit?: number = 60;
-
-  @ApiProperty({
-    description: 'Array of plan features',
-    example: ['Full API access', 'Vendor dashboard', 'Basic analytics'],
+    description: 'Array of plan features for display',
+    example: [
+      '1,000 verifications/month',
+      'Full API access',
+      'Advanced analytics',
+    ],
     type: [String],
   })
   @IsArray()
