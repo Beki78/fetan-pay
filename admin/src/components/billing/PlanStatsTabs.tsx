@@ -495,12 +495,16 @@ export default function PlanStatsTabs() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500 dark:text-gray-400">API Limit:</span>
-                  <span className="text-gray-900 dark:text-white">{plan.apiLimit}/min</span>
+                  <span className="text-gray-900 dark:text-white">
+                    {(plan.apiLimit || plan.limits?.api_calls_monthly || 'Unlimited')}/min
+                  </span>
                 </div>
-                {plan.verificationLimit && (
+                {(plan.verificationLimit || plan.limits?.verifications_monthly) && (
                   <div className="flex justify-between">
                     <span className="text-gray-500 dark:text-gray-400">Verification Limit:</span>
-                    <span className="text-gray-900 dark:text-white">{plan.verificationLimit.toLocaleString()}/month</span>
+                    <span className="text-gray-900 dark:text-white">
+                      {(plan.verificationLimit || plan.limits?.verifications_monthly || 0).toLocaleString()}/month
+                    </span>
                   </div>
                 )}
               </div>

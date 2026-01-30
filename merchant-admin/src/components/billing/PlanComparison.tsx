@@ -131,10 +131,16 @@ export default function PlanComparison() {
               
               {/* Plan limits info */}
               <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                {plan.verificationLimit && (
-                  <div>Verifications: {plan.verificationLimit.toLocaleString()}/month</div>
+                {(plan.verificationLimit || plan.limits?.verifications_monthly) && (
+                  <div>
+                    Verifications: {(plan.verificationLimit || plan.limits?.verifications_monthly || 0).toLocaleString()}/month
+                  </div>
                 )}
-                <div>API Calls: {plan.apiLimit.toLocaleString()}/min</div>
+                {(plan.apiLimit || plan.limits?.api_calls_monthly) && (
+                  <div>
+                    API Calls: {(plan.apiLimit || plan.limits?.api_calls_monthly || 0).toLocaleString()}/min
+                  </div>
+                )}
               </div>
             </div>
           </div>

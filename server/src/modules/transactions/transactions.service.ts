@@ -6,6 +6,7 @@ import {
 import { TransactionProvider, TransactionStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { VerificationService } from '../verifier/services/verification.service';
+import { UsageTrackerService } from '../../common/services/usage-tracker.service';
 import { ListTransactionsQueryDto } from './dto/list-transactions.dto';
 import { ListVerifiedByUserQueryDto } from './dto/list-verified-by-user.dto';
 import { VerifyFromQrDto } from './dto/verify-from-qr.dto';
@@ -17,6 +18,7 @@ export class TransactionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly verificationService: VerificationService,
+    private readonly usageTracker: UsageTrackerService,
   ) {}
 
   async verifyFromQr(body: VerifyFromQrDto, req?: Request) {
@@ -449,6 +451,14 @@ export class TransactionsService {
           reference: body.reference,
         },
       });
+
+      // Track verification usage for subscription limits
+      try {
+        await this.usageTracker.trackVerification(transaction.merchantId);
+      } catch (error) {
+        console.error('[Usage] Error tracking verification usage:', error);
+        // Don't fail the payment verification if usage tracking fails
+      }
 
       return {
         success: true,

@@ -1,4 +1,4 @@
-import { Controller, Get, Req, Query } from '@nestjs/common';
+import { Controller, Get, Req, Query, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   ApiOperation,
@@ -9,6 +9,8 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { MerchantAdminDashboardService } from './merchant-admin-dashboard.service';
+import { SubscriptionGuard } from '../../common/guards/subscription.guard';
+import { ProtectAdvancedAnalytics } from '../../common/decorators/subscription-protection.decorator';
 
 @ApiTags('merchant-admin-dashboard')
 @ApiBearerAuth('bearer')
@@ -134,6 +136,12 @@ export class MerchantAdminDashboardController {
     status: 403,
     description: 'Forbidden - Merchant membership required',
   })
+  @ApiResponse({
+    status: 403,
+    description: 'Advanced analytics not available in your current plan',
+  })
+  @UseGuards(SubscriptionGuard)
+  @ProtectAdvancedAnalytics()
   async getStatisticsTrend(
     @Req() req: Request,
     @Query('period') period?: string,
@@ -172,6 +180,12 @@ export class MerchantAdminDashboardController {
     status: 403,
     description: 'Forbidden - Merchant membership required',
   })
+  @ApiResponse({
+    status: 403,
+    description: 'Advanced analytics not available in your current plan',
+  })
+  @UseGuards(SubscriptionGuard)
+  @ProtectAdvancedAnalytics()
   async getStatusDistribution(
     @Req() req: Request,
     @Query('period') period?: string,

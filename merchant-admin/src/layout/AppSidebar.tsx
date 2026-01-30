@@ -4,9 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAccountStatus } from "@/hooks/useAccountStatus";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useSidebar } from "../context/SidebarContext";
 import { PendingApprovalBanner } from "@/components/common/AccountStatus";
 import { useGetUnreadCountQuery } from "@/lib/services/notificationsServiceApi";
+import { useToast } from "@/components/ui/toast/useToast";
 import {
   BoltIcon,
   ChevronDownIcon,
@@ -22,6 +24,7 @@ import {
   DocsIcon,
   BellIcon,
   NotificationBellIcon,
+  LockIcon,
 } from "../icons/index";
 
 // Custom icon components for better representation
@@ -271,8 +274,125 @@ const resourcesItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
+  const { canAccessFeature, getFeatureLimit } = useSubscription();
+  const { showToast } = useToast();
 
   const { status: accountStatus, isStatusConfirmed } = useAccountStatus();
+
+  // Handle protected feature clicks
+  const handleProtectedFeatureClick = (featureName: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    showToast({
+      type: 'warning',
+      message: `Please upgrade your plan to access ${featureName}`,
+      duration: 4000,
+    });
+  };
+
+  // Component for protected menu items
+  const ProtectedMenuItem = ({ 
+    nav, 
+    feature, 
+    isActive: itemIsActive 
+  }: { 
+    nav: NavItem; 
+    feature: keyof import('@/hooks/useSubscription').SubscriptionFeatures;
+    isActive: boolean;
+  }) => {
+    const hasAccess = canAccessFeature(feature);
+    const featureLimit = getFeatureLimit(feature);
+    
+    if (hasAccess && nav.path) {
+      return (
+        <Link
+          href={nav.path}
+          className={`menu-item group ${
+            itemIsActive ? "menu-item-active" : "menu-item-inactive"
+          }`}
+        >
+          <span
+            className={`${
+              itemIsActive
+                ? "menu-item-icon-active"
+                : "menu-item-icon-inactive"
+            }`}
+          >
+            {nav.icon}
+          </span>
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className={`menu-item-text`}>{nav.name}</span>
+          )}
+        </Link>
+      );
+    }
+
+    // For numeric features with 0 limit, show locked
+    if (typeof featureLimit === 'number' && featureLimit === 0) {
+      return (
+        <button
+          onClick={(e) => handleProtectedFeatureClick(nav.name, e)}
+          className="menu-item group menu-item-inactive cursor-pointer opacity-60"
+        >
+          <span className="menu-item-icon-inactive">
+            {nav.icon}
+          </span>
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className="menu-item-text flex items-center justify-between w-full">
+              <span>{nav.name}</span>
+              <LockIcon className="w-4 h-4 text-gray-400 ml-2" />
+            </span>
+          )}
+        </button>
+      );
+    }
+
+    // For boolean features that are false, show locked
+    if (typeof featureLimit === 'boolean' && !featureLimit) {
+      return (
+        <button
+          onClick={(e) => handleProtectedFeatureClick(nav.name, e)}
+          className="menu-item group menu-item-inactive cursor-pointer opacity-60"
+        >
+          <span className="menu-item-icon-inactive">
+            {nav.icon}
+          </span>
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className="menu-item-text flex items-center justify-between w-full">
+              <span>{nav.name}</span>
+              <LockIcon className="w-4 h-4 text-gray-400 ml-2" />
+            </span>
+          )}
+        </button>
+      );
+    }
+
+    // Default: allow access (for numeric limits > 0)
+    if (nav.path) {
+      return (
+        <Link
+          href={nav.path}
+          className={`menu-item group ${
+            itemIsActive ? "menu-item-active" : "menu-item-inactive"
+          }`}
+        >
+          <span
+            className={`${
+              itemIsActive
+                ? "menu-item-icon-active"
+                : "menu-item-icon-inactive"
+            }`}
+          >
+            {nav.icon}
+          </span>
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className={`menu-item-text`}>{nav.name}</span>
+          )}
+        </Link>
+      );
+    }
+
+    return null;
+  };
 
   const renderMenuItems = (
     navItems: NavItem[],
@@ -339,6 +459,24 @@ const AppSidebar: React.FC = () => {
                   isHovered={isHovered} 
                   isMobileOpen={isMobileOpen} 
                   pathname={pathname} 
+                />
+              ) : nav.name === "Branding" ? (
+                <ProtectedMenuItem
+                  nav={nav}
+                  feature="customBranding"
+                  isActive={isActive(nav.path!)}
+                />
+              ) : nav.name === "Analytics" ? (
+                <ProtectedMenuItem
+                  nav={nav}
+                  feature="advancedAnalytics"
+                  isActive={isActive(nav.path!)}
+                />
+              ) : nav.name === "Payment Providers" ? (
+                <ProtectedMenuItem
+                  nav={nav}
+                  feature="paymentProviders"
+                  isActive={isActive(nav.path!)}
                 />
               ) : (
                 <Link

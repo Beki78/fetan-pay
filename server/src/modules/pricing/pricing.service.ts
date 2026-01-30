@@ -4,7 +4,9 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { SubscriptionService } from '../../common/services/subscription.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { AssignPlanDto } from './dto/assign-plan.dto';
@@ -20,7 +22,10 @@ import {
 
 @Injectable()
 export class PricingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly subscriptionService: SubscriptionService,
+  ) {}
 
   // Plan Management
   async createPlan(createPlanDto: CreatePlanDto, createdBy?: string) {
@@ -35,9 +40,16 @@ export class PricingService {
 
     return this.prisma.plan.create({
       data: {
-        ...createPlanDto,
-        createdBy,
+        name: createPlanDto.name,
+        description: createPlanDto.description,
+        price: createPlanDto.price,
+        billingCycle: createPlanDto.billingCycle || BillingCycle.MONTHLY,
+        limits: (createPlanDto.limits || {}) as Prisma.InputJsonValue,
+        features: createPlanDto.features,
         status: PlanStatus.ACTIVE,
+        isPopular: createPlanDto.isPopular || false,
+        displayOrder: createPlanDto.displayOrder || 1,
+        createdBy,
       },
     });
   }
@@ -222,6 +234,36 @@ export class PricingService {
       );
     }
 
+    // Check if merchant already has this plan active
+    const currentSubscription = await this.prisma.subscription.findFirst({
+      where: {
+        merchantId,
+        planId,
+        status: SubscriptionStatus.ACTIVE,
+      },
+    });
+
+    if (currentSubscription) {
+      throw new BadRequestException(
+        'Merchant already has an active subscription to this plan',
+      );
+    }
+
+    // Check for existing pending assignments for the same merchant and plan
+    const existingAssignment = await this.prisma.planAssignment.findFirst({
+      where: {
+        merchantId,
+        planId,
+        isApplied: false, // Only check pending assignments
+      },
+    });
+
+    if (existingAssignment) {
+      throw new BadRequestException(
+        'There is already a pending assignment for this merchant and plan',
+      );
+    }
+
     const assignment = await this.prisma.planAssignment.create({
       data: {
         merchantId,
@@ -232,7 +274,7 @@ export class PricingService {
         endDate: endDate ? new Date(endDate) : null,
         notes,
         assignedBy,
-        isApplied: assignmentType === PlanAssignmentType.IMMEDIATE,
+        isApplied: false, // Always start as false, let applyPlanAssignment handle it
       },
       include: {
         merchant: true,
@@ -416,8 +458,15 @@ export class PricingService {
       },
     });
 
+    // Get current usage data for the merchant
+    const currentUsage =
+      await this.subscriptionService.getCurrentUsage(merchantId);
+
     if (subscription) {
-      return subscription;
+      return {
+        ...subscription,
+        currentUsage,
+      };
     }
 
     // If no subscription found, check if merchant exists and is active
@@ -442,7 +491,7 @@ export class PricingService {
       return null; // No free plan available
     }
 
-    // Return a virtual subscription for the free plan
+    // Return a virtual subscription for the free plan with real usage data
     return {
       id: `virtual-free-${merchantId}`,
       merchantId,
@@ -453,7 +502,7 @@ export class PricingService {
       nextBillingDate: null,
       monthlyPrice: 0,
       billingCycle: BillingCycle.MONTHLY,
-      currentUsage: null,
+      currentUsage,
       createdAt: new Date(),
       updatedAt: new Date(),
       cancelledAt: null,
@@ -516,6 +565,14 @@ export class PricingService {
       }),
       totalRevenue: totalRevenue._sum.amount || 0,
     };
+  }
+
+  async getMerchantUsageStatistics(merchantId: string) {
+    const subscriptionService =
+      new (require('../../common/services/subscription.service').SubscriptionService)(
+        this.prisma,
+      );
+    return subscriptionService.getUsageStatistics(merchantId);
   }
 
   async getMerchantsForPlan(

@@ -28,6 +28,21 @@ const defaultFeatures = [
   "Priority support"
 ];
 
+// Available limit types that admin can configure
+const availableLimits = [
+  { key: "verifications_monthly", label: "Monthly Verifications", type: "number", placeholder: "1000" },
+  { key: "api_keys", label: "API Keys", type: "number", placeholder: "2" },
+  { key: "team_members", label: "Team Members", type: "number", placeholder: "5" },
+  { key: "webhooks", label: "Webhooks", type: "number", placeholder: "3" },
+  { key: "bank_accounts", label: "Bank Accounts", type: "number", placeholder: "5" },
+  { key: "payment_providers", label: "Payment Providers", type: "number", placeholder: "3" },
+  { key: "custom_branding", label: "Custom Branding", type: "boolean" },
+  { key: "advanced_analytics", label: "Advanced Analytics", type: "boolean" },
+  { key: "export_functionality", label: "Export Functionality", type: "boolean" },
+  { key: "transaction_history_days", label: "Transaction History (Days)", type: "number", placeholder: "180" },
+  { key: "api_rate_per_minute", label: "API Rate Per Minute", type: "number", placeholder: "60" },
+];
+
 interface EditPlanFormProps {
   planId: string;
 }
@@ -42,12 +57,11 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
     description: "",
     price: "",
     billingCycle: "MONTHLY" as BillingCycle,
-    verificationLimit: "",
-    apiLimit: "",
     isPopular: false,
     displayOrder: "1",
     status: "ACTIVE" as PlanStatus
   });
+  const [limits, setLimits] = useState<Record<string, any>>({});
   const [features, setFeatures] = useState<string[]>([]);
   const [newFeature, setNewFeature] = useState("");
 
@@ -59,15 +73,29 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
         description: plan.description,
         price: plan.price.toString(),
         billingCycle: plan.billingCycle,
-        verificationLimit: plan.verificationLimit?.toString() || "",
-        apiLimit: plan.apiLimit.toString(),
         isPopular: plan.isPopular,
         displayOrder: plan.displayOrder?.toString() || "1",
         status: plan.status
       });
+      setLimits(plan.limits || {});
       setFeatures(plan.features);
     }
   }, [plan]);
+
+  const handleLimitChange = (key: string, value: any) => {
+    setLimits(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const handleRemoveLimit = (key: string) => {
+    setLimits(prev => {
+      const newLimits = { ...prev };
+      delete newLimits[key];
+      return newLimits;
+    });
+  };
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -98,8 +126,7 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
           description: formData.description,
           price: parseFloat(formData.price) || 0,
           billingCycle: formData.billingCycle,
-          verificationLimit: formData.verificationLimit ? parseInt(formData.verificationLimit) : undefined,
-          apiLimit: parseInt(formData.apiLimit) || 60,
+          limits: limits, // Use the flexible limits object
           features: features,
           status: formData.status,
           isPopular: formData.isPopular,
@@ -199,7 +226,7 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
                 onChange={(e) => handleInputChange("price", e.target.value)}
                 placeholder="0"
                 min="0"
-                step="1"
+                step={1}
                 required
               />
             </div>
@@ -223,40 +250,105 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
         {/* Limits & Settings */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800/50">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">
-            Limits & Settings
+            Plan Limits Configuration
           </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Verification Limit (per month)
-              </label>
-              <Input
-                type="number"
-                value={formData.verificationLimit}
-                onChange={(e) => handleInputChange("verificationLimit", e.target.value)}
-                placeholder="1000"
-                min="0"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Leave empty for unlimited
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                API Requests (per minute)
-              </label>
-              <Input
-                type="number"
-                value={formData.apiLimit}
-                onChange={(e) => handleInputChange("apiLimit", e.target.value)}
-                placeholder="60"
-                min="1"
-              />
+          {/* Available Limits */}
+          <div className="mb-6">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Configure plan limits (leave empty for no limit):
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {availableLimits.map((limitConfig) => (
+                <div key={limitConfig.key} className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {limitConfig.label}
+                  </label>
+                  {limitConfig.type === "number" ? (
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        value={limits[limitConfig.key] || ""}
+                        onChange={(e) => handleLimitChange(limitConfig.key, parseInt(e.target.value) || 0)}
+                        placeholder={limitConfig.placeholder}
+                        min="0"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleLimitChange(limitConfig.key, -1)}
+                        className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
+                      >
+                        Unlimited
+                      </button>
+                      {limits[limitConfig.key] !== undefined && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveLimit(limitConfig.key)}
+                          className="px-3 py-1 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={limits[limitConfig.key] || false}
+                        onChange={(e) => handleLimitChange(limitConfig.key, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Enable {limitConfig.label}
+                      </span>
+                      {limits[limitConfig.key] !== undefined && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveLimit(limitConfig.key)}
+                          className="ml-2 px-2 py-1 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {limits[limitConfig.key] === -1 && (
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      ✓ Unlimited
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          {/* Current Limits Summary */}
+          {Object.keys(limits).length > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-6">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Current Plan Limits:
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {Object.entries(limits).map(([key, value]) => {
+                  const limitConfig = availableLimits.find(l => l.key === key);
+                  return (
+                    <div key={key} className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {limitConfig?.label || key}:
+                      </span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {value === -1 ? "Unlimited" : 
+                         typeof value === "boolean" ? (value ? "Enabled" : "Disabled") : 
+                         value}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Billing Cycle

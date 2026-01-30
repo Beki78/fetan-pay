@@ -22,8 +22,19 @@ async function seedPricingPlans() {
         'Perfect for testing the platform and small businesses getting started',
       price: 0,
       billingCycle: BillingCycle.MONTHLY,
-      verificationLimit: 100,
-      apiLimit: 60,
+      limits: {
+        verifications_monthly: 100,
+        api_keys: 2,
+        team_members: 2,
+        webhooks: 1,
+        bank_accounts: 2,
+        payment_providers: 2,
+        custom_branding: false,
+        advanced_analytics: false,
+        export_functionality: false,
+        transaction_history_days: 30,
+        api_rate_per_minute: 60,
+      },
       features: [
         '100 verifications/month',
         'Full API access',
@@ -45,8 +56,19 @@ async function seedPricingPlans() {
       description: 'Perfect for small businesses and startups',
       price: 1740, // $29 * 60 ETB
       billingCycle: BillingCycle.MONTHLY,
-      verificationLimit: 1000,
-      apiLimit: 60,
+      limits: {
+        verifications_monthly: 1000,
+        api_keys: 2,
+        team_members: 5,
+        webhooks: 3,
+        bank_accounts: 5,
+        payment_providers: 3,
+        custom_branding: false,
+        advanced_analytics: true,
+        export_functionality: false,
+        transaction_history_days: 180,
+        api_rate_per_minute: 60,
+      },
       features: [
         '1,000 verifications/month',
         'Full API access',
@@ -69,12 +91,23 @@ async function seedPricingPlans() {
       description: 'Perfect for growing businesses and medium-sized companies',
       price: 11940, // $199 * 60 ETB
       billingCycle: BillingCycle.MONTHLY,
-      verificationLimit: 10000,
-      apiLimit: 120,
+      limits: {
+        verifications_monthly: 10000,
+        api_keys: 5,
+        team_members: 15,
+        webhooks: 10,
+        bank_accounts: -1, // Unlimited
+        payment_providers: -1, // Unlimited
+        custom_branding: true,
+        advanced_analytics: true,
+        export_functionality: true,
+        transaction_history_days: 365,
+        api_rate_per_minute: 120,
+      },
       features: [
         '10,000 verifications/month',
         'Full API access',
-        '2 API keys',
+        '5 API keys',
         'Vendor dashboard',
         'Webhook support',
         'Advanced analytics & reporting',
@@ -97,8 +130,22 @@ async function seedPricingPlans() {
         'Perfect for large enterprises, fintech companies, and businesses with specific needs',
       price: 0, // Custom pricing
       billingCycle: BillingCycle.MONTHLY,
-      verificationLimit: null, // Unlimited
-      apiLimit: -1, // Use -1 to represent unlimited instead of null
+      limits: {
+        verifications_monthly: -1, // Unlimited
+        api_keys: -1, // Unlimited
+        team_members: -1, // Unlimited
+        webhooks: -1, // Unlimited
+        bank_accounts: -1, // Unlimited
+        payment_providers: -1, // Unlimited
+        custom_branding: true,
+        advanced_analytics: true,
+        export_functionality: true,
+        transaction_history_days: -1, // Unlimited
+        api_rate_per_minute: -1, // Unlimited
+        white_label: true,
+        dedicated_support: true,
+        on_premise: true,
+      },
       features: [
         'Custom verification limits',
         'Full API access',

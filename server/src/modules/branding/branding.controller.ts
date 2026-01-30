@@ -12,6 +12,7 @@ import {
   FileTypeValidator,
   UsePipes,
   ValidationPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -26,6 +27,8 @@ import {
 } from '@nestjs/swagger';
 import { BrandingService } from './branding.service';
 import { UpdateBrandingDto } from './dto/update-branding.dto';
+import { SubscriptionGuard } from '../../common/guards/subscription.guard';
+import { ProtectCustomBranding } from '../../common/decorators/subscription-protection.decorator';
 
 interface BrandingData {
   id: string | null;
@@ -83,6 +86,12 @@ export class BrandingController {
     status: 200,
     description: 'Branding settings deleted successfully',
   })
+  @ApiResponse({
+    status: 403,
+    description: 'Custom branding not available in your current plan',
+  })
+  @UseGuards(SubscriptionGuard)
+  @ProtectCustomBranding()
   async deleteBranding(
     @Param('merchantId') merchantId: string,
   ): Promise<{ message: string }> {
@@ -135,6 +144,12 @@ export class BrandingController {
     status: 200,
     description: 'Branding settings updated successfully',
   })
+  @ApiResponse({
+    status: 403,
+    description: 'Custom branding not available in your current plan',
+  })
+  @UseGuards(SubscriptionGuard)
+  @ProtectCustomBranding()
   @UseInterceptors(FileInterceptor('logo'))
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async updateBranding(

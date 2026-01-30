@@ -13,25 +13,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAccountStatus } from "@/hooks/useAccountStatus";
+import { useMerchant } from "@/hooks/useMerchant";
 import { 
   useGetPublicPlansQuery, 
   useGetMerchantSubscriptionQuery,
   useGetMerchantBillingTransactionsQuery 
 } from "@/lib/services/pricingServiceApi";
 
-// TODO: Get merchant ID from auth context
-// For now, we'll use a placeholder that should be replaced with actual auth context
-const MERCHANT_ID = "current-merchant-id"; // This should come from auth context
-
 export default function BillingPage() {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { status: accountStatus, isPending } = useAccountStatus();
+  const { merchantId, isLoading: merchantLoading, error: merchantError } = useMerchant();
 
-  // Skip API calls if we don't have a real merchant ID
-  const hasRealMerchantId = MERCHANT_ID !== "current-merchant-id";
-
-  // API queries - only run if we have a real merchant ID
+  // API queries - only run if we have a valid merchant ID
   const { data: plansResponse, isLoading: plansLoading } = useGetPublicPlansQuery({
     status: 'ACTIVE',
     limit: 100,
@@ -40,29 +35,29 @@ export default function BillingPage() {
   });
   
   const { data: subscriptionResponse, isLoading: subscriptionLoading, error: subscriptionError } = useGetMerchantSubscriptionQuery(
-    MERCHANT_ID,
-    { skip: !hasRealMerchantId }
+    merchantId || '',
+    { skip: !merchantId }
   );
   
   const { data: transactionsResponse, isLoading: transactionsLoading } = useGetMerchantBillingTransactionsQuery({
-    merchantId: MERCHANT_ID,
+    merchantId: merchantId || '',
     limit: 10
-  }, { skip: !hasRealMerchantId });
+  }, { skip: !merchantId });
 
   const plans = plansResponse?.data || [];
   const currentSubscription = subscriptionResponse?.subscription;
   const subscriptionHistory = transactionsResponse?.data || [];
 
   // Debug logging
-  console.log('Has Real Merchant ID:', hasRealMerchantId);
+  console.log('Merchant ID:', merchantId);
   console.log('Subscription Response:', subscriptionResponse);
   console.log('Current Subscription:', currentSubscription);
   console.log('Subscription Error:', subscriptionError);
 
-  // If we don't have a real merchant ID, create a mock free plan subscription for demo
-  const mockFreeSubscription = !hasRealMerchantId ? {
+  // If we don't have a merchant ID or subscription, create a mock free plan subscription for demo
+  const mockFreeSubscription = !merchantId || !currentSubscription ? {
     id: 'demo-free-subscription',
-    merchantId: MERCHANT_ID,
+    merchantId: merchantId || 'demo-merchant',
     planId: 'demo-free-plan',
     status: 'ACTIVE' as const,
     startDate: new Date().toISOString(),
@@ -70,7 +65,7 @@ export default function BillingPage() {
     nextBillingDate: null,
     monthlyPrice: 0,
     billingCycle: 'MONTHLY' as const,
-    currentUsage: { verifications: 15, apiCalls: 120 },
+    currentUsage: { verifications_monthly: 15, apiCalls: 120 },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     cancelledAt: null,
@@ -82,6 +77,10 @@ export default function BillingPage() {
       description: 'Perfect for testing the platform and small businesses getting started',
       price: 0,
       billingCycle: 'MONTHLY' as const,
+      limits: {
+        verifications_monthly: 100,
+        api_calls_monthly: 60
+      },
       verificationLimit: 100,
       apiLimit: 60,
       features: [
@@ -106,7 +105,7 @@ export default function BillingPage() {
   } : null;
 
   // Use real subscription or mock subscription for demo
-  const effectiveSubscription = hasRealMerchantId ? currentSubscription : mockFreeSubscription;
+  const effectiveSubscription = currentSubscription || mockFreeSubscription;
   
   // TODO: Replace with subscription status from API/context
   const hasActiveSubscription = !!effectiveSubscription;
@@ -144,9 +143,16 @@ export default function BillingPage() {
     setSelectedPlan(null);
   };
 
+  // Helper function to safely extract usage numbers
+  const getUsageValue = (usage: any): number => {
+    if (typeof usage === 'number') return usage;
+    if (typeof usage === 'object' && usage?.increment) return usage.increment;
+    return 0;
+  };
+
   // Calculate usage percentage
-  const usagePercentage = effectiveSubscription?.plan?.verificationLimit && effectiveSubscription?.currentUsage?.verifications
-    ? Math.min((effectiveSubscription.currentUsage.verifications / effectiveSubscription.plan.verificationLimit) * 100, 100)
+  const usagePercentage = (effectiveSubscription?.plan?.verificationLimit || effectiveSubscription?.plan?.limits?.verifications_monthly) && effectiveSubscription?.currentUsage?.verifications_monthly
+    ? Math.min((getUsageValue(effectiveSubscription.currentUsage.verifications_monthly) / (effectiveSubscription.plan.verificationLimit || effectiveSubscription.plan.limits?.verifications_monthly || 1)) * 100, 100)
     : 0;
 
   // Calculate days remaining
@@ -154,12 +160,31 @@ export default function BillingPage() {
     ? Math.max(0, Math.ceil((new Date(effectiveSubscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : 0;
 
-  if (plansLoading || subscriptionLoading) {
+  if (merchantLoading || plansLoading || subscriptionLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
           <div className="text-gray-500 dark:text-gray-400">Loading subscription data...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle merchant loading error
+  if (merchantError) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="text-red-500 dark:text-red-400 mb-4">
+            Failed to load merchant information
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            {merchantError}
+          </p>
+          <Button onClick={() => window.location.reload()}>
+            Retry
+          </Button>
         </div>
       </div>
     );
@@ -187,12 +212,15 @@ export default function BillingPage() {
       )}
 
       {/* Demo Notice */}
-      {!hasRealMerchantId && (
+      {(!merchantId || !currentSubscription) && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 p-4">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full bg-blue-500"></div>
             <p className="text-sm text-blue-800 dark:text-blue-200">
-              <strong>Demo Mode:</strong> This is showing sample data. In production, this would show your actual subscription details.
+              <strong>Demo Mode:</strong> {!merchantId 
+                ? "Unable to load merchant information. This is showing sample data." 
+                : "No active subscription found. This is showing sample data for the Free plan."
+              }
             </p>
           </div>
         </div>
@@ -228,10 +256,10 @@ export default function BillingPage() {
                   Verifications Used
                 </p>
                 <p className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-                  {effectiveSubscription.currentUsage?.verifications || 0} /{" "}
-                  {effectiveSubscription.plan.verificationLimit || "Unlimited"}
+                  {getUsageValue(effectiveSubscription.currentUsage?.verifications_monthly)} /{" "}
+                  {effectiveSubscription.plan.verificationLimit || effectiveSubscription.plan.limits?.verifications_monthly || "Unlimited"}
                 </p>
-                {effectiveSubscription.plan.verificationLimit && (
+                {(effectiveSubscription.plan.verificationLimit || effectiveSubscription.plan.limits?.verifications_monthly) && (
                   <>
                     <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-1">
                       <div
@@ -240,7 +268,7 @@ export default function BillingPage() {
                       />
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {effectiveSubscription.plan.verificationLimit - (effectiveSubscription.currentUsage?.verifications || 0)}{" "}
+                      {(effectiveSubscription.plan.verificationLimit || effectiveSubscription.plan.limits?.verifications_monthly || 0) - getUsageValue(effectiveSubscription.currentUsage?.verifications_monthly)}{" "}
                       remaining
                     </p>
                   </>

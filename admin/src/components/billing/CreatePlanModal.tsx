@@ -17,8 +17,13 @@ const defaultFeatures = [
   "All verification methods",
   "Multi-bank support",
   "Basic analytics",
+  "Advanced analytics",
   "Transaction history",
-  "Bank account management"
+  "Bank account management",
+  "Webhook support",
+  "Export functionality",
+  "Custom branding",
+  "Priority support"
 ];
 
 export default function CreatePlanModal({
@@ -30,11 +35,11 @@ export default function CreatePlanModal({
     name: "",
     description: "",
     price: "",
-    billingCycle: "month",
-    verificationLimit: "",
-    apiLimit: "",
+    billingCycle: "MONTHLY",
     isPopular: false,
-    displayOrder: "1"
+    displayOrder: "1",
+    verificationLimit: "",
+    apiLimit: ""
   });
 
   const [features, setFeatures] = useState<string[]>([]);
@@ -67,13 +72,18 @@ export default function CreatePlanModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const verificationLimit = parseInt(formData.verificationLimit) || 0;
+    const apiLimit = parseInt(formData.apiLimit) || 60;
+    
     const newPlan = {
       name: formData.name,
       description: formData.description,
       price: parseInt(formData.price) || 0,
       billingCycle: formData.billingCycle,
-      verificationLimit: parseInt(formData.verificationLimit) || 0,
-      apiLimit: parseInt(formData.apiLimit) || 60,
+      limits: {
+        verifications_monthly: verificationLimit,
+        api_calls_monthly: apiLimit
+      },
       features: features,
       isEnabled: true,
       isPopular: formData.isPopular,
@@ -89,7 +99,7 @@ export default function CreatePlanModal({
       name: "",
       description: "",
       price: "",
-      billingCycle: "month",
+      billingCycle: "MONTHLY",
       verificationLimit: "",
       apiLimit: "",
       isPopular: false,
@@ -100,13 +110,13 @@ export default function CreatePlanModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose}>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Create New Plan
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="outline" size="sm" onClick={onClose}>
             <CloseIcon className="w-4 h-4" />
           </Button>
         </div>
@@ -197,8 +207,8 @@ export default function CreatePlanModal({
                 value={formData.billingCycle}
                 onChange={(e) => handleInputChange("billingCycle", e.target.value)}
               >
-                <option value="month">Monthly</option>
-                <option value="year">Yearly</option>
+                <option value="MONTHLY">Monthly</option>
+                <option value="YEARLY">Yearly</option>
               </select>
             </div>
             <div>
@@ -266,7 +276,6 @@ export default function CreatePlanModal({
                 value={newFeature}
                 onChange={(e) => setNewFeature(e.target.value)}
                 placeholder="Add a custom feature..."
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddFeature())}
               />
               <Button type="button" onClick={handleAddFeature} variant="outline">
                 <PlusIcon className="w-4 h-4" />
@@ -293,7 +302,7 @@ export default function CreatePlanModal({
                       </div>
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleRemoveFeature(feature)}
                       >

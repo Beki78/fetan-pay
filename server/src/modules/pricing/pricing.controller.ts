@@ -247,6 +247,17 @@ export class PricingController {
     return this.pricingService.getPlanStatistics();
   }
 
+  @Get('merchants/:merchantId/usage')
+  @ApiOperation({ summary: 'Get merchant usage statistics' })
+  @ApiParam({ name: 'merchantId', description: 'Merchant ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Usage statistics retrieved successfully',
+  })
+  async getMerchantUsage(@Param('merchantId') merchantId: string) {
+    return this.pricingService.getMerchantUsageStatistics(merchantId);
+  }
+
   // Public Endpoints (for landing page)
   @Get('public/plans')
   @AllowAnonymous() // Allow public access without authentication

@@ -5,12 +5,21 @@ import { VerifierModule } from '../verifier/verifier.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { ApiKeysModule } from '../api-keys/api-keys.module';
+import { SubscriptionModule } from '../../common/subscription.module';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { ApiKeyOrSessionGuard } from '../api-keys/guards/api-key-or-session.guard';
 
 @Module({
-  imports: [PrismaModule, MerchantUsersModule, VerifierModule, WalletModule, WebhooksModule, ApiKeysModule],
+  imports: [
+    PrismaModule,
+    MerchantUsersModule,
+    VerifierModule,
+    WalletModule,
+    WebhooksModule,
+    ApiKeysModule,
+    SubscriptionModule,
+  ],
   controllers: [PaymentsController],
   providers: [PaymentsService, ApiKeyOrSessionGuard],
 })
