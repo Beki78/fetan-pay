@@ -59,6 +59,7 @@ export const ProtectAdvancedAnalytics = () =>
   SubscriptionProtection('advanced_analytics');
 export const ProtectExportFunctionality = () =>
   SubscriptionProtection('export_functionality');
+export const ProtectTips = () => SubscriptionProtection('tips');
 
 /**
  * Protect monthly verification limits

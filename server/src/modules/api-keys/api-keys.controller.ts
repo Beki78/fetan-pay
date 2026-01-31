@@ -31,12 +31,10 @@ export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
 
   @Post()
-  @UseGuards(SubscriptionGuard)
-  @ProtectApiKeys()
   @ApiOperation({
     summary: 'Create a new API key',
     description:
-      'Creates a new API key for the authenticated merchant. The key will be shown only once. Limited by subscription plan.',
+      'Creates a new API key for the authenticated merchant. The key will be shown only once.',
   })
   @ApiResponse({
     status: 201,
@@ -44,10 +42,6 @@ export class ApiKeysController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 403,
-    description: 'Plan limit exceeded - upgrade required',
-  })
   async createApiKey(@Body() dto: CreateApiKeyDto, @Req() req: Request) {
     return this.apiKeysService.createApiKey(dto, req);
   }

@@ -101,17 +101,56 @@ export const useSubscription = (): UseSubscriptionReturn => {
       finalResult: hasAdvancedAnalytics
     });
     
+    // Check both limits object and features array for tips
+    const hasTips = limits.tips === true || 
+                   planFeatures.some(feature => 
+                     feature.toLowerCase().includes('tips collection') || 
+                     feature.toLowerCase().includes('tips')
+                   );
+    
+    console.log('useSubscription - Tips check:', {
+      fromLimits: limits.tips,
+      fromFeatures: planFeatures.some(feature => 
+        feature.toLowerCase().includes('tips collection') || 
+        feature.toLowerCase().includes('tips')
+      ),
+      planFeatures: planFeatures,
+      finalResult: hasTips
+    });
+
+    // Check both limits object and features array for team members
+    // For team members, we need the actual limit number, not just a boolean
+    const teamMembersLimit = limits.team_members !== undefined 
+      ? limits.team_members 
+      : planFeatures.some(feature => 
+          feature.toLowerCase().includes('team members') || 
+          feature.toLowerCase().includes('team member')
+        ) 
+      ? 2 // Default if feature is enabled but no limit specified
+      : 2; // Default fallback
+    
+    console.log('useSubscription - Team members check:', {
+      fromLimits: limits.team_members,
+      fromFeatures: planFeatures.some(feature => 
+        feature.toLowerCase().includes('team members') || 
+        feature.toLowerCase().includes('team member')
+      ),
+      planFeatures: planFeatures,
+      finalTeamMembersLimit: teamMembersLimit
+    });
+    
     return {
       customBranding: hasCustomBranding,
       apiKeys: limits.api_keys ?? 2,
       webhooks: limits.webhooks ?? 1,
-      teamMembers: limits.team_members ?? 2,
+      teamMembers: teamMembersLimit,
       bankAccounts: limits.bank_accounts ?? 2,
       // Use payment_providers if set, otherwise fall back to bank_accounts (they're the same thing)
       paymentProviders: limits.payment_providers !== undefined ? limits.payment_providers : (limits.bank_accounts ?? 2),
       verificationsMonthly: limits.verifications_monthly ?? 100,
       advancedAnalytics: hasAdvancedAnalytics,
       exportFunctionality: limits.export_functionality ?? false,
+      tips: hasTips,
       transactionHistoryDays: limits.transaction_history_days ?? 30,
     };
   }, [plan?.limits, plan?.features]);

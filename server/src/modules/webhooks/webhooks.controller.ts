@@ -38,12 +38,10 @@ export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}
 
   @Post()
-  @UseGuards(SubscriptionGuard)
-  @ProtectWebhooks()
   @ApiOperation({
     summary: 'Create a new webhook',
     description:
-      'Creates a new webhook endpoint for the authenticated merchant. The secret will be shown only once. Limited by subscription plan.',
+      'Creates a new webhook endpoint for the authenticated merchant. The secret will be shown only once.',
   })
   @ApiResponse({
     status: 201,
@@ -51,10 +49,6 @@ export class WebhooksController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 403,
-    description: 'Plan limit exceeded - upgrade required',
-  })
   async createWebhook(@Body() dto: CreateWebhookDto, @Req() req: Request) {
     return this.webhooksService.createWebhook(dto, req);
   }

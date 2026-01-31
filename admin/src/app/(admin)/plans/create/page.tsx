@@ -5,7 +5,8 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
-import { CheckCircleIcon, PlusIcon, ArrowLeftIcon } from "@/icons";
+import { CheckCircleIcon, ArrowLeftIcon } from "@/icons";
+import { Toggle } from "@/components/ui/toggle";
 import { useCreatePlanMutation, type BillingCycle } from "@/lib/redux/features/pricingApi";
 import { toast } from "sonner";
 
@@ -16,26 +17,22 @@ const defaultFeatures = [
   "Multi-bank support",
   "Basic analytics",
   "Advanced analytics",
-  "Transaction history",
   "Bank account management",
   "Webhook support",
-  "Export functionality",
+  "Tips collection",
+  "Team members",
   "Custom branding",
   "Priority support"
 ];
 
 // Available limit types that admin can configure
 const availableLimits = [
-  { key: "verifications_monthly", label: "Monthly Verifications", type: "number", placeholder: "1000" },
-  { key: "api_keys", label: "API Keys", type: "number", placeholder: "2" },
-  { key: "team_members", label: "Team Members", type: "number", placeholder: "5" },
-  { key: "webhooks", label: "Webhooks", type: "number", placeholder: "3" },
-  { key: "bank_accounts", label: "Bank Accounts", type: "number", placeholder: "5" },
-  { key: "custom_branding", label: "Custom Branding", type: "boolean" },
-  { key: "advanced_analytics", label: "Advanced Analytics", type: "boolean" },
-  { key: "export_functionality", label: "Export Functionality", type: "boolean" },
-  { key: "transaction_history_days", label: "Transaction History (Days)", type: "number", placeholder: "180" },
-  { key: "api_rate_per_minute", label: "API Rate Per Minute", type: "number", placeholder: "60" },
+  { key: "verifications_monthly", label: "Monthly Verifications", type: "number", placeholder: "1000", hasInput: true },
+  { key: "team_members", label: "Team Members (Employees)", type: "number", placeholder: "5", hasInput: true },
+  { key: "payment_providers", label: "Payment Providers", type: "number", placeholder: "3", hasInput: true },
+  { key: "custom_branding", label: "Custom Branding", type: "boolean", hasInput: false },
+  { key: "advanced_analytics", label: "Advanced Analytics", type: "boolean", hasInput: false },
+  { key: "tips", label: "Tips Collection", type: "boolean", hasInput: false },
 ];
 
 export default function CreatePlanPage() {
@@ -53,7 +50,6 @@ export default function CreatePlanPage() {
 
   const [limits, setLimits] = useState<Record<string, any>>({});
   const [features, setFeatures] = useState<string[]>([]);
-  const [newFeature, setNewFeature] = useState("");
 
   const handleLimitChange = (key: string, value: any) => {
     setLimits(prev => ({
@@ -75,13 +71,6 @@ export default function CreatePlanPage() {
       ...prev,
       [field]: value
     }));
-  };
-
-  const handleAddFeature = () => {
-    if (newFeature.trim() && !features.includes(newFeature.trim())) {
-      setFeatures([...features, newFeature.trim()]);
-      setNewFeature("");
-    }
   };
 
   const handleRemoveFeature = (featureToRemove: string) => {
@@ -239,67 +228,63 @@ export default function CreatePlanPage() {
               
               {/* Available Limits */}
               <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Configure plan limits (leave empty for no limit):
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                  Configure plan limits:
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   {availableLimits.map((limitConfig) => (
-                    <div key={limitConfig.key} className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {limitConfig.label}
-                      </label>
-                      {limitConfig.type === "number" ? (
-                        <div className="flex gap-2">
+                    <div key={limitConfig.key} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Toggle
+                          checked={limits[limitConfig.key] !== undefined}
+                          onChange={(checked) => {
+                            if (checked) {
+                              if (limitConfig.hasInput) {
+                                handleLimitChange(limitConfig.key, 0);
+                              } else {
+                                handleLimitChange(limitConfig.key, true);
+                              }
+                            } else {
+                              handleRemoveLimit(limitConfig.key);
+                            }
+                          }}
+                        />
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {limitConfig.label}
+                          </label>
+                          {limitConfig.hasInput && limits[limitConfig.key] !== undefined && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {limits[limitConfig.key] === -1 ? "Unlimited" : `Current: ${limits[limitConfig.key] || 0}`}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Input section for number types */}
+                      {limitConfig.hasInput && limits[limitConfig.key] !== undefined && (
+                        <div className="flex items-center gap-2">
                           <Input
                             type="number"
-                            value={limits[limitConfig.key] || ""}
+                            value={limits[limitConfig.key] === -1 ? "" : (limits[limitConfig.key] || "")}
                             onChange={(e) => handleLimitChange(limitConfig.key, parseInt(e.target.value) || 0)}
                             placeholder={limitConfig.placeholder}
                             min="0"
+                            className="w-24"
+                            disabled={limits[limitConfig.key] === -1}
                           />
                           <button
                             type="button"
                             onClick={() => handleLimitChange(limitConfig.key, -1)}
-                            className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
+                            className={`px-3 py-1 text-xs rounded transition-colors ${
+                              limits[limitConfig.key] === -1
+                                ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                                : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800'
+                            }`}
                           >
-                            Unlimited
+                            {limits[limitConfig.key] === -1 ? "✓ Unlimited" : "Unlimited"}
                           </button>
-                          {limits[limitConfig.key] !== undefined && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveLimit(limitConfig.key)}
-                              className="px-3 py-1 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
-                            >
-                              Remove
-                            </button>
-                          )}
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={limits[limitConfig.key] || false}
-                            onChange={(e) => handleLimitChange(limitConfig.key, e.target.checked)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            Enable {limitConfig.label}
-                          </span>
-                          {limits[limitConfig.key] !== undefined && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveLimit(limitConfig.key)}
-                              className="ml-2 px-2 py-1 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800"
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {limits[limitConfig.key] === -1 && (
-                        <p className="text-xs text-green-600 dark:text-green-400">
-                          ✓ Unlimited
-                        </p>
                       )}
                     </div>
                   ))}
@@ -388,25 +373,6 @@ export default function CreatePlanPage() {
                       {feature}
                     </button>
                   ))}
-                </div>
-              </div>
-
-              {/* Add Custom Feature */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Add Custom Feature
-                </label>
-                <div className="flex gap-3">
-                  <Input
-                    type="text"
-                    value={newFeature}
-                    onChange={(e) => setNewFeature(e.target.value)}
-                    placeholder="Enter a custom feature..."
-                  />
-                  <Button type="button" onClick={handleAddFeature} variant="outline">
-                    <PlusIcon className="w-4 h-4 mr-2" />
-                    Add
-                  </Button>
                 </div>
               </div>
 

@@ -4,6 +4,7 @@ import authReducer from "./slices/authSlice";
 import { transactionsServiceApi } from "./services/transactionsServiceApi";
 import { paymentsServiceApi } from "./services/paymentsServiceApi";
 import { qrLoginApi } from "./services/qrLoginApi";
+import { subscriptionApi } from "./services/subscriptionServiceApi";
 
 export const store = configureStore({
   reducer: {
@@ -12,12 +13,14 @@ export const store = configureStore({
     [transactionsServiceApi.reducerPath]: transactionsServiceApi.reducer,
     [paymentsServiceApi.reducerPath]: paymentsServiceApi.reducer,
     [qrLoginApi.reducerPath]: qrLoginApi.reducer,
+    [subscriptionApi.reducerPath]: subscriptionApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
       transactionsServiceApi.middleware,
       paymentsServiceApi.middleware,
-      qrLoginApi.middleware
+      qrLoginApi.middleware,
+      subscriptionApi.middleware,
     ),
 });
 

@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useSession } from "@/hooks/useSession";
+import { useSubscription } from "@/hooks/useSubscription";
 import { formatNumberWithCommas } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 import { BANKS } from "@/lib/config";
@@ -45,6 +46,7 @@ const providerToBankId: Record<TransactionProvider, string> = {
 export default function LogTransactionPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading: isSessionLoading } = useSession();
+  const { canAccessFeature, plan } = useSubscription();
   const { data: receiverAccountsData, isLoading: isLoadingAccounts } =
     useGetActiveReceiverAccountsQuery();
   const [logTransaction, { isLoading: isLogging }] =
@@ -58,7 +60,7 @@ export default function LogTransactionPage() {
   const [note, setNote] = useState("");
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(
-    null
+    null,
   );
   const [showDetails, setShowDetails] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,7 +69,7 @@ export default function LogTransactionPage() {
 
   // Get active receiver accounts
   const activeAccounts = (receiverAccountsData?.data ?? []).filter(
-    (account) => account.status === "ACTIVE"
+    (account) => account.status === "ACTIVE",
   );
 
   // Get unique banks from active accounts
@@ -86,7 +88,7 @@ export default function LogTransactionPage() {
     })
     .filter((bank): bank is NonNullable<typeof bank> => bank !== null)
     .filter(
-      (bank, index, self) => self.findIndex((b) => b.id === bank.id) === index
+      (bank, index, self) => self.findIndex((b) => b.id === bank.id) === index,
     );
 
   const handleAmountChange = (value: string) => {
@@ -157,12 +159,10 @@ export default function LogTransactionPage() {
           otherBankNameValue = otherBankName.trim();
         } else {
           // Find the provider from active accounts
-          const selectedBankAccount = activeAccounts.find(
-            (account) => {
-              const bankId = providerToBankId[account.provider];
-              return bankId === selectedBank;
-            }
-          );
+          const selectedBankAccount = activeAccounts.find((account) => {
+            const bankId = providerToBankId[account.provider];
+            return bankId === selectedBank;
+          });
           if (selectedBankAccount) {
             provider = selectedBankAccount.provider;
           }
@@ -176,13 +176,14 @@ export default function LogTransactionPage() {
         note: note.trim() || undefined,
         provider,
         otherBankName: otherBankNameValue,
-        receipt: paymentMethod === "bank" && screenshot ? screenshot : undefined,
+        receipt:
+          paymentMethod === "bank" && screenshot ? screenshot : undefined,
       };
 
       await logTransaction(transactionData).unwrap();
 
       toast.success("Transaction logged successfully!");
-      
+
       // Reset form
       setAmount("");
       setTipAmount("");
@@ -201,9 +202,17 @@ export default function LogTransactionPage() {
     } catch (error: unknown) {
       console.error("Error logging transaction:", error);
       const errorMessage =
-        (error && typeof error === 'object' && 'data' in error && error.data && typeof error.data === 'object' && 'message' in error.data && typeof error.data.message === 'string')
+        error &&
+        typeof error === "object" &&
+        "data" in error &&
+        error.data &&
+        typeof error.data === "object" &&
+        "message" in error.data &&
+        typeof error.data.message === "string"
           ? error.data.message
-          : (error instanceof Error ? error.message : "Failed to log transaction");
+          : error instanceof Error
+            ? error.message
+            : "Failed to log transaction";
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -265,7 +274,7 @@ export default function LogTransactionPage() {
                     "flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all",
                     paymentMethod === "cash"
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-foreground hover:border-primary/50"
+                      : "border-border bg-card text-foreground hover:border-primary/50",
                   )}
                 >
                   <Banknote className="size-5" />
@@ -282,7 +291,7 @@ export default function LogTransactionPage() {
                     "flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all",
                     paymentMethod === "bank"
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-foreground hover:border-primary/50"
+                      : "border-border bg-card text-foreground hover:border-primary/50",
                   )}
                 >
                   <Building2 className="size-5" />
@@ -315,7 +324,7 @@ export default function LogTransactionPage() {
                           "relative flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all",
                           selectedBank === bank.id
                             ? "border-primary bg-primary/10"
-                            : "border-border bg-card hover:border-primary/50"
+                            : "border-border bg-card hover:border-primary/50",
                         )}
                       >
                         {selectedBank === bank.id && (
@@ -350,7 +359,7 @@ export default function LogTransactionPage() {
                         "relative flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed transition-all min-h-[120px]",
                         selectedBank === "other"
                           ? "border-primary bg-primary/10"
-                          : "border-border hover:border-primary/50"
+                          : "border-border hover:border-primary/50",
                       )}
                     >
                       {selectedBank === "other" && (
@@ -415,6 +424,22 @@ export default function LogTransactionPage() {
                 <Switch
                   checked={showTip}
                   onCheckedChange={(checked) => {
+                    console.log("🔍 [LogTransaction] Tips toggle clicked:", {
+                      checked,
+                      canAccessTips: canAccessFeature("tips"),
+                      plan: plan,
+                      planName: plan?.name,
+                    });
+
+                    // Check if user has access to tips feature
+                    if (checked && !canAccessFeature("tips")) {
+                      toast.error("Tips feature not available", {
+                        description: `Tips collection is not available in your ${plan?.name || "current"} plan. Please upgrade your plan to enable tips collection.`,
+                        duration: 5000,
+                      });
+                      return;
+                    }
+
                     setShowTip(checked);
                     if (!checked) {
                       setTipAmount("");
