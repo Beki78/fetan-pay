@@ -28,6 +28,12 @@ import {
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import type { Request } from 'express';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { SubscriptionGuard } from '../../common/guards/subscription.guard';
+import {
+  ProtectTips,
+  ProtectVerifications,
+  ProtectPaymentProviders,
+} from '../../common/decorators/subscription-protection.decorator';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
 import { SubmitPaymentClaimDto } from './dto/submit-payment-claim.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
@@ -37,12 +43,6 @@ import { LogTransactionDto } from './dto/log-transaction.dto';
 import { ListTipsDto } from './dto/list-tips.dto';
 import { PaymentsService } from './payments.service';
 import { ApiKeyOrSessionGuard } from '../api-keys/guards/api-key-or-session.guard';
-import { ApiKeysModule } from '../api-keys/api-keys.module';
-import { SubscriptionGuard } from '../../common/guards/subscription.guard';
-import {
-  ProtectVerifications,
-  ProtectPaymentProviders,
-} from '../../common/decorators/subscription-protection.decorator';
 
 @ApiTags('payments')
 @ApiBearerAuth('bearer')
@@ -325,6 +325,8 @@ export class PaymentsController {
   }
 
   @Get('tips/summary')
+  @UseGuards(SubscriptionGuard)
+  @ProtectTips()
   @ApiOperation({
     summary: 'Get tips summary for current merchant user',
     description:
@@ -365,6 +367,8 @@ export class PaymentsController {
   }
 
   @Get('tips')
+  @UseGuards(SubscriptionGuard)
+  @ProtectTips()
   @ApiOperation({
     summary: 'List tip transactions for current merchant user',
     description:

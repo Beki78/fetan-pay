@@ -76,24 +76,6 @@ export class SubscriptionGuard implements CanActivate {
         limit = planLimits[protectionConfig.feature] || 100; // Default to free plan limit
 
         errorMessage = `You have reached the maximum number of verifications for your ${planName} plan (${currentUsage}/${limit}). Please upgrade your plan to continue verifying payments.`;
-      } else if (protectionConfig.feature === 'api_keys') {
-        currentUsage = await this.getCurrentFeatureUsage(
-          merchantId,
-          protectionConfig.feature,
-        );
-        const planLimits = (subscription?.plan as any)?.limits || {};
-        limit = planLimits[protectionConfig.feature] || 2;
-
-        errorMessage = `You have reached the maximum number of API keys for your ${planName} plan (${currentUsage}/${limit}). Please upgrade your plan to create more API keys.`;
-      } else if (protectionConfig.feature === 'webhooks') {
-        currentUsage = await this.getCurrentFeatureUsage(
-          merchantId,
-          protectionConfig.feature,
-        );
-        const planLimits = (subscription?.plan as any)?.limits || {};
-        limit = planLimits[protectionConfig.feature] || 1;
-
-        errorMessage = `You have reached the maximum number of webhooks for your ${planName} plan (${currentUsage}/${limit}). Please upgrade your plan to create more webhooks.`;
       } else if (protectionConfig.feature === 'team_members') {
         currentUsage = await this.getCurrentFeatureUsage(
           merchantId,
@@ -125,6 +107,8 @@ export class SubscriptionGuard implements CanActivate {
         limit = planLimits[protectionConfig.feature] || 2;
 
         errorMessage = `You have reached the maximum number of payment providers for your ${planName} plan (${currentUsage}/${limit}). Please upgrade your plan to add more payment providers.`;
+      } else if (protectionConfig.feature === 'tips') {
+        errorMessage = `Tips feature is not available in your ${planName} plan. Please upgrade your plan to enable tips collection.`;
       } else {
         // Generic message for other features
         errorMessage = `This feature is not available in your ${planName} plan. Please upgrade to access this feature.`;
@@ -203,6 +187,7 @@ export class SubscriptionGuard implements CanActivate {
         merchantId,
         config.feature,
         planLimits,
+        subscription.plan,
       );
     } catch (error) {
       console.error('Error checking subscription limits:', error);
@@ -218,11 +203,10 @@ export class SubscriptionGuard implements CanActivate {
     // Default free plan limits
     const freePlanLimits = {
       verifications_monthly: 100,
-      api_keys: 2,
       team_members: 2,
-      webhooks: 1,
       bank_accounts: 2,
       payment_providers: 2,
+      tips: false,
       custom_branding: false,
       advanced_analytics: false,
       export_functionality: false,
@@ -232,6 +216,7 @@ export class SubscriptionGuard implements CanActivate {
       merchantId,
       config.feature,
       freePlanLimits,
+      null, // No plan object for free plan
     );
   }
 
@@ -239,13 +224,37 @@ export class SubscriptionGuard implements CanActivate {
     merchantId: string,
     feature: string,
     limits: any,
+    plan?: any,
   ): Promise<boolean> {
     // Get feature limit from plan
     const featureLimit = limits[feature];
 
-    // If feature not defined in limits, allow access
+    // If feature not defined in limits, check features array for boolean features
     if (featureLimit === undefined) {
-      return true;
+      // For certain features, also check the features array
+      if (
+        feature === 'tips' ||
+        feature === 'custom_branding' ||
+        feature === 'advanced_analytics'
+      ) {
+        const planFeatures = plan?.features || [];
+        const featureNames = {
+          tips: ['tips collection', 'tips'],
+          custom_branding: ['custom branding', 'branding'],
+          advanced_analytics: ['advanced analytics', 'analytics'],
+        };
+
+        const searchTerms = featureNames[feature] || [];
+        const hasFeature = planFeatures.some((planFeature) =>
+          searchTerms.some((term) =>
+            planFeature.toLowerCase().includes(term.toLowerCase()),
+          ),
+        );
+
+        return hasFeature;
+      }
+
+      return true; // Allow access if not defined
     }
 
     // If feature is boolean (feature toggle)
@@ -285,19 +294,14 @@ export class SubscriptionGuard implements CanActivate {
     feature: string,
   ): Promise<number> {
     switch (feature) {
-      case 'api_keys':
-        return await this.prisma.apiKey.count({
-          where: { merchantId, status: 'ACTIVE' },
-        });
-
       case 'team_members':
+        // Count only employees, exclude the merchant owner
         return await this.prisma.merchantUser.count({
-          where: { merchantId, status: 'ACTIVE' },
-        });
-
-      case 'webhooks':
-        return await this.prisma.webhook.count({
-          where: { merchantId, status: 'ACTIVE' },
+          where: {
+            merchantId,
+            status: 'ACTIVE',
+            role: { not: 'MERCHANT_OWNER' }, // Exclude the owner from team members count
+          },
         });
 
       case 'bank_accounts':
@@ -311,7 +315,6 @@ export class SubscriptionGuard implements CanActivate {
         });
 
       case 'verifications_monthly':
-        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
         const usage =
           await this.subscriptionService.getCurrentUsage(merchantId);
         const verificationUsage = usage.verifications_monthly;

@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
-import { CheckCircleIcon, PlusIcon, CloseIcon } from "@/icons";
+import { CheckCircleIcon, CloseIcon } from "@/icons";
+import { Toggle } from "../ui/toggle";
 
 interface CreatePlanModalProps {
   isOpen: boolean;
@@ -12,18 +13,28 @@ interface CreatePlanModalProps {
 }
 
 const defaultFeatures = [
-  "Full API access",
-  "Vendor dashboard",
-  "All verification methods",
-  "Multi-bank support",
-  "Basic analytics",
-  "Advanced analytics",
-  "Transaction history",
-  "Bank account management",
-  "Webhook support",
-  "Export functionality",
+  "Monthly verifications",
+  "Team members (employees)",
+  "Payment providers",
+  "Unlimited API keys",
+  "Unlimited webhooks", 
+  "Advanced analytics & reporting",
+  "Tips collection",
   "Custom branding",
+  "All verification methods",
+  "Bank account management",
+  "Frontend UI Package",
+  "White-label solution",
+  "Custom integrations",
+  "Dedicated support",
   "Priority support"
+];
+
+// Available limit types that admin can configure
+const availableLimits = [
+  { key: "verifications_monthly", label: "Monthly Verifications", type: "number", placeholder: "100", hasInput: true },
+  { key: "team_members", label: "Team Members", type: "number", placeholder: "5", hasInput: true },
+  { key: "payment_providers", label: "Payment Providers", type: "number", placeholder: "3", hasInput: true },
 ];
 
 export default function CreatePlanModal({
@@ -37,13 +48,10 @@ export default function CreatePlanModal({
     price: "",
     billingCycle: "MONTHLY",
     isPopular: false,
-    displayOrder: "1",
-    verificationLimit: "",
-    apiLimit: ""
+    displayOrder: "1"
   });
-
+  const [limits, setLimits] = useState<Record<string, any>>({});
   const [features, setFeatures] = useState<string[]>([]);
-  const [newFeature, setNewFeature] = useState("");
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -52,11 +60,19 @@ export default function CreatePlanModal({
     }));
   };
 
-  const handleAddFeature = () => {
-    if (newFeature.trim() && !features.includes(newFeature.trim())) {
-      setFeatures([...features, newFeature.trim()]);
-      setNewFeature("");
-    }
+  const handleLimitChange = (key: string, value: any) => {
+    setLimits(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const handleRemoveLimit = (key: string) => {
+    setLimits(prev => {
+      const newLimits = { ...prev };
+      delete newLimits[key];
+      return newLimits;
+    });
   };
 
   const handleRemoveFeature = (featureToRemove: string) => {
@@ -72,24 +88,15 @@ export default function CreatePlanModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const verificationLimit = parseInt(formData.verificationLimit) || 0;
-    const apiLimit = parseInt(formData.apiLimit) || 60;
-    
     const newPlan = {
       name: formData.name,
       description: formData.description,
       price: parseInt(formData.price) || 0,
       billingCycle: formData.billingCycle,
-      limits: {
-        verifications_monthly: verificationLimit,
-        api_calls_monthly: apiLimit
-      },
+      limits: limits,
       features: features,
-      isEnabled: true,
       isPopular: formData.isPopular,
-      displayOrder: parseInt(formData.displayOrder) || 1,
-      activeSubscribers: 0,
-      monthlyRevenue: 0
+      displayOrder: parseInt(formData.displayOrder) || 1
     };
 
     onCreatePlan(newPlan);
@@ -100,13 +107,11 @@ export default function CreatePlanModal({
       description: "",
       price: "",
       billingCycle: "MONTHLY",
-      verificationLimit: "",
-      apiLimit: "",
       isPopular: false,
       displayOrder: "1"
     });
+    setLimits({});
     setFeatures([]);
-    setNewFeature("");
   };
 
   return (
@@ -165,34 +170,117 @@ export default function CreatePlanModal({
             />
           </div>
 
-          {/* Limits */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Verification Limit (per month)
-              </label>
-              <Input
-                type="number"
-                value={formData.verificationLimit}
-                onChange={(e) => handleInputChange("verificationLimit", e.target.value)}
-                placeholder="1000"
-                min="0"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Leave empty or 0 for unlimited
-              </p>
+          {/* Limits Configuration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Plan Limits
+            </label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+              Configure usage limits for this plan. Use -1 for unlimited.
+            </p>
+            
+            {/* Available Limits */}
+            <div className="space-y-4 mb-6">
+              {availableLimits.map((limitConfig) => (
+                <div key={limitConfig.key} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Toggle
+                      checked={limits[limitConfig.key] !== undefined}
+                      onChange={(checked) => {
+                        if (checked) {
+                          handleLimitChange(limitConfig.key, 0);
+                        } else {
+                          handleRemoveLimit(limitConfig.key);
+                        }
+                      }}
+                    />
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {limitConfig.label}
+                      </label>
+                      {limits[limitConfig.key] !== undefined && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {limits[limitConfig.key] === -1 ? "Unlimited" : `Current: ${limits[limitConfig.key] || 0}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Input section */}
+                  {limits[limitConfig.key] !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={limits[limitConfig.key] === -1 ? "" : (limits[limitConfig.key] || "")}
+                        onChange={(e) => handleLimitChange(limitConfig.key, parseInt(e.target.value) || 0)}
+                        placeholder={limitConfig.placeholder}
+                        min="0"
+                        className="w-24"
+                        disabled={limits[limitConfig.key] === -1}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleLimitChange(limitConfig.key, -1)}
+                        className={`px-3 py-1 text-xs rounded transition-colors ${
+                          limits[limitConfig.key] === -1
+                            ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                            : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800'
+                        }`}
+                      >
+                        {limits[limitConfig.key] === -1 ? "✓ Unlimited" : "Unlimited"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                API Requests (per minute)
-              </label>
-              <Input
-                type="number"
-                value={formData.apiLimit}
-                onChange={(e) => handleInputChange("apiLimit", e.target.value)}
-                placeholder="60"
-                min="1"
-              />
+          </div>
+
+          {/* Feature Toggles */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Plan Features
+            </label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+              Enable or disable specific features for this plan.
+            </p>
+            
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Toggle
+                    checked={limits.custom_branding === true}
+                    onChange={(checked) => handleLimitChange("custom_branding", checked)}
+                  />
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Custom Branding
+                  </label>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Toggle
+                    checked={limits.advanced_analytics === true}
+                    onChange={(checked) => handleLimitChange("advanced_analytics", checked)}
+                  />
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Advanced Analytics
+                  </label>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Toggle
+                    checked={limits.tips === true}
+                    onChange={(checked) => handleLimitChange("tips", checked)}
+                  />
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Tips Collection
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -242,13 +330,13 @@ export default function CreatePlanModal({
           {/* Features Section */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Plan Features
+              Additional Features
             </label>
             
             {/* Quick Add Default Features */}
             <div className="mb-4">
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Quick add common features:
+                Click to add common features to your plan:
               </p>
               <div className="flex flex-wrap gap-2">
                 {defaultFeatures.map((feature) => (
@@ -257,38 +345,26 @@ export default function CreatePlanModal({
                     type="button"
                     onClick={() => handleAddDefaultFeature(feature)}
                     disabled={features.includes(feature)}
-                    className={`px-2 py-1 text-xs rounded ${
+                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
                       features.includes(feature)
-                        ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                        ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 cursor-not-allowed'
                         : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800'
                     }`}
                   >
+                    {features.includes(feature) ? '✓ ' : '+ '}
                     {feature}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Add Custom Feature */}
-            <div className="flex gap-2 mb-4">
-              <Input
-                type="text"
-                value={newFeature}
-                onChange={(e) => setNewFeature(e.target.value)}
-                placeholder="Add a custom feature..."
-              />
-              <Button type="button" onClick={handleAddFeature} variant="outline">
-                <PlusIcon className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Features List */}
+            {/* Selected Features List */}
             {features.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Selected Features:
+                  Selected Features ({features.length}):
                 </p>
-                <div className="space-y-1">
+                <div className="space-y-1 max-h-32 overflow-y-auto">
                   {features.map((feature, index) => (
                     <div
                       key={index}

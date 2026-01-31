@@ -12,13 +12,16 @@ import { PlusIcon } from "@/icons";
 import { Modal } from "@/components/ui/modal";
 import { useSession } from "@/hooks/useSession";
 import { useAccountStatus } from "@/hooks/useAccountStatus";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useGetMerchantUsersQuery, MerchantUser } from "@/lib/services/merchantUsersServiceApi";
+import { toast } from "sonner";
 
 type User = MerchantUser;
 
 export default function UsersPage() {
   // All hooks must be called at the top level, before any early returns
   const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
+  const { canAccessFeature, getFeatureLimit, plan } = useSubscription();
   const router = useRouter();
   const { user } = useSession();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -58,6 +61,31 @@ export default function UsersPage() {
   }
 
   const handleAdd = () => {
+    // Check team members limit
+    const teamMembersLimit = getFeatureLimit("teamMembers") as number;
+    // Count only employees, exclude the merchant owner
+    const currentActiveEmployees = users.filter(user => 
+      user.status === "ACTIVE" && user.role !== "MERCHANT_OWNER"
+    ).length;
+    
+    console.log("🔍 [Users] Team members limit check:", {
+      teamMembersLimit,
+      currentActiveEmployees,
+      totalUsers: users.length,
+      allActiveUsers: users.filter(user => user.status === "ACTIVE").length,
+      planName: plan?.name,
+      canExceedLimit: teamMembersLimit === -1, // -1 means unlimited
+    });
+
+    // Check if limit is reached (unless unlimited)
+    if (teamMembersLimit !== -1 && currentActiveEmployees >= teamMembersLimit) {
+      toast.error("Team members limit reached", {
+        description: `You have reached the maximum number of team members (${teamMembersLimit}) allowed in your ${plan?.name || "current"} plan. Please upgrade your plan to add more team members.`,
+        duration: 5000,
+      });
+      return;
+    }
+
     setIsAddModalOpen(true);
   };
 

@@ -3,7 +3,8 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
-import { CheckCircleIcon, PlusIcon, CloseIcon } from "@/icons";
+import { CheckCircleIcon, CloseIcon } from "@/icons";
+import { Toggle } from "../ui/toggle";
 
 interface EditPlanModalProps {
   isOpen: boolean;
@@ -19,10 +20,8 @@ const defaultFeatures = [
   "Multi-bank support",
   "Basic analytics",
   "Advanced analytics",
-  "Transaction history",
   "Bank account management",
   "Webhook support",
-  "Export functionality",
   "Custom branding",
   "Priority support"
 ];
@@ -46,7 +45,6 @@ export default function EditPlanModal({
   });
 
   const [features, setFeatures] = useState<string[]>([]);
-  const [newFeature, setNewFeature] = useState("");
 
   // Update form data when plan changes
   useEffect(() => {
@@ -75,13 +73,6 @@ export default function EditPlanModal({
       ...prev,
       [field]: value
     }));
-  };
-
-  const handleAddFeature = () => {
-    if (newFeature.trim() && !features.includes(newFeature.trim())) {
-      setFeatures([...features, newFeature.trim()]);
-      setNewFeature("");
-    }
   };
 
   const handleRemoveFeature = (featureToRemove: string) => {
@@ -182,33 +173,88 @@ export default function EditPlanModal({
           </div>
 
           {/* Limits */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Verification Limit (per month)
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                Plan Limits
               </label>
-              <Input
-                type="number"
-                value={formData.verificationLimit}
-                onChange={(e) => handleInputChange("verificationLimit", e.target.value)}
-                placeholder="1000"
-                min="0"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Leave empty or 0 for unlimited
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                API Requests (per minute)
-              </label>
-              <Input
-                type="number"
-                value={formData.apiLimit}
-                onChange={(e) => handleInputChange("apiLimit", e.target.value)}
-                placeholder="60"
-                min="1"
-              />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Toggle
+                      checked={formData.verificationLimit !== ""}
+                      onChange={(checked) => {
+                        if (checked) {
+                          handleInputChange("verificationLimit", "0");
+                        } else {
+                          handleInputChange("verificationLimit", "");
+                        }
+                      }}
+                    />
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Verification Limit (per month)
+                      </label>
+                      {formData.verificationLimit !== "" && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {formData.verificationLimit === "0" ? "No limit set" : `Current: ${formData.verificationLimit}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {formData.verificationLimit !== "" && (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={formData.verificationLimit}
+                        onChange={(e) => handleInputChange("verificationLimit", e.target.value)}
+                        placeholder="1000"
+                        min="0"
+                        className="w-24"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Toggle
+                      checked={formData.apiLimit !== ""}
+                      onChange={(checked) => {
+                        if (checked) {
+                          handleInputChange("apiLimit", "60");
+                        } else {
+                          handleInputChange("apiLimit", "");
+                        }
+                      }}
+                    />
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        API Requests (per minute)
+                      </label>
+                      {formData.apiLimit !== "" && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Current: {formData.apiLimit}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {formData.apiLimit !== "" && (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={formData.apiLimit}
+                        onChange={(e) => handleInputChange("apiLimit", e.target.value)}
+                        placeholder="60"
+                        min="1"
+                        className="w-24"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -298,19 +344,6 @@ export default function EditPlanModal({
                   </button>
                 ))}
               </div>
-            </div>
-
-            {/* Add Custom Feature */}
-            <div className="flex gap-2 mb-4">
-              <Input
-                type="text"
-                value={newFeature}
-                onChange={(e) => setNewFeature(e.target.value)}
-                placeholder="Add a custom feature..."
-              />
-              <Button type="button" onClick={handleAddFeature} variant="outline">
-                <PlusIcon className="w-4 h-4" />
-              </Button>
             </div>
 
             {/* Features List */}
