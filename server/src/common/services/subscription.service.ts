@@ -28,9 +28,13 @@ export class SubscriptionService {
 
   /**
    * Get merchant's active subscription with plan details
+   * Also checks for expired subscriptions and updates status
    */
   async getMerchantSubscription(merchantId: string) {
-    // First, try to find an active subscription
+    // First, check for any expired subscriptions and update their status
+    await this.updateExpiredSubscriptions(merchantId);
+
+    // Try to find an active subscription
     const subscription = await this.prisma.subscription.findFirst({
       where: {
         merchantId,
@@ -42,18 +46,39 @@ export class SubscriptionService {
     });
 
     if (subscription) {
-      return subscription;
+      // Check if this subscription has expired
+      if (subscription.endDate && subscription.endDate <= new Date()) {
+        // Mark as expired
+        await this.prisma.subscription.update({
+          where: { id: subscription.id },
+          data: { status: SubscriptionStatus.EXPIRED },
+        });
+
+        // Continue to create free trial below
+      } else {
+        return subscription;
+      }
     }
 
-    // If no subscription found, check if merchant exists and is active
+    // If no active subscription found, check if merchant exists and is active
     const merchant = await this.prisma.merchant.findUnique({
       where: { id: merchantId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, createdAt: true },
     });
 
     if (!merchant || merchant.status !== 'ACTIVE') {
       return null; // Merchant doesn't exist or is not active
     }
+
+    // Check if merchant already had a free trial
+    const hadFreeTrial = await this.prisma.subscription.findFirst({
+      where: {
+        merchantId,
+        plan: {
+          name: 'Free',
+        },
+      },
+    });
 
     // Find the free plan to use as default
     const freePlan = await this.prisma.plan.findFirst({
@@ -67,14 +92,43 @@ export class SubscriptionService {
       return null; // No free plan available
     }
 
-    // Return a virtual subscription for the free plan
+    // Calculate trial end date (7 days from merchant creation or now)
+    const trialStartDate = merchant.createdAt;
+    const trialEndDate = new Date(trialStartDate);
+    trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+    // If merchant never had a subscription, create a 7-day trial
+    if (!hadFreeTrial) {
+      const trialSubscription = await this.prisma.subscription.create({
+        data: {
+          merchantId,
+          planId: freePlan.id,
+          status:
+            trialEndDate > new Date()
+              ? SubscriptionStatus.ACTIVE
+              : SubscriptionStatus.EXPIRED,
+          startDate: trialStartDate,
+          endDate: trialEndDate,
+          nextBillingDate: null,
+          monthlyPrice: 0,
+          billingCycle: 'MONTHLY',
+        },
+        include: {
+          plan: true,
+        },
+      });
+
+      return trialSubscription;
+    }
+
+    // Return a virtual expired subscription for merchants who had free trial
     return {
-      id: `virtual-free-${merchantId}`,
+      id: `virtual-expired-${merchantId}`,
       merchantId,
       planId: freePlan.id,
-      status: SubscriptionStatus.ACTIVE,
-      startDate: new Date(),
-      endDate: null,
+      status: SubscriptionStatus.EXPIRED,
+      startDate: trialStartDate,
+      endDate: trialEndDate,
       nextBillingDate: null,
       monthlyPrice: 0,
       billingCycle: 'MONTHLY' as const,
@@ -319,5 +373,88 @@ export class SubscriptionService {
     // Delete or archive old usage records as needed
 
     console.log(`Monthly usage reset completed for period: ${currentPeriod}`);
+  }
+
+  /**
+   * Update expired subscriptions to EXPIRED status
+   */
+  async updateExpiredSubscriptions(merchantId?: string): Promise<void> {
+    const where: any = {
+      status: SubscriptionStatus.ACTIVE,
+      endDate: {
+        lte: new Date(), // endDate is less than or equal to now
+      },
+    };
+
+    if (merchantId) {
+      where.merchantId = merchantId;
+    }
+
+    await this.prisma.subscription.updateMany({
+      where,
+      data: {
+        status: SubscriptionStatus.EXPIRED,
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Check if merchant's subscription is expired
+   */
+  async isSubscriptionExpired(merchantId: string): Promise<boolean> {
+    const subscription = await this.getMerchantSubscription(merchantId);
+
+    if (!subscription) {
+      return true; // No subscription = expired
+    }
+
+    // Check if subscription is explicitly expired
+    if (subscription.status === SubscriptionStatus.EXPIRED) {
+      return true;
+    }
+
+    // Check if subscription has an end date that has passed
+    if (subscription.endDate && subscription.endDate <= new Date()) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Get days remaining in trial/subscription
+   */
+  async getDaysRemaining(merchantId: string): Promise<number | null> {
+    const subscription = await this.getMerchantSubscription(merchantId);
+
+    if (!subscription || !subscription.endDate) {
+      return null; // No expiration date
+    }
+
+    const now = new Date();
+    const endDate = new Date(subscription.endDate);
+    const diffTime = endDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return Math.max(0, diffDays);
+  }
+
+  /**
+   * Check if merchant is in trial period
+   */
+  async isInTrial(merchantId: string): Promise<boolean> {
+    const subscription = await this.getMerchantSubscription(merchantId);
+
+    if (!subscription) {
+      return false;
+    }
+
+    // Check if it's a free plan with an end date (trial)
+    return (
+      subscription.plan?.name === 'Free' &&
+      subscription.endDate !== null &&
+      subscription.status === SubscriptionStatus.ACTIVE
+    );
   }
 }

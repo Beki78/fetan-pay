@@ -6,6 +6,8 @@ export type PlanStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
 export type BillingCycle = "MONTHLY" | "YEARLY" | "WEEKLY" | "DAILY";
 export type SubscriptionStatus = "ACTIVE" | "CANCELLED" | "EXPIRED" | "SUSPENDED" | "PENDING";
 export type TransactionStatus = "PENDING" | "VERIFIED" | "FAILED" | "EXPIRED";
+export type TransactionProvider = "CBE" | "TELEBIRR" | "AWASH" | "BOA" | "DASHEN";
+export type PricingReceiverStatus = "ACTIVE" | "INACTIVE";
 
 export interface Plan {
   id: string;
@@ -67,6 +69,17 @@ export interface BillingTransaction {
   subscription?: Subscription | null;
 }
 
+export interface PricingReceiverAccount {
+  id: string;
+  provider: TransactionProvider;
+  receiverAccount: string;
+  receiverName: string | null;
+  receiverLabel: string | null;
+  status: PricingReceiverStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PlanListResponse {
   data: Plan[];
   pagination: {
@@ -96,6 +109,42 @@ export interface PlanQueryParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+}
+
+// Upgrade Plan Request
+export interface UpgradePlanRequest {
+  planId: string;
+  paymentReference?: string;
+  paymentMethod?: string;
+}
+
+// Payment Verification Types
+export type PaymentVerificationStatus = "VERIFIED" | "UNVERIFIED" | "PENDING";
+
+export interface VerifyPaymentRequest {
+  provider: TransactionProvider;
+  reference: string;
+  claimedAmount?: number;
+  tipAmount?: number;
+}
+
+export interface VerifyPaymentResponse {
+  status: PaymentVerificationStatus;
+  checks: {
+    referenceFound: boolean;
+    receiverMatches: boolean;
+    amountMatches: boolean;
+  };
+  transaction: {
+    reference: string;
+    receiverAccount: string | null;
+    receiverName: string | null;
+    amount: number | null;
+    senderName: string | null;
+    raw: unknown;
+  };
+  payment: unknown;
+  mismatchReason?: string | null;
 }
 
 export const pricingServiceApi = createApi({
@@ -179,6 +228,54 @@ export const pricingServiceApi = createApi({
         { type: 'BillingTransaction', id: transactionId },
       ],
     }),
+
+    // Upgrade merchant plan
+    upgradeMerchantPlan: builder.mutation<
+      { message: string; assignment: any },
+      { merchantId: string } & UpgradePlanRequest
+    >({
+      query: ({ merchantId, ...body }) => ({
+        url: `/pricing/merchants/${merchantId}/upgrade`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { merchantId }) => [
+        { type: 'Subscription', id: merchantId },
+        { type: 'BillingTransaction', id: merchantId },
+      ],
+    }),
+
+    // Get active pricing receivers by provider (for payment modal)
+    getActivePricingReceiversByProvider: builder.query<
+      PricingReceiverAccount[],
+      string
+    >({
+      query: (provider) => `/pricing/receivers/provider/${provider}`,
+      providesTags: (result, error, provider) => [
+        { type: 'Plan', id: `RECEIVERS_${provider}` },
+      ],
+    }),
+
+    // Verify payment for billing
+    verifyPayment: builder.mutation<
+      VerifyPaymentResponse,
+      VerifyPaymentRequest
+    >({
+      query: (body) => ({
+        url: '/payments/verify',
+        method: 'POST',
+        body,
+      }),
+    }),
+
+    // Get all active pricing receivers (for filtering available providers)
+    getAllActivePricingReceivers: builder.query<
+      PricingReceiverAccount[],
+      void
+    >({
+      query: () => '/pricing/receivers/active',
+      providesTags: [{ type: 'Plan', id: 'ALL_RECEIVERS' }],
+    }),
   }),
 });
 
@@ -188,4 +285,8 @@ export const {
   useGetMerchantSubscriptionQuery,
   useGetMerchantBillingTransactionsQuery,
   useGetBillingTransactionQuery,
+  useUpgradeMerchantPlanMutation,
+  useGetActivePricingReceiversByProviderQuery,
+  useVerifyPaymentMutation,
+  useGetAllActivePricingReceiversQuery,
 } = pricingServiceApi;

@@ -16,10 +16,10 @@ async function seedPricingPlans() {
 
   // Create default pricing plans
   const plans = [
+    // Monthly Plans
     {
       name: 'Free',
-      description:
-        'Perfect for testing the platform and small businesses getting started',
+      description: 'Perfect for testing the platform - 7-day free trial',
       price: 0,
       billingCycle: BillingCycle.MONTHLY,
       limits: {
@@ -31,10 +31,11 @@ async function seedPricingPlans() {
         tips: false,
       },
       features: [
-        '20 verifications/month',
-        '1 team members',
+        '7-day free trial',
+        '20 verifications during trial',
+        '1 team member',
         'Unlimited webhooks',
-        'Advanced analytics',
+        'Basic analytics',
         'Bank account management (up to 2 accounts)',
         'All verification methods',
         'Transaction history (30 days)',
@@ -139,6 +140,66 @@ async function seedPricingPlans() {
       status: PlanStatus.ACTIVE,
       isPopular: false,
       displayOrder: 4,
+    },
+    // Yearly Plans (with 20% discount)
+    {
+      name: 'Starter Yearly',
+      description:
+        'Perfect for small businesses and startups - Save 20% with yearly billing',
+      price: 1720, // 179 * 12 * 0.8 = 1720.8 ≈ 1720
+      billingCycle: BillingCycle.YEARLY,
+      limits: {
+        verifications_monthly: 100,
+        team_members: 5,
+        payment_providers: 3,
+        custom_branding: false,
+        advanced_analytics: true,
+        tips: true,
+      },
+      features: [
+        '100 verifications/month',
+        '5 team members (employees)',
+        'Unlimited webhooks',
+        'Advanced analytics',
+        'Tips collection',
+        'Bank account management (up to 5 accounts)',
+        'Verification by usage',
+        '20% discount (2 months free)',
+      ],
+      status: PlanStatus.ACTIVE,
+      isPopular: true,
+      displayOrder: 5,
+    },
+    {
+      name: 'Business Yearly',
+      description:
+        'Perfect for growing businesses and medium-sized companies - Save 20% with yearly billing',
+      price: 9590, // 999 * 12 * 0.8 = 9590.4 ≈ 9590
+      billingCycle: BillingCycle.YEARLY,
+      limits: {
+        verifications_monthly: 1000,
+        team_members: 15,
+        payment_providers: 10,
+        custom_branding: true,
+        advanced_analytics: true,
+        tips: true,
+      },
+      features: [
+        '1000 verifications/month',
+        'Full API access',
+        'Unlimited API keys',
+        '15 team members (employees)',
+        'Unlimited webhooks',
+        'Advanced analytics & reporting',
+        'Tips collection',
+        'Custom branding',
+        'Bank account management (up to 10 accounts)',
+        'Verification by usage',
+        '20% discount (2.4 months free)',
+      ],
+      status: PlanStatus.ACTIVE,
+      isPopular: false,
+      displayOrder: 6,
     },
   ];
 

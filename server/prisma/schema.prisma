@@ -1147,7 +1147,7 @@ model Subscription {
   @@index([planId])
   @@index([status])
   @@index([nextBillingDate])
-  @@unique([merchantId], name: "merchant_active_subscription") // One active subscription per merchant
+  @@index([merchantId, status])
   @@map("subscription")
 }
 
@@ -1201,10 +1201,19 @@ model BillingTransaction {
   paymentReference  String?             // External payment reference (bank transfer, etc.)
   paymentMethod     String?             // How the payment was made
   
+  // Pricing receiver account used for verification
+  receiverAccountId String?
+  receiverAccount   PricingReceiverAccount? @relation(fields: [receiverAccountId], references: [id], onDelete: SetNull)
+  
   // Transaction status and processing
   status            TransactionStatus   @default(PENDING)
   processedAt       DateTime?
   processedBy       String?             // Admin user ID who processed the transaction
+  
+  // Verification details
+  verifiedAt        DateTime?
+  verificationPayload Json?             // Verification response from bank API
+  mismatchReason    String?             // Reason if verification fails
   
   // Billing period
   billingPeriodStart DateTime
@@ -1219,6 +1228,7 @@ model BillingTransaction {
   @@index([merchantId])
   @@index([planId])
   @@index([subscriptionId])
+  @@index([receiverAccountId])
   @@index([status])
   @@index([createdAt])
   @@index([transactionId])
@@ -1245,4 +1255,31 @@ model SubscriptionUsage {
   @@index([merchantId])
   @@index([period])
   @@map("subscription_usage")
+}
+
+// Pricing Receiver Accounts (similar to wallet receivers)
+model PricingReceiverAccount {
+  id              String              @id @default(uuid())
+  
+  // Admin-configured receiver account for pricing payments
+  provider        TransactionProvider
+  receiverAccount String
+  receiverName    String?
+  receiverLabel   String?
+  
+  // Status
+  status          String              @default("ACTIVE")  // "ACTIVE" | "INACTIVE"
+  
+  // Metadata
+  meta            Json?
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  // Relations
+  verifiedTransactions BillingTransaction[]
+  
+  @@unique([provider, receiverAccount], name: "pricing_receiver_unique")
+  @@index([provider, status])
+  @@map("pricing_receiver_account")
 }

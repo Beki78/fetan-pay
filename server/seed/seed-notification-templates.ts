@@ -416,6 +416,297 @@ async function seedNotificationTemplates() {
       variables: ['merchantName', 'ipAddress'],
       isSystem: true,
     },
+    {
+      name: 'subscription-expiring-soon-merchant',
+      category: 'NOTIFICATION' as EmailTemplateCategory,
+      subject:
+        'Subscription Expiring Soon - {{planName}} - {{daysLeft}} Days Left',
+      content: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto;">
+          <div style="background: #F59E0B; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; color: white; font-size: 24px;">⏰ Subscription Expiring Soon</h1>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Hello {{merchantName}},</h2>
+            
+            <p style="margin: 16px 0;">Your <strong>{{planName}}</strong> subscription will expire in <strong>{{daysLeft}} days</strong> on {{expirationDate}}.</p>
+            
+            <div style="background: #fff7ed; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #F59E0B;">
+              <h3 style="margin: 0 0 12px 0; color: #92400e;">⚠️ Action Required:</h3>
+              <p style="margin: 0; color: #92400e;">To continue using premium features without interruption, please renew your subscription before it expires.</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="{{billingUrl}}" style="background: #F59E0B; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">
+                Renew Subscription
+              </a>
+            </div>
+            
+            <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
+              <p style="margin: 0; color: #1e40af; font-size: 14px;">
+                <strong>💡 Need Help?</strong> Contact our support team if you have any questions about your subscription or renewal process.
+              </p>
+            </div>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e2e8f0;">
+            
+            <p style="margin: 0; color: #64748b; font-size: 14px; text-align: center;">
+              This is an automated notification from FetanPay.
+            </p>
+          </div>
+        </div>
+      `,
+      variables: [
+        'merchantName',
+        'planName',
+        'expirationDate',
+        'daysLeft',
+        'billingUrl',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'subscription-expired-merchant',
+      category: 'NOTIFICATION' as EmailTemplateCategory,
+      subject: 'Subscription Expired - {{planName}} - Action Required',
+      content: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto;">
+          <div style="background: #EF4444; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; color: white; font-size: 24px;">🚨 Subscription Expired</h1>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Hello {{merchantName}},</h2>
+            
+            <p style="margin: 16px 0;">Your <strong>{{planName}}</strong> subscription has expired on {{expiredDate}}.</p>
+            
+            <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #EF4444;">
+              <h3 style="margin: 0 0 12px 0; color: #991b1b;">🔒 Limited Access:</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #991b1b;">
+                <li>Premium features are now disabled</li>
+                <li>Your account has been downgraded to the free plan</li>
+                <li>Some functionality may be restricted</li>
+              </ul>
+            </div>
+            
+            <p style="margin: 16px 0;">To restore full access to premium features, please renew your subscription.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="{{billingUrl}}" style="background: #EF4444; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">
+                Renew Now
+              </a>
+            </div>
+            
+            <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
+              <p style="margin: 0; color: #1e40af; font-size: 14px;">
+                <strong>💡 Questions?</strong> Our support team is here to help you with the renewal process or answer any questions about your account.
+              </p>
+            </div>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e2e8f0;">
+            
+            <p style="margin: 0; color: #64748b; font-size: 14px; text-align: center;">
+              This is an automated notification from FetanPay.
+            </p>
+          </div>
+        </div>
+      `,
+      variables: ['merchantName', 'planName', 'expiredDate', 'billingUrl'],
+      isSystem: true,
+    },
+    {
+      name: 'subscription-expiring-soon-admin',
+      category: 'NOTIFICATION' as EmailTemplateCategory,
+      subject:
+        'Merchant Subscription Expiring - {{merchantName}} - {{planName}}',
+      content: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto;">
+          <div style="background: #F59E0B; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; color: white; font-size: 24px;">⏰ Merchant Subscription Expiring</h1>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Hello Admin,</h2>
+            
+            <p style="margin: 16px 0;">A merchant's subscription is expiring soon and may require follow-up.</p>
+            
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin: 0 0 12px 0; color: #374151;">Merchant Details:</h3>
+              <p style="margin: 4px 0;"><strong>Merchant:</strong> {{merchantName}}</p>
+              <p style="margin: 4px 0;"><strong>Merchant ID:</strong> {{merchantId}}</p>
+              <p style="margin: 4px 0;"><strong>Plan:</strong> {{planName}}</p>
+              <p style="margin: 4px 0;"><strong>Expiration Date:</strong> {{expirationDate}}</p>
+              <p style="margin: 4px 0;"><strong>Days Left:</strong> {{daysLeft}}</p>
+            </div>
+            
+            <div style="background: #fff7ed; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #F59E0B;">
+              <h3 style="margin: 0 0 12px 0; color: #92400e;">📞 Suggested Actions:</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #92400e;">
+                <li>Contact the merchant to discuss renewal</li>
+                <li>Offer assistance with the renewal process</li>
+                <li>Check if they need plan adjustments</li>
+                <li>Provide support for any billing questions</li>
+              </ul>
+            </div>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e2e8f0;">
+            
+            <p style="margin: 0; color: #64748b; font-size: 14px; text-align: center;">
+              This is an automated notification from FetanPay Admin System.
+            </p>
+          </div>
+        </div>
+      `,
+      variables: [
+        'merchantName',
+        'merchantId',
+        'planName',
+        'expirationDate',
+        'daysLeft',
+      ],
+      isSystem: true,
+    },
+    {
+      name: 'subscription-expired-admin',
+      category: 'NOTIFICATION' as EmailTemplateCategory,
+      subject:
+        'Merchant Subscription Expired - {{merchantName}} - {{planName}}',
+      content: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto;">
+          <div style="background: #EF4444; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; color: white; font-size: 24px;">🚨 Merchant Subscription Expired</h1>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Hello Admin,</h2>
+            
+            <p style="margin: 16px 0;">A merchant's subscription has expired and they have been downgraded to the free plan.</p>
+            
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin: 0 0 12px 0; color: #374151;">Merchant Details:</h3>
+              <p style="margin: 4px 0;"><strong>Merchant:</strong> {{merchantName}}</p>
+              <p style="margin: 4px 0;"><strong>Merchant ID:</strong> {{merchantId}}</p>
+              <p style="margin: 4px 0;"><strong>Expired Plan:</strong> {{planName}}</p>
+              <p style="margin: 4px 0;"><strong>Expired Date:</strong> {{expiredDate}}</p>
+            </div>
+            
+            <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #EF4444;">
+              <h3 style="margin: 0 0 12px 0; color: #991b1b;">📞 Immediate Actions Required:</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #991b1b;">
+                <li>Contact the merchant immediately</li>
+                <li>Discuss renewal options and pricing</li>
+                <li>Assist with reactivation if needed</li>
+                <li>Monitor for any service disruptions</li>
+              </ul>
+            </div>
+            
+            <p style="margin: 16px 0;">The merchant's account is now on the free plan with limited features. Please reach out to help them restore their premium subscription.</p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e2e8f0;">
+            
+            <p style="margin: 0; color: #64748b; font-size: 14px; text-align: center;">
+              This is an automated notification from FetanPay Admin System.
+            </p>
+          </div>
+        </div>
+      `,
+      variables: ['merchantName', 'merchantId', 'planName', 'expiredDate'],
+      isSystem: true,
+    },
+    {
+      name: 'subscription-renewed-merchant',
+      category: 'APPROVAL' as EmailTemplateCategory,
+      subject: 'Subscription Activated - {{planName}} - Welcome Back!',
+      content: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto;">
+          <div style="background: #10B981; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; color: white; font-size: 24px;">🎉 Subscription Activated!</h1>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Great news {{merchantName}}!</h2>
+            
+            <p style="margin: 16px 0;">Your <strong>{{planName}}</strong> subscription has been successfully activated.</p>
+            
+            <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+              <h3 style="margin: 0 0 12px 0; color: #166534;">📋 Subscription Details:</h3>
+              <p style="margin: 4px 0; color: #166534;"><strong>Plan:</strong> {{planName}}</p>
+              <p style="margin: 4px 0; color: #166534;"><strong>Start Date:</strong> {{startDate}}</p>
+              <p style="margin: 4px 0; color: #166534;"><strong>Valid Until:</strong> {{endDate}}</p>
+              <p style="margin: 4px 0; color: #166534;"><strong>Amount:</strong> {{amount}} ETB</p>
+            </div>
+            
+            <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
+              <h3 style="margin: 0 0 12px 0; color: #1e40af;">✅ You now have access to:</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #1e40af;">
+                <li>All premium features</li>
+                <li>Enhanced API limits</li>
+                <li>Priority support</li>
+                <li>Advanced analytics</li>
+              </ul>
+            </div>
+            
+            <p style="margin: 16px 0;">Thank you for choosing FetanPay! We're excited to continue supporting your business growth.</p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e2e8f0;">
+            
+            <p style="margin: 0; color: #64748b; font-size: 14px; text-align: center;">
+              This is an automated notification from FetanPay.
+            </p>
+          </div>
+        </div>
+      `,
+      variables: ['merchantName', 'planName', 'startDate', 'endDate', 'amount'],
+      isSystem: true,
+    },
+    {
+      name: 'plan-assigned-merchant',
+      category: 'APPROVAL' as EmailTemplateCategory,
+      subject: 'New Plan Assigned - {{planName}} - By Administrator',
+      content: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 600px; margin: 0 auto;">
+          <div style="background: #8B5CF6; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; color: white; font-size: 24px;">🎁 New Plan Assigned!</h1>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Hello {{merchantName}},</h2>
+            
+            <p style="margin: 16px 0;">Great news! A new <strong>{{planName}}</strong> plan has been assigned to your account by an administrator.</p>
+            
+            <div style="background: #faf5ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8B5CF6;">
+              <h3 style="margin: 0 0 12px 0; color: #6B21A8;">📋 Assignment Details:</h3>
+              <p style="margin: 4px 0; color: #6B21A8;"><strong>Plan:</strong> {{planName}}</p>
+              <p style="margin: 4px 0; color: #6B21A8;"><strong>Assigned By:</strong> {{assignedBy}}</p>
+              <p style="margin: 4px 0; color: #6B21A8;"><strong>Start Date:</strong> {{startDate}}</p>
+              <p style="margin: 4px 0; color: #6B21A8;"><strong>Valid Until:</strong> {{endDate}}</p>
+            </div>
+            
+            <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+              <h3 style="margin: 0 0 12px 0; color: #166534;">🚀 Your new plan is now active!</h3>
+              <p style="margin: 0; color: #166534;">You can immediately start using all the features included in your new plan. Check your merchant dashboard to explore the enhanced capabilities.</p>
+            </div>
+            
+            <p style="margin: 16px 0;">If you have any questions about your new plan or need assistance, please don't hesitate to contact our support team.</p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e2e8f0;">
+            
+            <p style="margin: 0; color: #64748b; font-size: 14px; text-align: center;">
+              This is an automated notification from FetanPay.
+            </p>
+          </div>
+        </div>
+      `,
+      variables: [
+        'merchantName',
+        'planName',
+        'assignedBy',
+        'startDate',
+        'endDate',
+      ],
+      isSystem: true,
+    },
   ];
 
   for (const template of templates) {

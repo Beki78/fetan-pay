@@ -85,7 +85,7 @@ export default function ChangePlanPage() {
       
       // Handle specific error cases
       if (error?.data?.message?.includes("already a pending assignment")) {
-        toast.error("There is already a pending plan assignment for this merchant. Please wait for it to be processed or contact support.");
+        toast.error("There is already a pending plan assignment for this merchant. Please wait for it to be processed, cancel the existing assignment, or contact support.");
       } else if (error?.data?.message?.includes("Plan assignment already applied")) {
         toast.error("This plan assignment has already been processed. Please refresh the page to see the current status.");
       } else if (error?.data?.message?.includes("Merchant not found")) {
@@ -94,6 +94,8 @@ export default function ChangePlanPage() {
         toast.error("Selected plan not found. Please refresh the page and try again.");
       } else if (error?.data?.message?.includes("Cannot assign inactive plan")) {
         toast.error("Cannot assign inactive plan. Please select an active plan.");
+      } else if (error?.data?.message?.includes("already has an active subscription")) {
+        toast.error("Merchant already has an active subscription to this plan. Please select a different plan.");
       } else {
         toast.error(error?.data?.message || "Failed to assign plan. Please try again.");
       }

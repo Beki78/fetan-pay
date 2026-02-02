@@ -178,6 +178,9 @@ export default function Pricing() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<"MONTHLY" | "YEARLY">(
+    "MONTHLY",
+  );
 
   useEffect(() => {
     async function loadPlans() {
@@ -205,22 +208,21 @@ export default function Pricing() {
   // Fallback data in case API fails
   const fallbackPlans: Plan[] = [
     {
-      id: "starter",
+      id: "free",
       name: "Free",
-      description: "Perfect for small businesses getting started",
+      description: "Perfect for testing the platform - 7-day free trial",
       price: 0,
       billingCycle: "MONTHLY",
-      verificationLimit: 100,
+      verificationLimit: 20,
       apiLimit: 1000,
       features: [
-        "100 verifications/month",
-        "Full API access",
-        "2 API keys",
-        "Vendor dashboard",
+        "7-day free trial",
+        "20 verifications during trial",
+        "1 team member",
+        "Unlimited webhooks",
         "Basic analytics",
         "All verification methods",
         "Multi-bank support",
-        "Frontend UI (with watermark)",
         "Bank account management (up to 2 accounts)",
         "Transaction history (30 days)",
       ],
@@ -231,25 +233,21 @@ export default function Pricing() {
       updatedAt: new Date().toISOString(),
     },
     {
-      id: "professional",
+      id: "starter",
       name: "Starter",
       description: "Perfect for small businesses and startups",
-      price: 1740,
+      price: 179,
       billingCycle: "MONTHLY",
-      verificationLimit: 1000,
+      verificationLimit: 100,
       apiLimit: 10000,
       features: [
-        "1,000 verifications/month",
-        "Full API access",
-        "2 API keys",
-        "Vendor dashboard",
-        "Webhook support",
+        "100 verifications/month",
+        "5 team members (employees)",
+        "Unlimited webhooks",
         "Advanced analytics",
-        "Transaction history (6 months)",
-        "All verification methods",
+        "Tips collection",
         "Bank account management (up to 5 accounts)",
-        "Frontend UI (with watermark)",
-        "Overage: ETB 6 per additional verification",
+        "Verification by usage",
       ],
       status: "ACTIVE",
       isPopular: true,
@@ -261,25 +259,21 @@ export default function Pricing() {
       id: "business",
       name: "Business",
       description: "Perfect for growing businesses and medium-sized companies",
-      price: 11940,
+      price: 999,
       billingCycle: "MONTHLY",
-      verificationLimit: 10000,
+      verificationLimit: 1000,
       apiLimit: 100000,
       features: [
-        "10,000 verifications/month",
+        "1000 verifications/month",
         "Full API access",
-        "2 API keys",
-        "Vendor dashboard",
-        "Webhook support",
+        "Unlimited API keys",
+        "15 team members (employees)",
+        "Unlimited webhooks",
         "Advanced analytics & reporting",
-        "Transaction history (12 months)",
-        "All verification methods",
-        "Bank account management (unlimited)",
-        "Custom webhook endpoints",
-        "Export functionality (CSV, PDF)",
-        "Frontend UI Package (NO watermark)",
-        "Custom integration support",
-        "Overage: ETB 4.8 per additional verification",
+        "Tips collection",
+        "Custom branding",
+        "Bank account management (up to 10 accounts)",
+        "Verification by usage",
       ],
       status: "ACTIVE",
       isPopular: false,
@@ -288,7 +282,7 @@ export default function Pricing() {
       updatedAt: new Date().toISOString(),
     },
     {
-      id: "enterprise",
+      id: "custom",
       name: "Custom",
       description:
         "Perfect for large enterprises, fintech companies, and businesses with specific needs",
@@ -300,14 +294,16 @@ export default function Pricing() {
         "Custom verification limits",
         "Full API access",
         "Unlimited API keys",
+        "Unlimited team members (employees)",
         "Vendor dashboard",
-        "Webhook support",
+        "Unlimited webhooks",
         "Advanced analytics & reporting",
+        "Tips collection",
+        "Custom branding",
         "Transaction history (unlimited)",
         "All verification methods",
         "Bank account management (unlimited)",
         "Custom webhook endpoints",
-        "Export functionality (CSV, PDF)",
         "Frontend UI Package (NO watermark)",
         "White-label solution",
         "On-premise deployment option",
@@ -322,17 +318,77 @@ export default function Pricing() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
+    // Yearly Plans
+    {
+      id: "starter-yearly",
+      name: "Starter Yearly",
+      description:
+        "Perfect for small businesses and startups - Save 20% with yearly billing",
+      price: 1720,
+      billingCycle: "YEARLY",
+      verificationLimit: 100,
+      apiLimit: 10000,
+      features: [
+        "100 verifications/month",
+        "5 team members (employees)",
+        "Unlimited webhooks",
+        "Advanced analytics",
+        "Tips collection",
+        "Bank account management (up to 5 accounts)",
+        "Verification by usage",
+        "20% discount (2 months free)",
+      ],
+      status: "ACTIVE",
+      isPopular: true,
+      displayOrder: 5,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: "business-yearly",
+      name: "Business Yearly",
+      description:
+        "Perfect for growing businesses and medium-sized companies - Save 20% with yearly billing",
+      price: 9590,
+      billingCycle: "YEARLY",
+      verificationLimit: 1000,
+      apiLimit: 100000,
+      features: [
+        "1000 verifications/month",
+        "Full API access",
+        "Unlimited API keys",
+        "15 team members (employees)",
+        "Unlimited webhooks",
+        "Advanced analytics & reporting",
+        "Tips collection",
+        "Custom branding",
+        "Bank account management (up to 10 accounts)",
+        "Verification by usage",
+        "20% discount (2.4 months free)",
+      ],
+      status: "ACTIVE",
+      isPopular: false,
+      displayOrder: 6,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
   ];
 
   // Transform API data to display format
   const transformPlanToDisplay = (plan: Plan) => {
     const formatPrice = (price: number) => {
+      if (price === 0 && plan.name.toLowerCase() === "free") return "Free";
       if (price === 0) return "Free";
-      if (plan.name.toLowerCase().includes("enterprise")) return "Custom";
+      if (plan.name.toLowerCase().includes("custom")) return "Custom";
       return `ETB ${price.toLocaleString()}`;
     };
 
-    const formatPeriod = (billingCycle: string) => {
+    const formatPeriod = (billingCycle: string, planName: string) => {
+      // Special case for free plan - show "7-day trial"
+      if (planName.toLowerCase() === "free") {
+        return "7-day trial";
+      }
+
       switch (billingCycle) {
         case "MONTHLY":
           return "month";
@@ -348,13 +404,12 @@ export default function Pricing() {
     };
 
     const getButtonText = (plan: Plan) => {
-      if (plan.name.toLowerCase().includes("enterprise"))
-        return "Contact Sales";
+      if (plan.name.toLowerCase().includes("custom")) return "Contact Sales";
       return "Get Started";
     };
 
     const getButtonHref = (plan: Plan) => {
-      if (plan.name.toLowerCase().includes("enterprise"))
+      if (plan.name.toLowerCase().includes("custom"))
         return "mailto:fetanpay@gmail.com";
       return MERCHANT_SIGNUP_URL;
     };
@@ -362,7 +417,7 @@ export default function Pricing() {
     return {
       name: plan.name,
       price: formatPrice(plan.price),
-      period: formatPeriod(plan.billingCycle),
+      period: formatPeriod(plan.billingCycle, plan.name),
       description: plan.description,
       features: plan.features,
       isPopular: plan.isPopular,
@@ -371,6 +426,16 @@ export default function Pricing() {
       verificationLimit: plan.verificationLimit,
     };
   };
+
+  // Filter plans based on selected billing cycle
+  const filteredPlans = plans.filter((plan) => {
+    if (billingCycle === "MONTHLY") {
+      return plan.billingCycle === "MONTHLY";
+    } else {
+      // For yearly, only show yearly plans (exclude Free and Custom)
+      return plan.billingCycle === "YEARLY";
+    }
+  });
 
   if (loading) {
     return (
@@ -487,6 +552,41 @@ export default function Pricing() {
           instant verification and multi-bank support.
         </p>
 
+        {/* Billing Cycle Toggle */}
+        <div className="flex justify-center mb-8 sm:mb-10 md:mb-12">
+          <div className="bg-gray-100 rounded-full p-1 flex">
+            <button
+              onClick={() => setBillingCycle("MONTHLY")}
+              className={`px-6 py-2 rounded-full font-medium transition-all duration-300 ${
+                billingCycle === "MONTHLY"
+                  ? "bg-[#174686] text-white shadow-md"
+                  : "text-[#174686] hover:bg-gray-200"
+              }`}
+              style={{
+                fontFamily: "var(--font-inter)",
+              }}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle("YEARLY")}
+              className={`px-6 py-2 rounded-full font-medium transition-all duration-300 relative ${
+                billingCycle === "YEARLY"
+                  ? "bg-[#174686] text-white shadow-md"
+                  : "text-[#174686] hover:bg-gray-200"
+              }`}
+              style={{
+                fontFamily: "var(--font-inter)",
+              }}
+            >
+              Yearly
+              <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                Save 20%
+              </span>
+            </button>
+          </div>
+        </div>
+
         {/* Error message if API failed but we have fallback data */}
         {error && (
           <div className="text-center mb-4">
@@ -498,18 +598,18 @@ export default function Pricing() {
 
         {/* Pricing Cards - Responsive */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mt-8 sm:mt-10 md:mt-12">
-          {plans.map((plan, index) => {
+          {filteredPlans.map((plan, index) => {
             const displayPlan = transformPlanToDisplay(plan);
             return (
               <div
-                key={plan.id}
+                key={`${plan.id}-${billingCycle}`}
                 className="opacity-0 animate-fade-in-up"
                 style={{
                   animationDelay: `${500 + index * 100}ms`,
                 }}
               >
                 <PricingTier
-                  name={displayPlan.name}
+                  name={displayPlan.name.replace(" Yearly", "")} // Remove "Yearly" from display name
                   price={displayPlan.price}
                   period={displayPlan.period}
                   description={displayPlan.description}

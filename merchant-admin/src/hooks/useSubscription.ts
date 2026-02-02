@@ -24,6 +24,10 @@ export interface UseSubscriptionReturn {
   canAccessFeature: (feature: keyof SubscriptionFeatures) => boolean;
   getFeatureLimit: (feature: keyof SubscriptionFeatures) => number | boolean;
   isFeatureUnlimited: (feature: keyof SubscriptionFeatures) => boolean;
+  isInTrial: boolean;
+  isExpired: boolean;
+  daysRemaining: number | null;
+  trialEndDate: Date | null;
 }
 
 export const useSubscription = (): UseSubscriptionReturn => {
@@ -155,7 +159,48 @@ export const useSubscription = (): UseSubscriptionReturn => {
     };
   }, [plan?.limits, plan?.features]);
 
+  // Calculate trial information
+  const trialInfo = useMemo(() => {
+    if (!subscription) {
+      return {
+        isInTrial: false,
+        isExpired: true,
+        daysRemaining: null,
+        trialEndDate: null,
+      };
+    }
+
+    const isFreePlan = plan?.name === 'Free';
+    const hasEndDate = subscription.endDate !== null;
+    const isActive = subscription.status === 'ACTIVE';
+    const isExpiredStatus = subscription.status === 'EXPIRED';
+
+    // Check if subscription is expired
+    const endDate = subscription.endDate ? new Date(subscription.endDate) : null;
+    const now = new Date();
+    const isExpiredByDate = endDate && endDate <= now;
+
+    // Calculate days remaining
+    let daysRemaining = null;
+    if (endDate) {
+      const diffTime = endDate.getTime() - now.getTime();
+      daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    }
+
+    return {
+      isInTrial: isFreePlan && hasEndDate && isActive,
+      isExpired: isExpiredStatus || isExpiredByDate || false,
+      daysRemaining,
+      trialEndDate: endDate,
+    };
+  }, [subscription, plan]);
+
   const canAccessFeature = (feature: keyof SubscriptionFeatures): boolean => {
+    // If subscription is expired, deny access to all features
+    if (trialInfo.isExpired) {
+      return false;
+    }
+
     const featureValue = features[feature];
     
     // For boolean features, return the boolean value
@@ -189,5 +234,9 @@ export const useSubscription = (): UseSubscriptionReturn => {
     canAccessFeature,
     getFeatureLimit,
     isFeatureUnlimited,
+    isInTrial: trialInfo.isInTrial,
+    isExpired: trialInfo.isExpired,
+    daysRemaining: trialInfo.daysRemaining,
+    trialEndDate: trialInfo.trialEndDate,
   };
 };

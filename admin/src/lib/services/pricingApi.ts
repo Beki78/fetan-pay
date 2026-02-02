@@ -6,6 +6,8 @@ export type SubscriptionStatus = "ACTIVE" | "CANCELLED" | "EXPIRED" | "SUSPENDED
 export type TransactionStatus = "PENDING" | "VERIFIED" | "FAILED" | "EXPIRED";
 export type PlanAssignmentType = "IMMEDIATE" | "SCHEDULED";
 export type PlanDurationType = "PERMANENT" | "TEMPORARY";
+export type TransactionProvider = "CBE" | "TELEBIRR" | "AWASH" | "BOA" | "DASHEN";
+export type PricingReceiverStatus = "ACTIVE" | "INACTIVE";
 
 export interface Plan {
   id: string;
@@ -127,6 +129,33 @@ export interface PlanStatistics {
     monthlyRevenue: number;
   })[];
   totalRevenue: number;
+}
+
+export interface PricingReceiverAccount {
+  id: string;
+  provider: TransactionProvider;
+  receiverAccount: string;
+  receiverName: string | null;
+  receiverLabel: string | null;
+  status: PricingReceiverStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePricingReceiverInput {
+  provider: TransactionProvider;
+  receiverAccount: string;
+  receiverName: string;
+  receiverLabel?: string;
+  status?: PricingReceiverStatus;
+}
+
+export interface VerifyPricingPaymentInput {
+  transactionId: string;
+  provider: TransactionProvider;
+  paymentReference: string;
+  receiverAccountId: string;
+  notes?: string;
 }
 
 // Plan Management API
@@ -369,6 +398,82 @@ export async function fetchPublicPlans(): Promise<PlanListResponse> {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(json?.message || json?.error || "Failed to fetch public plans");
+  }
+  return json;
+}
+
+// Pricing Receiver Management API
+export async function fetchPricingReceivers(): Promise<PricingReceiverAccount[]> {
+  const res = await fetch(`${API_BASE_URL}/pricing/receivers`, {
+    credentials: "include"
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json?.message || json?.error || "Failed to fetch pricing receivers");
+  }
+  return json;
+}
+
+export async function createPricingReceiver(receiverData: CreatePricingReceiverInput): Promise<PricingReceiverAccount> {
+  const res = await fetch(`${API_BASE_URL}/pricing/receivers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(receiverData),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json?.message || json?.error || "Failed to create pricing receiver");
+  }
+  return json;
+}
+
+export async function updatePricingReceiver(id: string, receiverData: CreatePricingReceiverInput): Promise<PricingReceiverAccount> {
+  const res = await fetch(`${API_BASE_URL}/pricing/receivers/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(receiverData),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json?.message || json?.error || "Failed to update pricing receiver");
+  }
+  return json;
+}
+
+export async function deletePricingReceiver(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/pricing/receivers/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json?.message || json?.error || "Failed to delete pricing receiver");
+  }
+}
+
+export async function fetchActivePricingReceiversByProvider(provider: string): Promise<PricingReceiverAccount[]> {
+  const res = await fetch(`${API_BASE_URL}/pricing/receivers/provider/${provider}`, {
+    credentials: "include"
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json?.message || json?.error || "Failed to fetch pricing receivers");
+  }
+  return json;
+}
+
+export async function verifyPricingPayment(verificationData: VerifyPricingPaymentInput): Promise<any> {
+  const res = await fetch(`${API_BASE_URL}/pricing/verify-payment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(verificationData),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json?.message || json?.error || "Failed to verify payment");
   }
   return json;
 }

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -25,6 +25,7 @@ export default function BillingTransactionsTable() {
   const [planFilter, setPlanFilter] = useState("All");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [page, setPage] = useState(1);
+  const [isPlanDropdownOpen, setIsPlanDropdownOpen] = useState(false);
   const limit = 20;
 
   const { data: transactionsResponse, isLoading, error } = useGetBillingTransactionsQuery({
@@ -57,19 +58,21 @@ export default function BillingTransactionsTable() {
     // TODO: Implement PDF export
   };
 
-  const handleViewReceipt = (transactionId: string) => {
-    console.log("Viewing receipt for:", transactionId);
-    // TODO: Implement receipt viewing
-  };
-
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, paymentMethod?: string | null, notes?: string | null) => {
+    // Check if it's an admin upgrade
+    const isAdminUpgrade = paymentMethod === 'Admin Assignment' || notes?.includes('Admin upgrade');
+    
+    if (isAdminUpgrade) {
+      return <Badge color="info" size="sm">Admin Upgrade</Badge>;
+    }
+    
     switch (status) {
       case 'VERIFIED':
         return <Badge color="success" size="sm">Verified</Badge>;
       case 'PENDING':
         return <Badge color="warning" size="sm">Pending</Badge>;
       case 'FAILED':
-        return <Badge color="danger" size="sm">Failed</Badge>;
+        return <Badge color="error" size="sm">Failed</Badge>;
       case 'EXPIRED':
         return <Badge color="secondary" size="sm">Expired</Badge>;
       default:
@@ -119,20 +122,41 @@ export default function BillingTransactionsTable() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Plan
           </label>
-          <Dropdown
-            trigger={
-              <Button variant="outline" className="w-full justify-between">
-                {planFilter}
-                <ChevronDownIcon className="w-4 h-4" />
-              </Button>
-            }
-          >
-            <DropdownItem onClick={() => setPlanFilter("All")}>All</DropdownItem>
-            <DropdownItem onClick={() => setPlanFilter("Free")}>Free</DropdownItem>
-            <DropdownItem onClick={() => setPlanFilter("Starter")}>Starter</DropdownItem>
-            <DropdownItem onClick={() => setPlanFilter("Business")}>Business</DropdownItem>
-            <DropdownItem onClick={() => setPlanFilter("Custom")}>Custom</DropdownItem>
-          </Dropdown>
+          <div className="relative">
+            <Button 
+              variant="outline" 
+              className="w-full justify-between dropdown-toggle"
+              onClick={() => setIsPlanDropdownOpen(!isPlanDropdownOpen)}
+            >
+              {planFilter}
+              <ChevronDownIcon className="w-4 h-4" />
+            </Button>
+            <Dropdown
+              isOpen={isPlanDropdownOpen}
+              onClose={() => setIsPlanDropdownOpen(false)}
+            >
+              <DropdownItem onClick={() => {
+                setPlanFilter("All");
+                setIsPlanDropdownOpen(false);
+              }}>All</DropdownItem>
+              <DropdownItem onClick={() => {
+                setPlanFilter("Free");
+                setIsPlanDropdownOpen(false);
+              }}>Free</DropdownItem>
+              <DropdownItem onClick={() => {
+                setPlanFilter("Starter");
+                setIsPlanDropdownOpen(false);
+              }}>Starter</DropdownItem>
+              <DropdownItem onClick={() => {
+                setPlanFilter("Business");
+                setIsPlanDropdownOpen(false);
+              }}>Business</DropdownItem>
+              <DropdownItem onClick={() => {
+                setPlanFilter("Custom");
+                setIsPlanDropdownOpen(false);
+              }}>Custom</DropdownItem>
+            </Dropdown>
+          </div>
         </div>
 
         <div>
@@ -268,7 +292,7 @@ export default function BillingTransactionsTable() {
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      {getStatusBadge(transaction.status)}
+                      {getStatusBadge(transaction.status, transaction.paymentMethod, transaction.notes)}
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <span className="font-mono text-sm text-gray-600 dark:text-gray-400">
@@ -288,7 +312,7 @@ export default function BillingTransactionsTable() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(transaction.receiptUrl, '_blank')}
+                            onClick={() => window.open(transaction.receiptUrl || '', '_blank')}
                             className="text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/20"
                           >
                             <EyeIcon className="w-4 h-4 mr-1" />
