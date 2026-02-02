@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import Button from "../ui/button/Button";
 import Badge from "../ui/badge/Badge";
-import { TrashIcon, RefreshIcon } from "@/icons";
+// import { TrashIcon, RefreshIcon } from "@/icons";
 import {
   Table,
   TableBody,
@@ -149,7 +149,7 @@ export default function PendingAssignments({ merchantId }: PendingAssignmentsPro
             onClick={fetchAssignments}
             disabled={isRefreshing}
           >
-            <RefreshIcon className="w-4 h-4 mr-2" />
+            {/* <RefreshIcon className="w-4 h-4 mr-2" /> */}
             Refresh
           </Button>
           <Button
@@ -250,7 +250,7 @@ export default function PendingAssignments({ merchantId }: PendingAssignmentsPro
                       onClick={() => cancelAssignment(assignment.id)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
                     >
-                      <TrashIcon className="w-4 h-4 mr-1" />
+                      {/* <TrashIcon className="w-4 h-4 mr-1" /> */}
                       Cancel
                     </Button>
                   </TableCell>

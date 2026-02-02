@@ -14,17 +14,17 @@ const seedFiles = [
   },
   {
     name: 'Email Templates Seed',
-    file: 'seed-email-templates.ts',
+    file: 'seed/seed-email-templates.ts',
     description: 'Seeds email templates for communications',
   },
   {
     name: 'Notification Templates Seed',
-    file: 'seed-notification-templates.ts',
+    file: 'seed/seed-notification-templates.ts',
     description: 'Seeds notification email templates for system events',
   },
   {
     name: 'Pricing Plans Seed',
-    file: 'seed-pricing-plans.ts',
+    file: 'seed/seed-pricing-plans.ts',
     description: 'Seeds pricing plans for subscription system',
   },
 ];
@@ -42,10 +42,11 @@ async function runMasterSeed() {
     console.log('─'.repeat(60));
 
     try {
-      const filePath = path.resolve(__dirname, seedFile.file);
+      const serverRoot = path.resolve(__dirname, '..');
+      const filePath = path.resolve(serverRoot, seedFile.file);
       execSync(`npx ts-node "${filePath}"`, {
         stdio: 'inherit',
-        cwd: __dirname,
+        cwd: serverRoot, // Run from server root directory
       });
 
       console.log(`✅ ${seedFile.name} completed successfully!\n`);

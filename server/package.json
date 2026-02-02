@@ -7,11 +7,11 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "seed": "node -r ts-node/register seed-master.ts",
+    "seed": "node -r ts-node/register seed/seed-master.ts",
     "seed:main": "node -r ts-node/register prisma/seed.ts",
-    "seed:email-templates": "node -r ts-node/register seed-email-templates.ts",
-    "seed:notification-templates": "node -r ts-node/register seed-notification-templates.ts",
-    "seed:pricing-plans": "node -r ts-node/register seed-pricing-plans.ts",
+    "seed:email-templates": "node -r ts-node/register seed/seed-email-templates.ts",
+    "seed:notification-templates": "node -r ts-node/register seed/seed-notification-templates.ts",
+    "seed:pricing-plans": "node -r ts-node/register seed/seed-pricing-plans.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -90,7 +90,7 @@
     "typescript-eslint": "^8.20.0"
   },
   "prisma": {
-    "seed": "ts-node seed-master.ts"
+    "seed": "ts-node seed/seed-master.ts"
   },
   "jest": {
     "moduleFileExtensions": [

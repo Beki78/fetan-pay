@@ -73,13 +73,13 @@ export default function MerchantPlanAssignment({
   if (!merchant) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} className="max-w-2xl mx-4">
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Assign Plan to Merchant
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="outline" size="sm" onClick={onClose}>
             <CloseIcon className="w-4 h-4" />
           </Button>
         </div>
