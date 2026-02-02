@@ -7,6 +7,8 @@ export type SubscriptionStatus = "ACTIVE" | "CANCELLED" | "EXPIRED" | "SUSPENDED
 export type TransactionStatus = "PENDING" | "VERIFIED" | "FAILED" | "EXPIRED";
 export type PlanAssignmentType = "IMMEDIATE" | "SCHEDULED";
 export type PlanDurationType = "PERMANENT" | "TEMPORARY";
+export type TransactionProvider = "CBE" | "TELEBIRR" | "AWASH" | "BOA" | "DASHEN";
+export type PricingReceiverStatus = "ACTIVE" | "INACTIVE";
 
 export interface Plan {
   id: string;
@@ -196,6 +198,34 @@ export interface CreateBillingTransactionRequest {
   notes?: string;
 }
 
+// Pricing Receiver Interfaces
+export interface PricingReceiverAccount {
+  id: string;
+  provider: TransactionProvider;
+  receiverAccount: string;
+  receiverName: string | null;
+  receiverLabel: string | null;
+  status: PricingReceiverStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePricingReceiverRequest {
+  provider: TransactionProvider;
+  receiverAccount: string;
+  receiverName: string;
+  receiverLabel?: string;
+  status?: PricingReceiverStatus;
+}
+
+export interface VerifyPricingPaymentRequest {
+  transactionId: string;
+  provider: TransactionProvider;
+  paymentReference: string;
+  receiverAccountId: string;
+  notes?: string;
+}
+
 export const pricingApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     // Plan Management
@@ -332,6 +362,66 @@ export const pricingApi = baseApi.injectEndpoints({
       query: () => "/pricing/public/plans",
       providesTags: ["PublicPlans"],
     }),
+
+    // Pricing Receiver Management
+    getPricingReceivers: build.query<PricingReceiverAccount[], void>({
+      query: () => "/pricing/receivers",
+      providesTags: [{ type: "Plan", id: "PRICING_RECEIVERS" }],
+    }),
+
+    createPricingReceiver: build.mutation<
+      PricingReceiverAccount,
+      CreatePricingReceiverRequest
+    >({
+      query: (body) => ({
+        url: "/pricing/receivers",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: [{ type: "Plan", id: "PRICING_RECEIVERS" }],
+    }),
+
+    updatePricingReceiver: build.mutation<
+      PricingReceiverAccount,
+      { id: string; data: CreatePricingReceiverRequest }
+    >({
+      query: ({ id, data }) => ({
+        url: `/pricing/receivers/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: [{ type: "Plan", id: "PRICING_RECEIVERS" }],
+    }),
+
+    deletePricingReceiver: build.mutation<{ success: boolean }, string>({
+      query: (id) => ({
+        url: `/pricing/receivers/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: [{ type: "Plan", id: "PRICING_RECEIVERS" }],
+    }),
+
+    getActivePricingReceiversByProvider: build.query<
+      PricingReceiverAccount[],
+      string
+    >({
+      query: (provider) => `/pricing/receivers/provider/${provider}`,
+      providesTags: (result, error, provider) => [
+        { type: "Plan", id: `RECEIVERS_${provider}` },
+      ],
+    }),
+
+    verifyPricingPayment: build.mutation<any, VerifyPricingPaymentRequest>({
+      query: (body) => ({
+        url: "/pricing/verify-payment",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: [
+        { type: "Plan", id: "BILLING_TRANSACTIONS" },
+        { type: "Plan", id: "STATISTICS" },
+      ],
+    }),
   }),
 });
 
@@ -349,4 +439,10 @@ export const {
   useGetMerchantSubscriptionQuery,
   useGetPlanStatisticsQuery,
   useGetPublicPlansQuery,
+  useGetPricingReceiversQuery,
+  useCreatePricingReceiverMutation,
+  useUpdatePricingReceiverMutation,
+  useDeletePricingReceiverMutation,
+  useGetActivePricingReceiversByProviderQuery,
+  useVerifyPricingPaymentMutation,
 } = pricingApi;

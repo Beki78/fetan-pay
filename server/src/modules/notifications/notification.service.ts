@@ -21,7 +21,11 @@ export type NotificationType =
   | 'CAMPAIGN_COMPLETED'
   | 'BRANDING_UPDATED'
   | 'IP_ADDRESS_DISABLED'
-  | 'IP_ADDRESS_ENABLED';
+  | 'IP_ADDRESS_ENABLED'
+  | 'SUBSCRIPTION_EXPIRING_SOON'
+  | 'SUBSCRIPTION_EXPIRED'
+  | 'SUBSCRIPTION_RENEWED'
+  | 'PLAN_ASSIGNED';
 
 export type NotificationUserType = 'ADMIN' | 'MERCHANT_USER';
 
@@ -1217,6 +1221,541 @@ export class NotificationService {
     } catch (error) {
       this.logger.error(
         `Failed to send IP address enabled email to ${ownerEmail}: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Notify merchant about subscription expiring soon (2 days before)
+   */
+  async notifySubscriptionExpiringSoon(
+    merchantId: string,
+    merchantName: string,
+    ownerUserId: string,
+    subscriptionDetails: {
+      planName: string;
+      expirationDate: Date;
+      daysLeft: number;
+    },
+  ) {
+    await this.createNotification({
+      userId: ownerUserId,
+      userType: 'MERCHANT_USER',
+      merchantId,
+      type: 'SUBSCRIPTION_EXPIRING_SOON',
+      title: 'Subscription Expiring Soon',
+      message: `Your ${subscriptionDetails.planName} subscription will expire in ${subscriptionDetails.daysLeft} days on ${subscriptionDetails.expirationDate.toLocaleDateString()}. Please renew to continue using premium features.`,
+      priority: 'HIGH',
+      data: { merchantId, merchantName, ...subscriptionDetails },
+      sendEmail: true,
+      emailTemplate: 'subscription-expiring-soon-merchant',
+      emailVariables: {
+        merchantName,
+        planName: subscriptionDetails.planName,
+        expirationDate: subscriptionDetails.expirationDate.toLocaleDateString(),
+        daysLeft: subscriptionDetails.daysLeft.toString(),
+        billingUrl: 'https://merchant.fetanpay.et/billing',
+      },
+    });
+  }
+
+  /**
+   * Send subscription expiring soon notification directly to merchant email
+   */
+  async notifySubscriptionExpiringSoonByEmail(
+    merchantId: string,
+    merchantName: string,
+    ownerEmail: string,
+    subscriptionDetails: {
+      planName: string;
+      expirationDate: Date;
+      daysLeft: number;
+    },
+  ) {
+    try {
+      const emailTemplate = await (this.prisma as any).emailTemplate.findFirst({
+        where: {
+          name: 'subscription-expiring-soon-merchant',
+          isActive: true,
+        },
+      });
+
+      if (!emailTemplate) {
+        this.logger.warn(
+          `Email template 'subscription-expiring-soon-merchant' not found or inactive`,
+        );
+        return;
+      }
+
+      const variables = {
+        merchantName,
+        planName: subscriptionDetails.planName,
+        expirationDate: subscriptionDetails.expirationDate.toLocaleDateString(),
+        daysLeft: subscriptionDetails.daysLeft.toString(),
+        billingUrl: 'https://merchant.fetanpay.et/billing',
+      };
+      const subject = this.substituteVariables(
+        emailTemplate.subject,
+        variables,
+      );
+      const content = this.substituteVariables(
+        emailTemplate.content,
+        variables,
+      );
+
+      const emailLog = await (this.prisma as any).emailLog.create({
+        data: {
+          toEmail: ownerEmail,
+          subject,
+          content,
+          templateId: emailTemplate.id,
+          merchantId: merchantId,
+          sentByUserId: 'system',
+          status: 'PENDING',
+        },
+      });
+
+      await this.emailService.sendNotificationEmail(
+        ownerEmail,
+        subject,
+        content,
+      );
+
+      await (this.prisma as any).emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+
+      this.logger.log(
+        `Subscription expiring soon email sent directly to ${ownerEmail}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send subscription expiring soon email to ${ownerEmail}: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Notify merchant about subscription expired
+   */
+  async notifySubscriptionExpired(
+    merchantId: string,
+    merchantName: string,
+    ownerUserId: string,
+    subscriptionDetails: {
+      planName: string;
+      expiredDate: Date;
+    },
+  ) {
+    await this.createNotification({
+      userId: ownerUserId,
+      userType: 'MERCHANT_USER',
+      merchantId,
+      type: 'SUBSCRIPTION_EXPIRED',
+      title: 'Subscription Expired',
+      message: `Your ${subscriptionDetails.planName} subscription has expired on ${subscriptionDetails.expiredDate.toLocaleDateString()}. Please renew to restore premium features.`,
+      priority: 'CRITICAL',
+      data: { merchantId, merchantName, ...subscriptionDetails },
+      sendEmail: true,
+      emailTemplate: 'subscription-expired-merchant',
+      emailVariables: {
+        merchantName,
+        planName: subscriptionDetails.planName,
+        expiredDate: subscriptionDetails.expiredDate.toLocaleDateString(),
+        billingUrl: 'https://merchant.fetanpay.et/billing',
+      },
+    });
+  }
+
+  /**
+   * Send subscription expired notification directly to merchant email
+   */
+  async notifySubscriptionExpiredByEmail(
+    merchantId: string,
+    merchantName: string,
+    ownerEmail: string,
+    subscriptionDetails: {
+      planName: string;
+      expiredDate: Date;
+    },
+  ) {
+    try {
+      const emailTemplate = await (this.prisma as any).emailTemplate.findFirst({
+        where: {
+          name: 'subscription-expired-merchant',
+          isActive: true,
+        },
+      });
+
+      if (!emailTemplate) {
+        this.logger.warn(
+          `Email template 'subscription-expired-merchant' not found or inactive`,
+        );
+        return;
+      }
+
+      const variables = {
+        merchantName,
+        planName: subscriptionDetails.planName,
+        expiredDate: subscriptionDetails.expiredDate.toLocaleDateString(),
+        billingUrl: 'https://merchant.fetanpay.et/billing',
+      };
+      const subject = this.substituteVariables(
+        emailTemplate.subject,
+        variables,
+      );
+      const content = this.substituteVariables(
+        emailTemplate.content,
+        variables,
+      );
+
+      const emailLog = await (this.prisma as any).emailLog.create({
+        data: {
+          toEmail: ownerEmail,
+          subject,
+          content,
+          templateId: emailTemplate.id,
+          merchantId: merchantId,
+          sentByUserId: 'system',
+          status: 'PENDING',
+        },
+      });
+
+      await this.emailService.sendNotificationEmail(
+        ownerEmail,
+        subject,
+        content,
+      );
+
+      await (this.prisma as any).emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+
+      this.logger.log(
+        `Subscription expired email sent directly to ${ownerEmail}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send subscription expired email to ${ownerEmail}: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Notify admins about merchant subscription expiring soon
+   */
+  async notifyAdminsSubscriptionExpiringSoon(
+    merchantId: string,
+    merchantName: string,
+    subscriptionDetails: {
+      planName: string;
+      expirationDate: Date;
+      daysLeft: number;
+    },
+  ) {
+    const adminUsers = await (this.prisma as any).user.findMany({
+      where: { role: 'SUPERADMIN' },
+    });
+
+    for (const admin of adminUsers) {
+      await this.createNotification({
+        userId: admin.id,
+        userType: 'ADMIN',
+        type: 'SUBSCRIPTION_EXPIRING_SOON',
+        title: 'Merchant Subscription Expiring',
+        message: `${merchantName}'s ${subscriptionDetails.planName} subscription will expire in ${subscriptionDetails.daysLeft} days on ${subscriptionDetails.expirationDate.toLocaleDateString()}.`,
+        priority: 'MEDIUM',
+        data: { merchantId, merchantName, ...subscriptionDetails },
+        sendEmail: true,
+        emailTemplate: 'subscription-expiring-soon-admin',
+        emailVariables: {
+          merchantName,
+          merchantId,
+          planName: subscriptionDetails.planName,
+          expirationDate:
+            subscriptionDetails.expirationDate.toLocaleDateString(),
+          daysLeft: subscriptionDetails.daysLeft.toString(),
+        },
+      });
+    }
+  }
+
+  /**
+   * Notify admins about merchant subscription expired
+   */
+  async notifyAdminsSubscriptionExpired(
+    merchantId: string,
+    merchantName: string,
+    subscriptionDetails: {
+      planName: string;
+      expiredDate: Date;
+    },
+  ) {
+    const adminUsers = await (this.prisma as any).user.findMany({
+      where: { role: 'SUPERADMIN' },
+    });
+
+    for (const admin of adminUsers) {
+      await this.createNotification({
+        userId: admin.id,
+        userType: 'ADMIN',
+        type: 'SUBSCRIPTION_EXPIRED',
+        title: 'Merchant Subscription Expired',
+        message: `${merchantName}'s ${subscriptionDetails.planName} subscription has expired on ${subscriptionDetails.expiredDate.toLocaleDateString()}.`,
+        priority: 'HIGH',
+        data: { merchantId, merchantName, ...subscriptionDetails },
+        sendEmail: true,
+        emailTemplate: 'subscription-expired-admin',
+        emailVariables: {
+          merchantName,
+          merchantId,
+          planName: subscriptionDetails.planName,
+          expiredDate: subscriptionDetails.expiredDate.toLocaleDateString(),
+        },
+      });
+    }
+  }
+
+  /**
+   * Notify merchant about new subscription/renewal
+   */
+  async notifySubscriptionRenewed(
+    merchantId: string,
+    merchantName: string,
+    ownerUserId: string,
+    subscriptionDetails: {
+      planName: string;
+      startDate: Date;
+      endDate: Date | null;
+      amount: number;
+    },
+  ) {
+    await this.createNotification({
+      userId: ownerUserId,
+      userType: 'MERCHANT_USER',
+      merchantId,
+      type: 'SUBSCRIPTION_RENEWED',
+      title: 'Subscription Activated',
+      message: `Your ${subscriptionDetails.planName} subscription has been activated and will ${subscriptionDetails.endDate ? `expire on ${subscriptionDetails.endDate.toLocaleDateString()}` : 'continue indefinitely'}.`,
+      priority: 'HIGH',
+      data: { merchantId, merchantName, ...subscriptionDetails },
+      sendEmail: true,
+      emailTemplate: 'subscription-renewed-merchant',
+      emailVariables: {
+        merchantName,
+        planName: subscriptionDetails.planName,
+        startDate: subscriptionDetails.startDate.toLocaleDateString(),
+        endDate:
+          subscriptionDetails.endDate?.toLocaleDateString() || 'No expiration',
+        amount: subscriptionDetails.amount.toString(),
+      },
+    });
+  }
+
+  /**
+   * Send subscription renewed notification directly to merchant email
+   */
+  async notifySubscriptionRenewedByEmail(
+    merchantId: string,
+    merchantName: string,
+    ownerEmail: string,
+    subscriptionDetails: {
+      planName: string;
+      startDate: Date;
+      endDate: Date | null;
+      amount: number;
+    },
+  ) {
+    try {
+      const emailTemplate = await (this.prisma as any).emailTemplate.findFirst({
+        where: {
+          name: 'subscription-renewed-merchant',
+          isActive: true,
+        },
+      });
+
+      if (!emailTemplate) {
+        this.logger.warn(
+          `Email template 'subscription-renewed-merchant' not found or inactive`,
+        );
+        return;
+      }
+
+      const variables = {
+        merchantName,
+        planName: subscriptionDetails.planName,
+        startDate: subscriptionDetails.startDate.toLocaleDateString(),
+        endDate:
+          subscriptionDetails.endDate?.toLocaleDateString() || 'No expiration',
+        amount: subscriptionDetails.amount.toString(),
+      };
+      const subject = this.substituteVariables(
+        emailTemplate.subject,
+        variables,
+      );
+      const content = this.substituteVariables(
+        emailTemplate.content,
+        variables,
+      );
+
+      const emailLog = await (this.prisma as any).emailLog.create({
+        data: {
+          toEmail: ownerEmail,
+          subject,
+          content,
+          templateId: emailTemplate.id,
+          merchantId: merchantId,
+          sentByUserId: 'system',
+          status: 'PENDING',
+        },
+      });
+
+      await this.emailService.sendNotificationEmail(
+        ownerEmail,
+        subject,
+        content,
+      );
+
+      await (this.prisma as any).emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+
+      this.logger.log(
+        `Subscription renewed email sent directly to ${ownerEmail}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send subscription renewed email to ${ownerEmail}: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Notify merchant about plan assignment by admin
+   */
+  async notifyPlanAssigned(
+    merchantId: string,
+    merchantName: string,
+    ownerUserId: string,
+    planDetails: {
+      planName: string;
+      assignedBy: string;
+      startDate: Date;
+      endDate: Date | null;
+    },
+  ) {
+    await this.createNotification({
+      userId: ownerUserId,
+      userType: 'MERCHANT_USER',
+      merchantId,
+      type: 'PLAN_ASSIGNED',
+      title: 'New Plan Assigned',
+      message: `A new ${planDetails.planName} plan has been assigned to your account by an administrator.`,
+      priority: 'HIGH',
+      data: { merchantId, merchantName, ...planDetails },
+      sendEmail: true,
+      emailTemplate: 'plan-assigned-merchant',
+      emailVariables: {
+        merchantName,
+        planName: planDetails.planName,
+        assignedBy: planDetails.assignedBy,
+        startDate: planDetails.startDate.toLocaleDateString(),
+        endDate: planDetails.endDate?.toLocaleDateString() || 'No expiration',
+      },
+    });
+  }
+
+  /**
+   * Send plan assigned notification directly to merchant email
+   */
+  async notifyPlanAssignedByEmail(
+    merchantId: string,
+    merchantName: string,
+    ownerEmail: string,
+    planDetails: {
+      planName: string;
+      assignedBy: string;
+      startDate: Date;
+      endDate: Date | null;
+    },
+  ) {
+    try {
+      const emailTemplate = await (this.prisma as any).emailTemplate.findFirst({
+        where: {
+          name: 'plan-assigned-merchant',
+          isActive: true,
+        },
+      });
+
+      if (!emailTemplate) {
+        this.logger.warn(
+          `Email template 'plan-assigned-merchant' not found or inactive`,
+        );
+        return;
+      }
+
+      const variables = {
+        merchantName,
+        planName: planDetails.planName,
+        assignedBy: planDetails.assignedBy,
+        startDate: planDetails.startDate.toLocaleDateString(),
+        endDate: planDetails.endDate?.toLocaleDateString() || 'No expiration',
+      };
+      const subject = this.substituteVariables(
+        emailTemplate.subject,
+        variables,
+      );
+      const content = this.substituteVariables(
+        emailTemplate.content,
+        variables,
+      );
+
+      const emailLog = await (this.prisma as any).emailLog.create({
+        data: {
+          toEmail: ownerEmail,
+          subject,
+          content,
+          templateId: emailTemplate.id,
+          merchantId: merchantId,
+          sentByUserId: 'system',
+          status: 'PENDING',
+        },
+      });
+
+      await this.emailService.sendNotificationEmail(
+        ownerEmail,
+        subject,
+        content,
+      );
+
+      await (this.prisma as any).emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+
+      this.logger.log(`Plan assigned email sent directly to ${ownerEmail}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send plan assigned email to ${ownerEmail}: ${error.message}`,
         error.stack,
       );
     }

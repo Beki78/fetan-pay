@@ -34,7 +34,7 @@ export default function BillingPage() {
     sortOrder: 'asc'
   });
   
-  const { data: subscriptionResponse, isLoading: subscriptionLoading, error: subscriptionError } = useGetMerchantSubscriptionQuery(
+  const { data: subscriptionResponse, isLoading: subscriptionLoading, error: subscriptionError, refetch: refetchSubscription } = useGetMerchantSubscriptionQuery(
     merchantId || '',
     { skip: !merchantId }
   );
@@ -61,7 +61,7 @@ export default function BillingPage() {
     planId: 'demo-free-plan',
     status: 'ACTIVE' as const,
     startDate: new Date().toISOString(),
-    endDate: null,
+    endDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
     nextBillingDate: null,
     monthlyPrice: 0,
     billingCycle: 'MONTHLY' as const,
@@ -74,24 +74,23 @@ export default function BillingPage() {
     plan: {
       id: 'demo-free-plan',
       name: 'Free',
-      description: 'Perfect for testing the platform and small businesses getting started',
+      description: 'Perfect for testing the platform - 7-day free trial',
       price: 0,
       billingCycle: 'MONTHLY' as const,
       limits: {
-        verifications_monthly: 100,
+        verifications_monthly: 20,
         api_calls_monthly: 60
       },
-      verificationLimit: 100,
+      verificationLimit: 20,
       apiLimit: 60,
       features: [
-        '100 verifications/month',
-        'Full API access',
-        '2 API keys',
-        'Vendor dashboard',
+        '7-day free trial',
+        '20 verifications during trial',
+        '1 team member',
+        'Unlimited webhooks',
         'Basic analytics',
         'All verification methods',
         'Multi-bank support',
-        'Frontend UI (with watermark)',
         'Bank account management (up to 2 accounts)',
         'Transaction history (30 days)',
       ],
@@ -141,6 +140,10 @@ export default function BillingPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedPlan(null);
+    // Refetch subscription data to show updated plan
+    if (refetchSubscription) {
+      refetchSubscription();
+    }
   };
 
   // Helper function to safely extract usage numbers
@@ -259,41 +262,54 @@ export default function BillingPage() {
                   {getUsageValue(effectiveSubscription.currentUsage?.verifications_monthly)} /{" "}
                   {effectiveSubscription.plan.verificationLimit || effectiveSubscription.plan.limits?.verifications_monthly || "Unlimited"}
                 </p>
-                {(effectiveSubscription.plan.verificationLimit || effectiveSubscription.plan.limits?.verifications_monthly) && (
-                  <>
-                    <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-1">
-                      <div
-                        className="h-full bg-purple-500 dark:bg-purple-400 transition-all duration-300"
-                        style={{ width: `${usagePercentage}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {(effectiveSubscription.plan.verificationLimit || effectiveSubscription.plan.limits?.verifications_monthly || 0) - getUsageValue(effectiveSubscription.currentUsage?.verifications_monthly)}{" "}
-                      remaining
-                    </p>
-                  </>
-                )}
+                  {/* {(effectiveSubscription.plan.verificationLimit || effectiveSubscription.plan.limits?.verifications_monthly) && (
+                    <>
+                      <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-1">
+                        <div
+                          className="h-full bg-purple-500 dark:bg-purple-400 transition-all duration-300"
+                          style={{ width: `${usagePercentage}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {(effectiveSubscription.plan.verificationLimit || effectiveSubscription.plan.limits?.verifications_monthly || 0) - getUsageValue(effectiveSubscription.currentUsage?.verifications_monthly)}{" "}
+                        remaining
+                      </p>
+                    </>
+                  )} */}
               </div>
 
-              {/* Days Remaining */}
+              {/* Days Remaining / Trial Status */}
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  {effectiveSubscription.plan.name === 'Free' ? 'Plan Status' : 'Days Remaining'}
+                  {effectiveSubscription.plan.name === 'Free' ? 'Trial Status' : 'Days Remaining'}
                 </p>
                 <p className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-                  {effectiveSubscription.plan.name === 'Free' ? '∞' : daysRemaining}
+                  {effectiveSubscription.plan.name === 'Free' 
+                    ? (effectiveSubscription.endDate 
+                        ? Math.max(0, Math.ceil((new Date(effectiveSubscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+                        : '∞'
+                      )
+                    : (effectiveSubscription.endDate 
+                        ? Math.max(0, Math.ceil((new Date(effectiveSubscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+                        : '∞'
+                      )
+                  }
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {effectiveSubscription.plan.name === 'Free' 
-                    ? 'No expiration'
-                    : effectiveSubscription.endDate 
-                      ? `Expires ${new Date(effectiveSubscription.endDate).toLocaleDateString()}`
-                      : "No expiration"
+                    ? (effectiveSubscription.endDate 
+                        ? `Trial expires ${new Date(effectiveSubscription.endDate).toLocaleDateString()}`
+                        : 'No expiration'
+                      )
+                    : (effectiveSubscription.endDate 
+                        ? `Expires ${new Date(effectiveSubscription.endDate).toLocaleDateString()}`
+                        : 'No expiration'
+                      )
                   }
                 </p>
               </div>
 
-              {/* Amount Paid */}
+              {/* Monthly Price & Next Billing */}
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   Monthly Price
@@ -302,7 +318,10 @@ export default function BillingPage() {
                   {effectiveSubscription.plan.name === 'Free' ? 'Free' : `ETB ${effectiveSubscription.monthlyPrice.toLocaleString()}`}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Started {new Date(effectiveSubscription.startDate).toLocaleDateString()}
+                  {effectiveSubscription.nextBillingDate 
+                    ? `Next billing: ${new Date(effectiveSubscription.nextBillingDate).toLocaleDateString()}`
+                    : `Started ${new Date(effectiveSubscription.startDate).toLocaleDateString()}`
+                  }
                 </p>
               </div>
             </div>
@@ -408,12 +427,16 @@ export default function BillingPage() {
                           <TableCell className="px-5 py-4 sm:px-6 text-start">
                             <Badge 
                               color={
+                                transaction.paymentMethod === "Admin Assignment" || transaction.notes?.includes("Admin upgrade") ? "info" :
                                 transaction.status === "VERIFIED" ? "success" :
                                 transaction.status === "PENDING" ? "warning" : "info"
                               } 
                               size="sm"
                             >
-                              {transaction.status}
+                              {transaction.paymentMethod === "Admin Assignment" || transaction.notes?.includes("Admin upgrade") 
+                                ? "Admin Upgrade" 
+                                : transaction.status
+                              }
                             </Badge>
                           </TableCell>
                           <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-800 dark:text-gray-200">

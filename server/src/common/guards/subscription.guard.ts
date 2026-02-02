@@ -50,6 +50,25 @@ export class SubscriptionGuard implements CanActivate {
       throw new ForbiddenException('Merchant ID not found');
     }
 
+    // Check if subscription is expired first
+    const isExpired =
+      await this.subscriptionService.isSubscriptionExpired(merchantId);
+    if (isExpired) {
+      const daysRemaining =
+        await this.subscriptionService.getDaysRemaining(merchantId);
+      const isInTrial = await this.subscriptionService.isInTrial(merchantId);
+
+      if (isInTrial && daysRemaining !== null && daysRemaining <= 0) {
+        throw new ForbiddenException(
+          'Your 7-day free trial has expired. Please upgrade to a paid plan to continue using FetanPay services.',
+        );
+      } else if (!isInTrial) {
+        throw new ForbiddenException(
+          'Your subscription has expired. Please renew your subscription to continue using FetanPay services.',
+        );
+      }
+    }
+
     // Check subscription limits
     const canAccess = await this.checkSubscriptionLimits(
       merchantId,

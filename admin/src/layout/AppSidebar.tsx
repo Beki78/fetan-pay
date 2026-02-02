@@ -219,6 +219,7 @@ const mainItems: NavItem[] = [
       { name: "Plans", path: "/plans" },
       { name: "Plan Stats", path: "/plan-stats" },
       { name: "Transactions", path: "/plans/transactions" },
+      { name: "Pricing Receivers", path: "/pricing/receivers" },
     ],
   },
   {

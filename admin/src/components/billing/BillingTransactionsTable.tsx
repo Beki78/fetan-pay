@@ -62,7 +62,14 @@ export default function BillingTransactionsTable() {
     // TODO: Implement receipt viewing
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, paymentMethod?: string, notes?: string) => {
+    // Check if it's an admin upgrade
+    const isAdminUpgrade = paymentMethod === 'Admin Assignment' || notes?.includes('Admin upgrade');
+    
+    if (isAdminUpgrade) {
+      return <Badge color="info" size="sm">Admin Upgrade</Badge>;
+    }
+    
     switch (status) {
       case 'VERIFIED':
         return <Badge color="success" size="sm">Verified</Badge>;
@@ -268,7 +275,7 @@ export default function BillingTransactionsTable() {
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      {getStatusBadge(transaction.status)}
+                      {getStatusBadge(transaction.status, transaction.paymentMethod, transaction.notes)}
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <span className="font-mono text-sm text-gray-600 dark:text-gray-400">

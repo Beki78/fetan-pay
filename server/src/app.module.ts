@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from '../auth';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import databaseConfig from '../config/database.config';
 import { EmailService } from './modules/email/email.service';
 import { VerifierModule } from './modules/verifier/verifier.module';
@@ -27,6 +29,7 @@ import { IPAddressesModule } from './modules/ip-addresses/ip-addresses.module';
 import { AdminWebhooksModule } from './modules/admin-webhooks/admin-webhooks.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { SubscriptionModule } from './common/subscription.module';
+import { SubscriptionExpirationInterceptor } from './common/interceptors/subscription-expiration.interceptor';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -35,6 +38,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
       isGlobal: true,
       load: [databaseConfig],
     }),
+    ScheduleModule.forRoot(), // Enable cron jobs for cleanup service
     BetterAuthModule.forRoot({ auth }),
     SubscriptionModule, // Add subscription module
     VerifierModule,
@@ -65,6 +69,13 @@ import { ThrottlerModule } from '@nestjs/throttler';
     ]),
   ],
   controllers: [AppController],
-  providers: [AppService, EmailService],
+  providers: [
+    AppService,
+    EmailService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: SubscriptionExpirationInterceptor,
+    },
+  ],
 })
 export class AppModule {}
