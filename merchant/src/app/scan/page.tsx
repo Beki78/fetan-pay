@@ -16,7 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { BankSelection } from "@/components/bank-selection";
-import { CameraScanner } from "@/components/camera-scanner";
+import { UnifiedScanner } from "@/components/UnifiedScanner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import VConsoleCDN from "@/components/vconsole-cdn";
 // import { VerificationHistorySidebar } from "@/components/verification-history-sidebar"; // Commented out - history sidebar removed
@@ -987,10 +987,11 @@ function ScanPageContent() {
 
       {/* Camera Scanner Modal */}
       {showCamera && (
-        <CameraScanner
+        <UnifiedScanner
           onScan={handleCameraScan}
           onClose={() => setShowCamera(false)}
-          selectedBank={selectedBank as BankId | null}
+          title="Scan Payment QR Code"
+          description="Position the payment QR code within the frame"
         />
       )}
 

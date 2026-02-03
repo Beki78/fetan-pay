@@ -5,6 +5,7 @@ import { APP_CONFIG } from "@/lib/config";
 import { Providers } from "@/components/providers";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { CameraPermissionPrompt } from "@/components/camera-permission-prompt";
+import { CameraPermissionProvider } from "@/contexts/CameraPermissionContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,9 +51,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${poppins.variable} antialiased`}
       >
         <Providers>
-          <CameraPermissionPrompt />
-          {children}
-          <BottomNavigation />
+          <CameraPermissionProvider>
+            <CameraPermissionPrompt />
+            {children}
+            <BottomNavigation />
+          </CameraPermissionProvider>
         </Providers>
       </body>
     </html>
