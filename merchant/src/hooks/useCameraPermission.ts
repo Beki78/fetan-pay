@@ -4,6 +4,27 @@ import { useEffect, useState } from "react";
 
 type PermissionState = "prompt" | "granted" | "denied" | "unknown";
 
+/**
+ * @deprecated This hook is deprecated and will be removed in a future version.
+ * Please use `useCameraPermissionContext` from `@/contexts/CameraPermissionContext` instead.
+ * 
+ * The new context-based approach provides:
+ * - Centralized permission state management
+ * - Session storage persistence
+ * - Automatic state propagation to all components
+ * - Better error handling and recovery
+ * 
+ * Migration example:
+ * ```typescript
+ * // Old:
+ * import { useCameraPermission } from "@/hooks/useCameraPermission";
+ * const { permission, requestPermission } = useCameraPermission();
+ * 
+ * // New:
+ * import { useCameraPermissionContext } from "@/contexts/CameraPermissionContext";
+ * const { permission, requestPermission } = useCameraPermissionContext();
+ * ```
+ */
 export function useCameraPermission() {
   const [permission, setPermission] = useState<PermissionState>("unknown");
 

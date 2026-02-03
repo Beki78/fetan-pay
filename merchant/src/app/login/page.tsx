@@ -23,7 +23,7 @@ import { APP_CONFIG } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useSession } from "@/hooks/useSession";
-import { QRLoginScanner } from "@/components/qr-login-scanner";
+import { UnifiedScanner } from "@/components/UnifiedScanner";
 import { useValidateQRCodeMutation } from "@/lib/services/qrLoginApi";
 
 type LoginFormData = {
@@ -305,9 +305,11 @@ export default function LoginPage() {
 
       {/* QR Code Scanner Modal */}
       {showQRScanner && (
-        <QRLoginScanner
+        <UnifiedScanner
           onScan={handleQRScan}
           onClose={() => setShowQRScanner(false)}
+          title="Scan QR Code to Login"
+          description="Position the login QR code within the frame"
         />
       )}
     </div>
