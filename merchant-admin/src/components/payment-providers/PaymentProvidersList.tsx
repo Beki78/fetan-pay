@@ -120,12 +120,12 @@ export default function PaymentProvidersList({
     <div className="space-y-6">
       {/* Available Providers Section */}
       <div className="rounded-xl bg-gray-50 dark:bg-gray-800/30 p-6">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+        {/* <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
           Available Providers
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           Enable and configure payment providers for your business
-        </p>
+        </p> */}
 
         {/* Providers List */}
         <div className="bg-white dark:bg-gray-800/50 rounded-lg overflow-hidden border-0">

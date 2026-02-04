@@ -214,20 +214,7 @@ export default function BillingPage() {
         />
       )}
 
-      {/* Demo Notice */}
-      {(!merchantId || !currentSubscription) && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 p-4">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              <strong>Demo Mode:</strong> {!merchantId 
-                ? "Unable to load merchant information. This is showing sample data." 
-                : "No active subscription found. This is showing sample data for the Free plan."
-              }
-            </p>
-          </div>
-        </div>
-      )}
+   
 
       {/* Active Subscription View */}
       {hasActiveSubscription && effectiveSubscription && accountStatus === "active" ? (

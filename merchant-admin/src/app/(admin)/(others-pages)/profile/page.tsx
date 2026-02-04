@@ -476,9 +476,7 @@ export default function Settings() {
           <Badge color={accountStatus === "active" ? "success" : "warning"} size="sm">
             {accountStatus === "active" ? "Active" : "Pending approval"}
           </Badge>
-          {isProfileLoading && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">Loading profile…</span>
-          )}
+          
           {!merchantId && !isSessionLoading && (
             <span className="text-xs text-red-500">Merchant ID missing from session</span>
           )}
@@ -495,7 +493,7 @@ export default function Settings() {
 
       <div className="space-y-6">
         {/* Profile Photo Section */}
-  <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
+  {/* <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
             Profile Photo
           </h3>
@@ -562,7 +560,7 @@ export default function Settings() {
               )}
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Business Information Section */}
   <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
@@ -588,10 +586,8 @@ export default function Settings() {
           <div className="space-y-6">
             {/* Account Information */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                Account Information
-              </h4>
-              <div className="space-y-4">
+            
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>
                     Your Name <span className="text-red-500">*</span>
@@ -602,18 +598,22 @@ export default function Settings() {
                     onChange={(e) => setUserName(e.target.value)}
                     placeholder="Enter your name"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    This is your display name shown across the platform
-                  </p>
+                </div>
+                <div>
+                  <Label>Business Phone</Label>
+                  <Input
+                    type="tel"
+                    value={formData.businessPhone}
+                    onChange={(e) => handleInputChange("businessPhone", e.target.value)}
+                    placeholder="Enter business phone number"
+                  />
                 </div>
               </div>
             </div>
 
             {/* Business Name & Business Email */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                Business Name & Business Email
-              </h4>
+            
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>
@@ -635,22 +635,6 @@ export default function Settings() {
                 </div>
               </div>
             </div>
-
-            {/* Business Phone */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                Business Phone
-              </h4>
-              <div>
-                <Label>Business Phone</Label>
-                <Input
-                  type="tel"
-                  value={formData.businessPhone}
-                  onChange={(e) => handleInputChange("businessPhone", e.target.value)}
-                  placeholder="Enter business phone number"
-                />
-              </div>
-            </div>
           </div>
         </div>
 
@@ -660,7 +644,7 @@ export default function Settings() {
         </div>
 
         {/* Sign-in Methods Section */}
-  <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
+  {/* <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-1">
             Sign-in Methods
           </h3>
@@ -668,9 +652,9 @@ export default function Settings() {
             Manage how you sign in to your account
           </p>
 
-          <div className="space-y-4">
+          <div className="space-y-4"> */}
             {/* Email & Password */}
-            <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            {/* <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                   <svg
@@ -710,10 +694,10 @@ export default function Settings() {
                   Set Password
                 </Button>
               )}
-            </div>
+            </div> */}
 
             {/* Google */}
-            <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            {/* <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                   {isGoogleLinked ? (
@@ -770,10 +754,10 @@ export default function Settings() {
                   {isLinkingGoogle ? "Linking..." : "Link Google"}
                 </Button>
               )}
-            </div>
+            </div> */}
 
             {/* Warning */}
-            {!passwordSet && (
+            {/* {!passwordSet && (
               <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                 <svg
                   className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0"
@@ -794,7 +778,7 @@ export default function Settings() {
       </div>
             )}
           </div>
-        </div>
+        </div> */}
 
         {/* Payment Account Section */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/3">
@@ -807,14 +791,14 @@ export default function Settings() {
                 Your configured payment receiving accounts
               </p>
             </div>
-            <Button
+            {/* <Button
               size="sm"
               variant="outline"
               onClick={() => router.push("/payment-providers")}
               className="bg-purple-500 hover:bg-purple-600 text-white border-0"
             >
               Configure Accounts
-            </Button>
+            </Button> */}
           </div>
 
           <div className="space-y-4">

@@ -13,6 +13,7 @@ export interface SubscriptionFeatures {
   advancedAnalytics: boolean;
   exportFunctionality: boolean;
   transactionHistoryDays: number;
+  tips: boolean;
 }
 
 export interface UseSubscriptionReturn {

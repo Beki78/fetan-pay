@@ -175,13 +175,13 @@ export default function TransactionDetailsPage({
   return (
     <div className="space-y-6">
       {/* Success Message - Only show for pending/new transactions */}
-      {isPending && (
+      {/* {isPending && (
         <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4">
           <p className="text-sm font-medium text-green-600 dark:text-green-400">
             Payment intent created successfully.
           </p>
         </div>
-      )}
+      )} */}
 
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -433,7 +433,7 @@ export default function TransactionDetailsPage({
                 </Button>
               </div>
               <a
-                href={`/pay/${transactionId}`}
+                href={paymentLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
