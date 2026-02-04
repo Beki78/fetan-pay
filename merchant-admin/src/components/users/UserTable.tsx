@@ -102,7 +102,7 @@ export default function UserTable({
   return (
     <div className="space-y-4">
       {/* Search and Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center ">
         <div className="flex-1 max-w-md">
           <Input
             type="text"
@@ -122,7 +122,6 @@ export default function UserTable({
           >
             <option value="All">All Status</option>
             <option value="ACTIVE">Active</option>
-            <option value="INVITED">Pending</option>
             <option value="SUSPENDED">Inactive</option>
           </select>
           <select

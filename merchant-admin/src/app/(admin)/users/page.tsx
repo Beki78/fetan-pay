@@ -109,19 +109,12 @@ export default function UsersPage() {
       <div className="space-y-6">
         <ComponentCard
           title="Users & Team Members"
-          desc="Create and manage accounts for your employees, sales staff, and team members. Verify their payment access and monitor activity."
+          desc=" View and manage all user accounts in your system"
         >
           <div className="space-y-4">
             {/* Header with Add Button */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                  All Users
-                </h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  View and manage all user accounts in your system
-                </p>
-              </div>
+            <div className="flex items-center justify-end">
+              
               <Button
                 size="sm"
                 onClick={handleAdd}

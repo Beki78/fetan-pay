@@ -4,6 +4,7 @@ import Button from "../ui/button/Button";
 import Badge from "../ui/badge/Badge";
 import Input from "../form/input/InputField";
 import { ChevronLeftIcon } from "@/icons";
+import { PAYMENT_PAGE_URL } from "@/lib/config";
 
 interface TransactionDetailsPageProps {
   transactionId: string;
@@ -32,7 +33,7 @@ export default function TransactionDetailsPage({
 }: TransactionDetailsPageProps) {
   const [timeRemaining, setTimeRemaining] = useState(1200); // 20:00 in seconds
   const [copied, setCopied] = useState(false);
-  const paymentLink = `https://fetanpay.et/payment/${transactionId}`;
+  const paymentLink = `${PAYMENT_PAGE_URL}/payment/${transactionId}`;
 
   // Calculate dates using lazy initialization
   const [createdAt] = useState(() => {

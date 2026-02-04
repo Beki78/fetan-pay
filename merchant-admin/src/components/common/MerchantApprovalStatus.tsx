@@ -128,7 +128,7 @@ export default function MerchantApprovalStatus({ className = "" }: MerchantAppro
         </div>
 
         {/* Additional Info Card */}
-        <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+        {/* <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
               <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,7 +145,7 @@ export default function MerchantApprovalStatus({ className = "" }: MerchantAppro
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

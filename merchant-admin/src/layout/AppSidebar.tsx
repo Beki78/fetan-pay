@@ -25,6 +25,7 @@ import {
   BellIcon,
   NotificationBellIcon,
   LockIcon,
+  TipsIcon,
 } from "../icons/index";
 
 // Custom icon components for better representation
@@ -194,6 +195,11 @@ const mainItems: NavItem[] = [
     icon: <PieChartIcon />,
     name: "Analytics",
     path: "/analytics",
+  },
+  {
+    icon: <TipsIcon />,
+    name: "Tips",
+    path: "/tips",
   },
   {
     icon: <WalletIcon />,
@@ -470,6 +476,12 @@ const AppSidebar: React.FC = () => {
                 <ProtectedMenuItem
                   nav={nav}
                   feature="advancedAnalytics"
+                  isActive={isActive(nav.path!)}
+                />
+              ) : nav.name === "Tips" ? (
+                <ProtectedMenuItem
+                  nav={nav}
+                  feature="tips"
                   isActive={isActive(nav.path!)}
                 />
               ) : nav.name === "Payment Providers" ? (
