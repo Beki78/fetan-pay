@@ -23,7 +23,6 @@ import {
   NotificationBellIcon,
   WebhookIcon,
   ChatIcon,
-  TipsIcon,
 } from "../icons/index";
 
 // Custom icon components for better representation
@@ -213,7 +212,7 @@ const mainItems: NavItem[] = [
     path: "/analytics",
   },
   {
-    icon: <TipsIcon />,
+    icon: <ChatIcon />,
     name: "Tips",
     path: "/tips",
   },
