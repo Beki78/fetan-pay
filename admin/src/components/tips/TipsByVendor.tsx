@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -13,252 +13,182 @@ import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { MoreDotIcon, EyeIcon, GroupIcon } from "@/icons";
 import Input from "../form/input/InputField";
 import Select from "../form/Select";
+import { TipsByMerchantResponse } from "@/lib/services/tipsApi";
 
-// Mock data
-interface VendorTip {
-  id: string;
-  vendor: {
-    id: string;
-    name: string;
-    phone: string;
-    employeeId?: string;
-  };
-  totalTips: number;
-  totalTransactions: number;
-  averageTip: number;
-  pendingPayout: number;
-  paidPayout: number;
-  status: "Active" | "Inactive";
+interface TipsByVendorProps {
+  data?: TipsByMerchantResponse[];
+  isLoading?: boolean;
 }
 
-const mockVendorTips: VendorTip[] = [
-  {
-    id: "1",
-    vendor: {
-      id: "1",
-      name: "John Doe",
-      phone: "+251 911 234 567",
-      employeeId: "EMP-001",
-    },
-    totalTips: 12500.75,
-    totalTransactions: 125,
-    averageTip: 100.01,
-    pendingPayout: 2500.15,
-    paidPayout: 10000.60,
-    status: "Active",
-  },
-  {
-    id: "2",
-    vendor: {
-      id: "2",
-      name: "Jane Smith",
-      phone: "+251 912 345 678",
-      employeeId: "EMP-002",
-    },
-    totalTips: 18900.50,
-    totalTransactions: 189,
-    averageTip: 100.00,
-    pendingPayout: 3800.10,
-    paidPayout: 15100.40,
-    status: "Active",
-  },
-  {
-    id: "3",
-    vendor: {
-      id: "3",
-      name: "Michael Johnson",
-      phone: "+251 913 456 789",
-      employeeId: "EMP-003",
-    },
-    totalTips: 8750.25,
-    totalTransactions: 87,
-    averageTip: 100.58,
-    pendingPayout: 1750.05,
-    paidPayout: 7000.20,
-    status: "Active",
-  },
-  {
-    id: "4",
-    vendor: {
-      id: "4",
-      name: "Sarah Williams",
-      phone: "+251 914 567 890",
-      employeeId: "EMP-004",
-    },
-    totalTips: 23400.00,
-    totalTransactions: 234,
-    averageTip: 100.00,
-    pendingPayout: 4680.00,
-    paidPayout: 18720.00,
-    status: "Active",
-  },
-  {
-    id: "5",
-    vendor: {
-      id: "5",
-      name: "David Brown",
-      phone: "+251 915 678 901",
-      employeeId: "EMP-005",
-    },
-    totalTips: 6500.50,
-    totalTransactions: 65,
-    averageTip: 100.01,
-    pendingPayout: 1300.10,
-    paidPayout: 5200.40,
-    status: "Inactive",
-  },
-];
-
-export default function TipsByVendor() {
+export default function TipsByVendor({ data, isLoading }: TipsByVendorProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [openMenuVendorId, setOpenMenuVendorId] = useState<string | null>(null);
 
   const filteredVendorTips = useMemo(() => {
-    return mockVendorTips.filter((vendorTip) => {
-      const matchesSearch =
-        vendorTip.vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        vendorTip.vendor.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        vendorTip.vendor.employeeId?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || vendorTip.status === statusFilter;
-      return matchesSearch && matchesStatus;
+    if (!data) return [];
+    return data.filter((vendorTip) => {
+      const matchesSearch = vendorTip.merchantName.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch;
     });
-  }, [searchQuery, statusFilter]);
+  }, [data, searchQuery]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse flex-1"></div>
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-32"></div>
+        </div>
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 gap-4">
-          <Input
-            placeholder="Search by name or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="max-w-xs"
-          />
-          <Select
-            value={statusFilter}
-            onChange={(value) => setStatusFilter(value)}
-            options={[
-              { value: "all", label: "All Status" },
-              { value: "Active", label: "Active" },
-              { value: "Inactive", label: "Inactive" },
-            ]}
-            className="w-48"
-          />
-        </div>
+      {/* Search and Filter */}
+      <div className="flex items-center justify-between gap-4">
+        <Input
+          type="text"
+          placeholder="Search merchants..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1"
+        />
+        <Select
+          value={statusFilter}
+          onChange={(value) => setStatusFilter(value)}
+          options={[
+            { value: "all", label: "All Status" },
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+          ]}
+          className="w-32"
+        />
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableCell>Vendor (Service Provider)</TableCell>
-              <TableCell>Total Tips</TableCell>
-              <TableCell>Transactions</TableCell>
-              <TableCell>Avg Tip</TableCell>
-              <TableCell>Pending</TableCell>
-              <TableCell>Paid</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredVendorTips.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                  No vendor tips found
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="border-b border-gray-200 dark:border-gray-700">
+              <TableRow className="bg-gray-50 dark:bg-gray-800/80">
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Merchant
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Total Tips
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Tip Count
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Avg Tip
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Actions
                 </TableCell>
               </TableRow>
-            ) : (
-              filteredVendorTips.map((vendorTip) => (
-                <TableRow key={vendorTip.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium text-gray-800 dark:text-white/90">
-                        {vendorTip.vendor.name}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {vendorTip.vendor.phone}
-                      </div>
-                      {vendorTip.vendor.employeeId && (
-                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                          ID: {vendorTip.vendor.employeeId}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium text-gray-800 dark:text-white/90">
-                      ETB {vendorTip.totalTips.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-gray-700 dark:text-gray-300">
-                      {vendorTip.totalTransactions}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-gray-700 dark:text-gray-300">
-                      ETB {vendorTip.averageTip.toFixed(2)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-warning-600 dark:text-warning-400">
-                      ETB {vendorTip.pendingPayout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-success-600 dark:text-success-400">
-                      ETB {vendorTip.paidPayout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      color={vendorTip.status === "Active" ? "success" : "error"}
-                    >
-                      {vendorTip.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() =>
-                          setOpenMenuVendorId((prev) =>
-                            prev === vendorTip.vendor.id
-                              ? null
-                              : vendorTip.vendor.id
-                          )
-                        }
-                        aria-haspopup="menu"
-                        aria-expanded={openMenuVendorId === vendorTip.vendor.id}
-                      >
-                        <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                      </button>
-                      <Dropdown
-                        isOpen={openMenuVendorId === vendorTip.vendor.id}
-                        onClose={() => setOpenMenuVendorId(null)}
-                      >
-                        <DropdownItem
-                          onClick={() => {
-                            setOpenMenuVendorId(null);
-                          }}
-                        >
-                          <EyeIcon className="size-4" />
-                          View Details
-                        </DropdownItem>
-                      </Dropdown>
-                    </div>
+            </TableHeader>
+            <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredVendorTips.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                    No merchant tips found
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                filteredVendorTips.map((vendorTip) => (
+                  <TableRow
+                    key={vendorTip.merchantId}
+                    className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors"
+                  >
+                    <TableCell className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full">
+                          <GroupIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {vendorTip.merchantName}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            ID: {vendorTip.merchantId.slice(0, 8)}...
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        ETB {vendorTip.totalTips.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {vendorTip.tipCount}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        ETB {vendorTip.averageTip.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onClick={() =>
+                            setOpenMenuVendorId((prev) =>
+                              prev === vendorTip.merchantId ? null : vendorTip.merchantId
+                            )
+                          }
+                          aria-haspopup="menu"
+                          aria-expanded={openMenuVendorId === vendorTip.merchantId}
+                        >
+                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
+                        </button>
+                        <Dropdown
+                          isOpen={openMenuVendorId === vendorTip.merchantId}
+                          onClose={() => setOpenMenuVendorId(null)}
+                        >
+                          <DropdownItem
+                            onClick={() => {
+                              setOpenMenuVendorId(null);
+                            }}
+                          >
+                            <EyeIcon className="size-4" />
+                            View Details
+                          </DropdownItem>
+                        </Dropdown>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );

@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { useGetTipsSummaryQuery, useListTipsQuery } from "@/lib/services/paymentsServiceApi";
 import { useSubscription } from "@/hooks/useSubscription";
 import { formatNumberWithCommas } from "@/lib/utils";
-import { TipsIcon } from "@/icons";
 import Button from "@/components/ui/button/Button";
 import { useToast } from "@/components/ui/toast/useToast";
 
@@ -13,10 +12,16 @@ interface DateRange {
   to?: string;
 }
 
+interface FilterState {
+  provider?: string;
+  status?: string;
+}
+
 export default function TipsPage() {
   const { canAccessFeature } = useSubscription();
   const { showToast } = useToast();
   const [dateRange, setDateRange] = useState<DateRange>({});
+  const [filters, setFilters] = useState<FilterState>({});
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
 
@@ -38,6 +43,7 @@ export default function TipsPage() {
   } = useListTipsQuery(
     {
       ...dateRange,
+      ...filters,
       page: currentPage,
       pageSize,
     },
@@ -51,9 +57,7 @@ export default function TipsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-            <TipsIcon className="w-8 h-8 text-gray-400" />
-          </div>
+       
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
             Tips Feature Not Available
           </h2>
@@ -119,14 +123,29 @@ export default function TipsPage() {
 
   const totalPages = tipsData ? Math.ceil(tipsData.total / pageSize) : 0;
 
+  // Filter handlers
+  const handleProviderFilter = (provider: string) => {
+    setFilters(prev => ({ ...prev, provider: provider === 'all' ? undefined : provider }));
+    setCurrentPage(1);
+  };
+
+  const handleStatusFilter = (status: string) => {
+    setFilters(prev => ({ ...prev, status: status === 'all' ? undefined : status }));
+    setCurrentPage(1);
+  };
+
+  const clearAllFilters = () => {
+    setDateRange({});
+    setFilters({});
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-            <TipsIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-          </div>
+         
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tips</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -165,14 +184,46 @@ export default function TipsPage() {
               className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
-          {(dateRange.from || dateRange.to) && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Provider:
+            </label>
+            <select
+              value={filters.provider || 'all'}
+              onChange={(e) => handleProviderFilter(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">All Providers</option>
+              <option value="CBE">CBE</option>
+              <option value="TELEBIRR">Telebirr</option>
+              <option value="BOA">Bank of Abyssinia</option>
+              <option value="AWASH">Awash Bank</option>
+              <option value="DASHEN">Dashen Bank</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Status:
+            </label>
+            <select
+              value={filters.status || 'all'}
+              onChange={(e) => handleStatusFilter(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="all">All Status</option>
+              <option value="VERIFIED">Verified</option>
+              <option value="PENDING">Pending</option>
+              <option value="UNVERIFIED">Unverified</option>
+            </select>
+          </div>
+          {(dateRange.from || dateRange.to || filters.provider || filters.status) && (
             <Button
-              onClick={clearDateRange}
+              onClick={clearAllFilters}
               variant="outline"
               size="sm"
               className="text-sm"
             >
-              Clear Filter
+              Clear All Filters
             </Button>
           )}
         </div>
@@ -194,9 +245,7 @@ export default function TipsPage() {
                 </p>
               )}
             </div>
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-              <TipsIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
+         
           </div>
         </div>
 
@@ -214,21 +263,7 @@ export default function TipsPage() {
                 </p>
               )}
             </div>
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-blue-600 dark:text-blue-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
-                />
-              </svg>
-            </div>
+            
           </div>
         </div>
       </div>
@@ -262,7 +297,6 @@ export default function TipsPage() {
           </div>
         ) : !tipsData?.data?.length ? (
           <div className="p-6 text-center">
-            <TipsIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 dark:text-gray-400 mb-2">No tips recorded yet</p>
             <p className="text-sm text-gray-500 dark:text-gray-500">
               Tips will appear here after payment verifications with tip amounts

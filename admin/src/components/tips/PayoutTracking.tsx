@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -13,120 +13,64 @@ import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { MoreDotIcon, EyeIcon, DownloadIcon, CheckCircleIcon, TimeIcon } from "@/icons";
 import Input from "../form/input/InputField";
 import Select from "../form/Select";
+import { ListTipsResponse } from "@/lib/services/tipsApi";
 
-// Mock data
-interface Payout {
-  id: string;
-  payoutId: string;
-  vendor: {
-    id: string;
-    name: string;
-  };
-  tipAmount: number;
-  status: "Pending" | "Processing" | "Completed" | "Failed";
-  requestedDate: string;
-  processedDate?: string;
-  paymentMethod: string;
-  transactionReference?: string;
+interface PayoutTrackingProps {
+  data?: ListTipsResponse;
+  isLoading?: boolean;
 }
 
-const mockPayouts: Payout[] = [
-  {
-    id: "1",
-    payoutId: "PO-2024-001234",
-    vendor: {
-      id: "1",
-      name: "John Doe",
-    },
-    tipAmount: 5000.00,
-    status: "Completed",
-    requestedDate: "2024-01-10T10:00:00Z",
-    processedDate: "2024-01-10T14:30:00Z",
-    paymentMethod: "Bank Transfer",
-    transactionReference: "TXN-REF-123456",
-  },
-  {
-    id: "2",
-    payoutId: "PO-2024-001235",
-    vendor: {
-      id: "2",
-      name: "Jane Smith",
-    },
-    tipAmount: 7500.00,
-    status: "Processing",
-    requestedDate: "2024-01-12T09:15:00Z",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    id: "3",
-    payoutId: "PO-2024-001236",
-    vendor: {
-      id: "3",
-      name: "Michael Johnson",
-    },
-    tipAmount: 3000.00,
-    status: "Pending",
-    requestedDate: "2024-01-14T11:20:00Z",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    id: "4",
-    payoutId: "PO-2024-001237",
-    vendor: {
-      id: "4",
-      name: "Sarah Williams",
-    },
-    tipAmount: 10000.00,
-    status: "Completed",
-    requestedDate: "2024-01-08T08:00:00Z",
-    processedDate: "2024-01-08T12:15:00Z",
-    paymentMethod: "Bank Transfer",
-    transactionReference: "TXN-REF-123457",
-  },
-  {
-    id: "5",
-    payoutId: "PO-2024-001238",
-    vendor: {
-      id: "5",
-      name: "David Brown",
-    },
-    tipAmount: 2000.00,
-    status: "Failed",
-    requestedDate: "2024-01-13T15:45:00Z",
-    paymentMethod: "Bank Transfer",
-  },
-];
-
-export default function PayoutTracking() {
+export default function PayoutTracking({ data, isLoading }: PayoutTrackingProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [openMenuPayoutId, setOpenMenuPayoutId] = useState<string | null>(null);
 
+  const tips = data?.data || [];
+
   const filteredPayouts = useMemo(() => {
-    return mockPayouts.filter((payout) => {
+    return tips.filter((tip) => {
       const matchesSearch =
-        payout.payoutId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payout.vendor.name.toLowerCase().includes(searchQuery.toLowerCase());
+        tip.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (tip.merchant?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus =
-        statusFilter === "all" || payout.status === statusFilter;
+        statusFilter === "all" || tip.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [searchQuery, statusFilter]);
+  }, [tips, searchQuery, statusFilter]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Completed":
+      case "VERIFIED":
         return "success";
-      case "Processing":
+      case "PENDING":
         return "warning";
-      case "Pending":
-        return "error";
-      case "Failed":
+      case "UNVERIFIED":
         return "error";
       default:
         return "light";
     }
   };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "VERIFIED":
+        return "Completed";
+      case "PENDING":
+        return "Processing";
+      case "UNVERIFIED":
+        return "Pending";
+      default:
+        return status;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-gray-500">Loading payouts...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -144,10 +88,9 @@ export default function PayoutTracking() {
             onChange={(value) => setStatusFilter(value)}
             options={[
               { value: "all", label: "All Status" },
-              { value: "Pending", label: "Pending" },
-              { value: "Processing", label: "Processing" },
-              { value: "Completed", label: "Completed" },
-              { value: "Failed", label: "Failed" },
+              { value: "PENDING", label: "Pending" },
+              { value: "VERIFIED", label: "Completed" },
+              { value: "UNVERIFIED", label: "Failed" },
             ]}
             className="w-48"
           />
@@ -155,121 +98,159 @@ export default function PayoutTracking() {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableCell>Payout ID</TableCell>
-              <TableCell>Vendor (Service Provider)</TableCell>
-              <TableCell>Tip Amount</TableCell>
-              <TableCell>Payment Method</TableCell>
-              <TableCell>Requested Date</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPayouts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                  No payouts found
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="border-b border-gray-200 dark:border-gray-700">
+              <TableRow className="bg-gray-50 dark:bg-gray-800/80">
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Reference
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Merchant
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Tip Amount
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Provider
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Date
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Status
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Actions
                 </TableCell>
               </TableRow>
-            ) : (
-              filteredPayouts.map((payout) => (
-                <TableRow key={payout.id}>
-                  <TableCell>
-                    <span className="font-medium text-gray-800 dark:text-white/90">
-                      {payout.payoutId}
-                    </span>
+            </TableHeader>
+            <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredPayouts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                    No payouts found
                   </TableCell>
-                  <TableCell>
-                    <span className="text-gray-700 dark:text-gray-300">
-                      {payout.vendor.name}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-bold text-brand-600 dark:text-brand-400">
-                      ETB {payout.tipAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-gray-700 dark:text-gray-300">
-                      {payout.paymentMethod}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div className="text-gray-700 dark:text-gray-300">
-                        {new Date(payout.requestedDate).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </div>
-                      {payout.processedDate && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Processed: {new Date(payout.processedDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
+                </TableRow>
+              ) : (
+                filteredPayouts.map((tip) => (
+                  <TableRow
+                    key={tip.id}
+                    className="bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors"
+                  >
+                    <TableCell className="px-5 py-4">
+                      <span className="font-mono text-sm text-gray-900 dark:text-white">
+                        {tip.reference}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {tip.merchant?.name || "N/A"}
                         </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge color={getStatusColor(payout.status)}>
-                      {payout.status === "Completed" && <CheckCircleIcon className="size-3 mr-1" />}
-                      {payout.status === "Pending" && <TimeIcon className="size-3 mr-1" />}
-                      {payout.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() =>
-                          setOpenMenuPayoutId((prev) =>
-                            prev === payout.id ? null : payout.id
-                          )
-                        }
-                        aria-haspopup="menu"
-                        aria-expanded={openMenuPayoutId === payout.id}
-                      >
-                        <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                      </button>
-
-                      <Dropdown
-                        isOpen={openMenuPayoutId === payout.id}
-                        onClose={() => setOpenMenuPayoutId(null)}
-                      >
-                        <DropdownItem
-                          onClick={() => {
-                            setOpenMenuPayoutId(null);
-                          }}
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {tip.merchant?.contactEmail || "—"}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className="font-bold text-brand-600 dark:text-brand-400">
+                        ETB {tip.tipAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                        {tip.provider}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <div className="text-sm">
+                        <div className="text-gray-600 dark:text-gray-400">
+                          {new Date(tip.createdAt).toLocaleDateString()}
+                        </div>
+                        {tip.verifiedAt && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Verified: {new Date(tip.verifiedAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Badge color={getStatusColor(tip.status)}>
+                        {tip.status === "VERIFIED" && <CheckCircleIcon className="size-3 mr-1" />}
+                        {tip.status === "PENDING" && <TimeIcon className="size-3 mr-1" />}
+                        {getStatusLabel(tip.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onClick={() =>
+                            setOpenMenuPayoutId((prev) =>
+                              prev === tip.id ? null : tip.id
+                            )
+                          }
+                          aria-haspopup="menu"
+                          aria-expanded={openMenuPayoutId === tip.id}
                         >
-                          <EyeIcon className="size-4" />
-                          View Details
-                        </DropdownItem>
-                        {payout.status === "Completed" && (
+                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
+                        </button>
+
+                        <Dropdown
+                          isOpen={openMenuPayoutId === tip.id}
+                          onClose={() => setOpenMenuPayoutId(null)}
+                        >
                           <DropdownItem
                             onClick={() => {
                               setOpenMenuPayoutId(null);
                             }}
                           >
-                            <DownloadIcon className="size-4" />
-                            Download Receipt
+                            <EyeIcon className="size-4" />
+                            View Details
                           </DropdownItem>
-                        )}
-                      </Dropdown>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                          {tip.status === "VERIFIED" && (
+                            <DropdownItem
+                              onClick={() => {
+                                setOpenMenuPayoutId(null);
+                              }}
+                            >
+                              <DownloadIcon className="size-4" />
+                              Download Receipt
+                            </DropdownItem>
+                          )}
+                        </Dropdown>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );

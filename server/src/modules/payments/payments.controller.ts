@@ -382,4 +382,89 @@ export class PaymentsController {
   async listTips(@Query() query: ListTipsDto, @Req() req: Request) {
     return this.paymentsService.listTips(query, req);
   }
+
+  // Admin endpoints for tips management
+  @Get('admin/tips/summary')
+  @ApiOperation({
+    summary: 'Get tips summary for admin (all merchants)',
+    description:
+      'Retrieves tip summary statistics across all merchants for admin dashboard.',
+  })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    description: 'Start date (ISO 8601 format)',
+    type: String,
+    example: '2024-01-01T00:00:00.000Z',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    description: 'End date (ISO 8601 format)',
+    type: String,
+    example: '2024-01-31T23:59:59.999Z',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin tips summary retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        totalTipAmount: { type: 'number' },
+        tipCount: { type: 'number' },
+      },
+    },
+  })
+  async adminTipsSummary(
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+  ) {
+    return this.paymentsService.getAdminTipsSummary({ from, to });
+  }
+
+  @Get('admin/tips')
+  @ApiOperation({
+    summary: 'List all tip transactions for admin',
+    description:
+      'Retrieves paginated list of all tip transactions across all merchants for admin.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'All tip transactions retrieved successfully',
+  })
+  async listAllTips(@Query() query: ListTipsDto) {
+    return this.paymentsService.listAllTips(query);
+  }
+
+  @Get('admin/tips/analytics')
+  @ApiOperation({
+    summary: 'Get tips analytics for admin',
+    description: 'Retrieves comprehensive tips analytics across all merchants.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tips analytics retrieved successfully',
+  })
+  async getTipsAnalytics(
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+  ) {
+    return this.paymentsService.getTipsAnalytics({ from, to });
+  }
+
+  @Get('admin/tips/by-merchant')
+  @ApiOperation({
+    summary: 'Get tips grouped by merchant for admin',
+    description: 'Retrieves tips statistics grouped by merchant.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tips by merchant retrieved successfully',
+  })
+  async getTipsByMerchant(
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+  ) {
+    return this.paymentsService.getTipsByMerchant({ from, to });
+  }
 }
