@@ -92,9 +92,15 @@ export class SubscriptionGuard implements CanActivate {
         );
         currentUsage = this.getNumericValue(rawUsage);
         const planLimits = (subscription?.plan as any)?.limits || {};
-        limit = planLimits[protectionConfig.feature] || 100; // Default to free plan limit
+        limit = planLimits[protectionConfig.feature];
 
-        errorMessage = `You have reached the maximum number of verifications for your ${planName} plan (${currentUsage}/${limit}). Please upgrade your plan to continue verifying payments.`;
+        // Check if feature is not defined in plan (feature disabled)
+        if (limit === undefined) {
+          errorMessage = `Payment verification is not available in your ${planName} plan. Please upgrade your plan to access payment verification features.`;
+        } else {
+          // Feature is defined but limit reached
+          errorMessage = `You have reached the maximum number of verifications for your ${planName} plan (${currentUsage}/${limit}). Each API call to /payments/verify counts as one verification, regardless of success or failure. Please upgrade your plan to continue verifying payments.`;
+        }
       } else if (protectionConfig.feature === 'team_members') {
         currentUsage = await this.getCurrentFeatureUsage(
           merchantId,
@@ -154,7 +160,12 @@ export class SubscriptionGuard implements CanActivate {
       return request.params.merchantId;
     }
 
-    // 2. From user session (if user is a merchant user)
+    // 2. From API key authentication (set by ApiKeyGuard)
+    if (request.authType === 'api_key' && request.merchantId) {
+      return request.merchantId;
+    }
+
+    // 3. From user session (if user is a merchant user)
     if (request.user?.id) {
       const merchantUser = await this.prisma.merchantUser.findFirst({
         where: { userId: request.user.id, status: 'ACTIVE' },
@@ -163,11 +174,6 @@ export class SubscriptionGuard implements CanActivate {
       if (merchantUser) {
         return merchantUser.merchantId;
       }
-    }
-
-    // 3. From API key (if using API key authentication)
-    if (request.apiKey?.merchantId) {
-      return request.apiKey.merchantId;
     }
 
     // 4. From request body
@@ -273,7 +279,18 @@ export class SubscriptionGuard implements CanActivate {
         return hasFeature;
       }
 
-      return true; // Allow access if not defined
+      // For numerical features like verifications_monthly, if not defined = feature disabled
+      if (
+        feature === 'verifications_monthly' ||
+        feature === 'api_calls_daily' ||
+        feature === 'team_members' ||
+        feature === 'bank_accounts' ||
+        feature === 'payment_providers'
+      ) {
+        return false; // Feature not available in this plan
+      }
+
+      return true; // Allow access if not defined for other features
     }
 
     // If feature is boolean (feature toggle)

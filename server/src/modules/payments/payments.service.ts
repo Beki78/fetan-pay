@@ -1266,6 +1266,229 @@ export class PaymentsService {
     };
   }
 
+  // Admin methods for tips management
+  async getAdminTipsSummary(range: { from?: string; to?: string }) {
+    const from = range.from ? new Date(range.from) : undefined;
+    const to = range.to ? new Date(range.to) : undefined;
+    if (range.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (range.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    const where: Prisma.PaymentWhereInput = {
+      tipAmount: { not: null },
+      // Add date range filter if provided
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [count, sum] = await Promise.all([
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.aggregate({
+        where,
+        _sum: { tipAmount: true },
+      }),
+    ]);
+
+    return {
+      count,
+      totalTipAmount: sum._sum.tipAmount,
+    };
+  }
+
+  async listAllTips(query: {
+    merchantId?: string;
+    provider?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const page = Math.max(1, Number(query.page ?? 1) || 1);
+    const pageSize = Math.min(
+      100,
+      Math.max(1, Number(query.pageSize ?? 20) || 20),
+    );
+    const skip = (page - 1) * pageSize;
+
+    const from = query.from ? new Date(query.from) : undefined;
+    const to = query.to ? new Date(query.to) : undefined;
+    if (query.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (query.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    const where: Prisma.PaymentWhereInput = {
+      tipAmount: { not: null },
+      ...(query.merchantId ? { merchantId: query.merchantId } : {}),
+      ...(query.provider
+        ? { provider: query.provider as PrismaClient.TransactionProvider }
+        : {}),
+      ...(query.status
+        ? { status: query.status as PrismaClient.PaymentVerificationStatus }
+        : {}),
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          tipAmount: true,
+          claimedAmount: true,
+          reference: true,
+          provider: true,
+          status: true,
+          createdAt: true,
+          verifiedAt: true,
+          verifiedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+          merchant: {
+            select: {
+              id: true,
+              name: true,
+              contactEmail: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+      data,
+    };
+  }
+
+  async getTipsAnalytics(range: { from?: string; to?: string }) {
+    const from = range.from ? new Date(range.from) : undefined;
+    const to = range.to ? new Date(range.to) : undefined;
+    if (range.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (range.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    const where: Prisma.PaymentWhereInput = {
+      tipAmount: { not: null },
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [summary, byProvider] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where,
+        _sum: { tipAmount: true },
+        _count: { id: true },
+        _avg: { tipAmount: true },
+      }),
+      this.prisma.payment.groupBy({
+        by: ['provider'],
+        where,
+        _sum: { tipAmount: true },
+        _count: { id: true },
+      }),
+    ]);
+
+    return {
+      totalTips: summary._sum.tipAmount || 0,
+      totalCount: summary._count.id,
+      averageTip: summary._avg.tipAmount || 0,
+      byProvider: byProvider.map((p) => ({
+        provider: p.provider,
+        totalTips: p._sum.tipAmount || 0,
+        count: p._count.id,
+      })),
+    };
+  }
+
+  async getTipsByMerchant(range: { from?: string; to?: string }) {
+    const from = range.from ? new Date(range.from) : undefined;
+    const to = range.to ? new Date(range.to) : undefined;
+    if (range.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (range.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    const where: Prisma.PaymentWhereInput = {
+      tipAmount: { not: null },
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const byMerchant = await this.prisma.payment.groupBy({
+      by: ['merchantId'],
+      where,
+      _sum: { tipAmount: true },
+      _count: { id: true },
+      _avg: { tipAmount: true },
+    });
+
+    // Get merchant details
+    const merchantIds = byMerchant.map((m) => m.merchantId);
+    const merchants = await this.prisma.merchant.findMany({
+      where: { id: { in: merchantIds } },
+      select: { id: true, name: true },
+    });
+
+    const merchantMap = new Map(merchants.map((m) => [m.id, m.name]));
+
+    return byMerchant.map((m) => ({
+      merchantId: m.merchantId,
+      merchantName: merchantMap.get(m.merchantId) || 'Unknown',
+      totalTips: m._sum.tipAmount || 0,
+      tipCount: m._count.id,
+      averageTip: m._avg.tipAmount || 0,
+    }));
+  }
+
   /**
    * Log a transaction (cash or bank payment)
    * Creates an order and payment record for manual transaction logging

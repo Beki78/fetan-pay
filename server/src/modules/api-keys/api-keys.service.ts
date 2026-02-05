@@ -374,7 +374,7 @@ export class ApiKeysService {
 
     // Check if revoked
     if (apiKey.status === 'REVOKED') {
-      throw new ForbiddenException('API key has been revoked');
+      throw new ForbiddenException('API key has been revoked, Please check if the API Key is correct. You can regenerate new API Key!');
     }
 
     // Check if expired
