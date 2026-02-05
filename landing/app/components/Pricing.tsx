@@ -1,5 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import Badge from "./Badge";
+import { fetchPublicPlans } from "../../lib/api";
+import { Plan } from "../../lib/types";
+import { MERCHANT_SIGNUP_URL } from "../../lib/config";
 
 interface PricingTierProps {
   name: string;
@@ -10,6 +16,7 @@ interface PricingTierProps {
   isPopular?: boolean;
   buttonText: string;
   buttonHref: string;
+  verificationLimit?: number | null;
 }
 
 function PricingTier({
@@ -21,6 +28,7 @@ function PricingTier({
   isPopular = false,
   buttonText,
   buttonHref,
+  verificationLimit,
 }: PricingTierProps) {
   return (
     <div
@@ -167,59 +175,341 @@ function PricingTier({
 }
 
 export default function Pricing() {
-  const pricingTiers = [
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<"MONTHLY" | "YEARLY">(
+    "MONTHLY",
+  );
+
+  useEffect(() => {
+    async function loadPlans() {
+      try {
+        setLoading(true);
+        const response = await fetchPublicPlans();
+        // Sort plans by display order
+        const sortedPlans = response.data.sort(
+          (a, b) => a.displayOrder - b.displayOrder,
+        );
+        setPlans(sortedPlans);
+      } catch (err) {
+        console.error("Error loading plans:", err);
+        setError("Failed to load pricing plans");
+        // Fallback to hardcoded data if API fails
+        setPlans(fallbackPlans);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadPlans();
+  }, []);
+
+  // Fallback data in case API fails
+  const fallbackPlans: Plan[] = [
     {
-      name: "Starter",
-      price: "Free",
-      period: "month",
-      description: "Perfect for small businesses getting started",
+      id: "free",
+      name: "Free",
+      description: "Perfect for testing the platform - 7-day free trial",
+      price: 0,
+      billingCycle: "MONTHLY",
+      verificationLimit: 20,
+      apiLimit: 1000,
       features: [
-        "Up to 100 verifications per month",
-        "Basic transaction history",
-        "Email support",
+        "7-day free trial",
+        "20 verifications during trial",
+        "1 team member",
+        "Unlimited webhooks",
+        "Basic analytics",
+        "All verification methods",
         "Multi-bank support",
-        "API access",
+        "Bank account management (up to 2 accounts)",
+        "Transaction history (30 days)",
       ],
+      status: "ACTIVE",
       isPopular: false,
-      buttonText: "Get Started",
-      buttonHref: "https://merchant.fetanpay.et/signup",
+      displayOrder: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
     {
-      name: "Professional",
-      price: "ETB 2,500",
-      period: "month",
-      description: "Ideal for growing businesses with higher volume",
+      id: "starter",
+      name: "Starter",
+      description: "Perfect for small businesses and startups",
+      price: 179,
+      billingCycle: "MONTHLY",
+      verificationLimit: 100,
+      apiLimit: 10000,
       features: [
-        "Up to 5,000 verifications per month",
-        "Advanced transaction history",
-        "Priority email support",
-        "Sales reports & analytics",
-        "Tip collection & tracking",
-        "API access with webhooks",
+        "100 verifications/month",
+        "5 team members (employees)",
+        "Unlimited webhooks",
+        "Advanced analytics",
+        "Tips collection",
+        "Bank account management (up to 5 accounts)",
+        "Verification by usage",
       ],
+      status: "ACTIVE",
       isPopular: true,
-      buttonText: "Get Started",
-      buttonHref: "https://merchant.fetanpay.et/signup",
+      displayOrder: 2,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
     {
-      name: "Enterprise",
-      price: "Custom",
-      period: "month",
-      description: "For large organizations with custom needs",
+      id: "business",
+      name: "Business",
+      description: "Perfect for growing businesses and medium-sized companies",
+      price: 999,
+      billingCycle: "MONTHLY",
+      verificationLimit: 1000,
+      apiLimit: 100000,
       features: [
-        "Unlimited verifications",
-        "Custom transaction limits",
-        "Dedicated account manager",
+        "1000 verifications/month",
+        "Full API access",
+        "Unlimited API keys",
+        "15 team members (employees)",
+        "Unlimited webhooks",
         "Advanced analytics & reporting",
-        "Custom integrations",
-        "SLA guarantee",
-        "24/7 priority support",
+        "Tips collection",
+        "Custom branding",
+        "Bank account management (up to 10 accounts)",
+        "Verification by usage",
       ],
+      status: "ACTIVE",
       isPopular: false,
-      buttonText: "Contact Sales",
-      buttonHref: "mailto:fetanpay@gmail.com",
+      displayOrder: 3,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: "custom",
+      name: "Custom",
+      description:
+        "Perfect for large enterprises, fintech companies, and businesses with specific needs",
+      price: 0, // Custom pricing
+      billingCycle: "MONTHLY",
+      verificationLimit: null, // Unlimited
+      apiLimit: 100000,
+      features: [
+        "Custom verification limits",
+        "Full API access",
+        "Unlimited API keys",
+        "Unlimited team members (employees)",
+        "Vendor dashboard",
+        "Unlimited webhooks",
+        "Advanced analytics & reporting",
+        "Tips collection",
+        "Custom branding",
+        "Transaction history (unlimited)",
+        "All verification methods",
+        "Bank account management (unlimited)",
+        "Custom webhook endpoints",
+        "Frontend UI Package (NO watermark)",
+        "White-label solution",
+        "On-premise deployment option",
+        "Custom integrations",
+        "Dedicated support",
+        "Volume discounts",
+        "Custom pricing",
+      ],
+      status: "ACTIVE",
+      isPopular: false,
+      displayOrder: 4,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    // Yearly Plans
+    {
+      id: "starter-yearly",
+      name: "Starter Yearly",
+      description:
+        "Perfect for small businesses and startups - Save 20% with yearly billing",
+      price: 1720,
+      billingCycle: "YEARLY",
+      verificationLimit: 100,
+      apiLimit: 10000,
+      features: [
+        "100 verifications/month",
+        "5 team members (employees)",
+        "Unlimited webhooks",
+        "Advanced analytics",
+        "Tips collection",
+        "Bank account management (up to 5 accounts)",
+        "Verification by usage",
+        "20% discount (2 months free)",
+      ],
+      status: "ACTIVE",
+      isPopular: true,
+      displayOrder: 5,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: "business-yearly",
+      name: "Business Yearly",
+      description:
+        "Perfect for growing businesses and medium-sized companies - Save 20% with yearly billing",
+      price: 9590,
+      billingCycle: "YEARLY",
+      verificationLimit: 1000,
+      apiLimit: 100000,
+      features: [
+        "1000 verifications/month",
+        "Full API access",
+        "Unlimited API keys",
+        "15 team members (employees)",
+        "Unlimited webhooks",
+        "Advanced analytics & reporting",
+        "Tips collection",
+        "Custom branding",
+        "Bank account management (up to 10 accounts)",
+        "Verification by usage",
+        "20% discount (2.4 months free)",
+      ],
+      status: "ACTIVE",
+      isPopular: false,
+      displayOrder: 6,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
   ];
+
+  // Transform API data to display format
+  const transformPlanToDisplay = (plan: Plan) => {
+    const formatPrice = (price: number) => {
+      if (price === 0 && plan.name.toLowerCase() === "free") return "Free";
+      if (price === 0) return "Free";
+      if (plan.name.toLowerCase().includes("custom")) return "Custom";
+      return `ETB ${price.toLocaleString()}`;
+    };
+
+    const formatPeriod = (billingCycle: string, planName: string) => {
+      // Special case for free plan - show "7-day trial"
+      if (planName.toLowerCase() === "free") {
+        return "7-day trial";
+      }
+
+      switch (billingCycle) {
+        case "MONTHLY":
+          return "month";
+        case "YEARLY":
+          return "year";
+        case "WEEKLY":
+          return "week";
+        case "DAILY":
+          return "day";
+        default:
+          return "month";
+      }
+    };
+
+    const getButtonText = (plan: Plan) => {
+      if (plan.name.toLowerCase().includes("custom")) return "Contact Sales";
+      return "Get Started";
+    };
+
+    const getButtonHref = (plan: Plan) => {
+      if (plan.name.toLowerCase().includes("custom"))
+        return "mailto:fetanpay@gmail.com";
+      return MERCHANT_SIGNUP_URL;
+    };
+
+    return {
+      name: plan.name,
+      price: formatPrice(plan.price),
+      period: formatPeriod(plan.billingCycle, plan.name),
+      description: plan.description,
+      features: plan.features,
+      isPopular: plan.isPopular,
+      buttonText: getButtonText(plan),
+      buttonHref: getButtonHref(plan),
+      verificationLimit: plan.verificationLimit,
+    };
+  };
+
+  // Filter plans based on selected billing cycle
+  const filteredPlans = plans.filter((plan) => {
+    if (billingCycle === "MONTHLY") {
+      return plan.billingCycle === "MONTHLY";
+    } else {
+      // For yearly, only show yearly plans (exclude Free and Custom)
+      return plan.billingCycle === "YEARLY";
+    }
+  });
+
+  if (loading) {
+    return (
+      <section className="py-8 sm:py-12 md:py-16 px-4 bg-white relative z-10">
+        <div className="mx-auto" style={{ maxWidth: "1450px" }}>
+          <div className="flex justify-center mb-6">
+            <Badge
+              icon="/icons/howitworks/howitworksbadgeicon.svg"
+              iconAlt="pricing"
+              animationDelay="200"
+            >
+              Pricing
+            </Badge>
+          </div>
+          <h2
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-tight sm:leading-[48px] md:leading-[60px] lg:leading-[75px] font-normal text-center mx-auto tracking-tight lg:tracking-[-2.16px] px-4"
+            style={{
+              fontFamily: "var(--font-geist)",
+              background: "linear-gradient(to right, #061a32, #0d3463)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              maxWidth: "1200px",
+            }}
+          >
+            Simple, transparent pricing for every business
+          </h2>
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#174686]"></div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error && plans.length === 0) {
+    return (
+      <section className="py-8 sm:py-12 md:py-16 px-4 bg-white relative z-10">
+        <div className="mx-auto" style={{ maxWidth: "1450px" }}>
+          <div className="flex justify-center mb-6">
+            <Badge
+              icon="/icons/howitworks/howitworksbadgeicon.svg"
+              iconAlt="pricing"
+              animationDelay="200"
+            >
+              Pricing
+            </Badge>
+          </div>
+          <h2
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-[72px] leading-tight sm:leading-[48px] md:leading-[60px] lg:leading-[75px] font-normal text-center mx-auto tracking-tight lg:tracking-[-2.16px] px-4"
+            style={{
+              fontFamily: "var(--font-geist)",
+              background: "linear-gradient(to right, #061a32, #0d3463)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              maxWidth: "1200px",
+            }}
+          >
+            Simple, transparent pricing for every business
+          </h2>
+          <div className="text-center py-12">
+            <p className="text-red-600 mb-4">Unable to load pricing plans</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-[#174686] text-white rounded-full hover:bg-[#0d3463] transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-8 sm:py-12 md:py-16 px-4 bg-white relative z-10">
@@ -262,28 +552,76 @@ export default function Pricing() {
           instant verification and multi-bank support.
         </p>
 
-        {/* Pricing Cards - Responsive */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mt-8 sm:mt-10 md:mt-12">
-          {pricingTiers.map((tier, index) => (
-            <div
-              key={tier.name}
-              className="opacity-0 animate-fade-in-up"
+        {/* Billing Cycle Toggle */}
+        <div className="flex justify-center mb-8 sm:mb-10 md:mb-12">
+          <div className="bg-gray-100 rounded-full p-1 flex">
+            <button
+              onClick={() => setBillingCycle("MONTHLY")}
+              className={`px-6 py-2 rounded-full font-medium transition-all duration-300 ${
+                billingCycle === "MONTHLY"
+                  ? "bg-[#174686] text-white shadow-md"
+                  : "text-[#174686] hover:bg-gray-200"
+              }`}
               style={{
-                animationDelay: `${500 + index * 100}ms`,
+                fontFamily: "var(--font-inter)",
               }}
             >
-              <PricingTier
-                name={tier.name}
-                price={tier.price}
-                period={tier.period}
-                description={tier.description}
-                features={tier.features}
-                isPopular={tier.isPopular}
-                buttonText={tier.buttonText}
-                buttonHref={tier.buttonHref}
-              />
-            </div>
-          ))}
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle("YEARLY")}
+              className={`px-6 py-2 rounded-full font-medium transition-all duration-300 relative ${
+                billingCycle === "YEARLY"
+                  ? "bg-[#174686] text-white shadow-md"
+                  : "text-[#174686] hover:bg-gray-200"
+              }`}
+              style={{
+                fontFamily: "var(--font-inter)",
+              }}
+            >
+              Yearly
+              <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                Save 20%
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Error message if API failed but we have fallback data */}
+        {error && (
+          <div className="text-center mb-4">
+            <p className="text-amber-600 text-sm">
+              Using cached pricing data. Some information may be outdated.
+            </p>
+          </div>
+        )}
+
+        {/* Pricing Cards - Responsive */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mt-8 sm:mt-10 md:mt-12">
+          {filteredPlans.map((plan, index) => {
+            const displayPlan = transformPlanToDisplay(plan);
+            return (
+              <div
+                key={`${plan.id}-${billingCycle}`}
+                className="opacity-0 animate-fade-in-up"
+                style={{
+                  animationDelay: `${500 + index * 100}ms`,
+                }}
+              >
+                <PricingTier
+                  name={displayPlan.name.replace(" Yearly", "")} // Remove "Yearly" from display name
+                  price={displayPlan.price}
+                  period={displayPlan.period}
+                  description={displayPlan.description}
+                  features={displayPlan.features}
+                  isPopular={displayPlan.isPopular}
+                  buttonText={displayPlan.buttonText}
+                  buttonHref={displayPlan.buttonHref}
+                  verificationLimit={displayPlan.verificationLimit}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

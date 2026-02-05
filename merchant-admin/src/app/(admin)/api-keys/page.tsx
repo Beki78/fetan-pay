@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
-import { EyeIcon, EyeCloseIcon, CopyIcon, AlertIcon } from "@/icons";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
+import { EyeIcon, EyeCloseIcon, CopyIcon, AlertIcon, InfoIcon } from "@/icons";
 import {
   useListApiKeysQuery,
   useCreateApiKeyMutation,
@@ -12,6 +12,8 @@ import {
 import { toast } from "sonner";
 import GenerateKeyModal from "@/components/api/GenerateKeyModal";
 import RevokeKeyModal from "@/components/api/RevokeKeyModal";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 
 interface CodeBlockProps {
   code: string;
@@ -47,13 +49,11 @@ function CodeBlock({ code, language }: CodeBlockProps) {
 }
 
 export default function ApiKeysPage() {
+  // All hooks must be called at the top level, before any early returns
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const { data: apiKeys = [], isLoading, refetch } = useListApiKeysQuery();
   const [createApiKey, { isLoading: isCreating }] = useCreateApiKeyMutation();
   const [revokeApiKey, { isLoading: isRevoking }] = useRevokeApiKeyMutation();
-
-  // Get the first active API key
-  const currentApiKey = apiKeys.find((key) => key.status === "ACTIVE") || apiKeys[0] || null;
-
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -61,7 +61,10 @@ export default function ApiKeysPage() {
   const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
 
-  // Store newly created key in localStorage so we can show it
+  // Get the first active API key
+  const currentApiKey = apiKeys.find((key) => key.status === "ACTIVE") || apiKeys[0] || null;
+
+  // Store newly created key in localStorage so we can show it - must be called before early returns
   useEffect(() => {
     const storedKey = localStorage.getItem("fetanpay_new_api_key");
     if (storedKey) {
@@ -81,6 +84,20 @@ export default function ApiKeysPage() {
       setApiKeyValue("");
     }
   }, [currentApiKey, newlyCreatedKey]);
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const handleCopy = () => {
     // If we have a newly created key, copy that
@@ -291,7 +308,7 @@ export default function ApiKeysPage() {
         </div>
 
         {/* Verify Payment Example */}
-        <div>
+        <div className="mb-6">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
             Verify Payment
           </h3>
@@ -311,12 +328,38 @@ Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(
             Replace the masked key with your actual API key in the Authorization header.
           </p>
         </div>
+
+        {/* Get Verification History Example */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+            Get Verification History
+          </h3>
+          <CodeBlock
+            code={`GET /api/v1/payments/verification-history?page=1&pageSize=10
+Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(displayKey)}`}
+          />
+        </div>
+
+        {/* Get Active Receiver Accounts Example */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+            Get Active Receiver Accounts
+          </h3>
+          <CodeBlock
+            code={`GET /api/v1/payments/receiver-accounts/active
+Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(displayKey)}
+
+# Or for specific provider:
+GET /api/v1/payments/receiver-accounts/active?provider=CBE
+Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(displayKey)}`}
+          />
+        </div>
       </div>
 
       {/* Security Notice */}
       <div className="rounded-xl border border-warning-200 bg-warning-50 dark:border-warning-800 dark:bg-warning-900/20 p-6">
         <div className="flex items-start gap-3">
-          <AlertIcon className="w-5 h-5 text-warning-600 dark:text-warning-400 flex-shrink-0 mt-0.5" />
+          <AlertIcon className="w-5 h-5 text-warning-600 dark:text-warning-400 shrink-0 mt-0.5" />
           <div>
             <h3 className="text-sm font-semibold text-warning-800 dark:text-warning-300 mb-1">
               Security Notice
@@ -325,6 +368,26 @@ Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(
               Keep your API key secure and never share it publicly. If you believe your key has been
               compromised, regenerate it immediately.
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Rate Limiting Information */}
+      <div className="rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 p-6">
+        <div className="flex items-start gap-3">
+          <InfoIcon className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
+              Rate Limiting
+            </h3>
+            <p className="text-sm text-blue-800 dark:text-blue-300 mb-2">
+              API requests are rate-limited to prevent abuse:
+            </p>
+            <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
+              <li>• <strong>10 requests per minute</strong> per API key</li>
+              <li>• Rate limit resets every 60 seconds</li>
+              <li>• HTTP 429 status code returned when limit exceeded</li>
+            </ul>
           </div>
         </div>
       </div>

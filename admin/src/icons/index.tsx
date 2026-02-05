@@ -53,10 +53,13 @@ import HorizontaLDots from "./horizontal-dots.svg";
 import ChatIcon from "./chat.svg";
 import MoreDotIcon from "./more-dot.svg";
 import BellIcon from "./bell.svg";
+import NotificationBellIcon from "./notification-bell.svg";
+import WebhookIcon from "./webhook.svg";
 
 export {
   DownloadIcon,
   BellIcon,
+  NotificationBellIcon,
   MoreDotIcon,
   FileIcon,
   GridIcon,
@@ -109,4 +112,6 @@ export {
   HorizontaLDots,
   ChevronUpIcon,
   ChatIcon,
+  WebhookIcon,
+  ArrowLeftIcon,
 };

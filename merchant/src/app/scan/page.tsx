@@ -16,7 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { BankSelection } from "@/components/bank-selection";
-import { CameraScanner } from "@/components/camera-scanner";
+import { UnifiedScanner } from "@/components/UnifiedScanner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import VConsoleCDN from "@/components/vconsole-cdn";
 // import { VerificationHistorySidebar } from "@/components/verification-history-sidebar"; // Commented out - history sidebar removed
@@ -37,6 +37,7 @@ import {
 import { createScanSchema } from "@/lib/schemas";
 import { useVerifyMerchantPaymentMutation } from "@/lib/services/paymentsServiceApi";
 import { useSession } from "@/hooks/useSession";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type FormData = {
@@ -49,6 +50,7 @@ function ScanPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, isLoading: isSessionLoading } = useSession();
+  const { canAccessFeature, plan } = useSubscription();
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [showTip, setShowTip] = useState<boolean>(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -72,7 +74,7 @@ function ScanPageContent() {
   const [verifyMerchantPayment, { isLoading: isVerifying }] =
     useVerifyMerchantPaymentMutation();
   const [isVerifyingWithBank, setIsVerifyingWithBank] = useState<BankId | null>(
-    null
+    null,
   );
   const resultsRef = useRef<HTMLDivElement>(null);
   const isVerifyingRef = useRef(false); // Prevent duplicate verification calls
@@ -80,7 +82,7 @@ function ScanPageContent() {
   const schema = createScanSchema(
     selectedBank as BankId | null,
     verificationMethod,
-    showTip
+    showTip,
   );
   const {
     register,
@@ -118,7 +120,9 @@ function ScanPageContent() {
 
     // Prevent duplicate verification calls
     if (isVerifyingRef.current) {
-      console.log("⚠️ [SCAN] Verification already in progress, ignoring duplicate scan");
+      console.log(
+        "⚠️ [SCAN] Verification already in progress, ignoring duplicate scan",
+      );
       return;
     }
 
@@ -143,8 +147,14 @@ function ScanPageContent() {
 
     // Set form values (but don't trigger form submission)
     setVerificationMethod("camera");
-    setValue("verificationMethod", "camera", { shouldValidate: false, shouldDirty: false });
-    setValue("transactionId", finalReference, { shouldValidate: false, shouldDirty: false });
+    setValue("verificationMethod", "camera", {
+      shouldValidate: false,
+      shouldDirty: false,
+    });
+    setValue("transactionId", finalReference, {
+      shouldValidate: false,
+      shouldDirty: false,
+    });
 
     const finalBank = detectedBank;
 
@@ -209,7 +219,7 @@ function ScanPageContent() {
             ? `Reference ${finalReference} verified`
             : response.mismatchReason || "Payment could not be verified",
           duration: 5000,
-        }
+        },
       );
 
       // Scroll to results
@@ -233,8 +243,8 @@ function ScanPageContent() {
         typeof error.data.message === "string"
           ? error.data.message
           : error instanceof Error
-          ? error.message
-          : "Please try again";
+            ? error.message
+            : "Please try again";
 
       toast.error("Verification failed", {
         description: errorMessage,
@@ -303,7 +313,7 @@ function ScanPageContent() {
         console.log("🔍 [VERIFY] Extracting reference from URL:", reference);
         const extracted = extractTransactionId(
           selectedBank as BankId,
-          reference
+          reference,
         );
         if (extracted && extracted !== reference) {
           reference = extracted;
@@ -400,7 +410,7 @@ function ScanPageContent() {
               } verified`
             : failureMessage,
           duration: 8000,
-        }
+        },
       );
 
       // Scroll to results to ensure they're visible
@@ -427,8 +437,8 @@ function ScanPageContent() {
         typeof error.data.message === "string"
           ? error.data.message
           : error instanceof Error
-          ? error.message
-          : "Verification failed";
+            ? error.message
+            : "Verification failed";
 
       console.error("❌ [VERIFY] Error message:", message);
 
@@ -578,16 +588,18 @@ function ScanPageContent() {
 
         <Card className="shadow-xl border-border/50 ">
           <CardContent className="space-y-4 px-4">
-            <form 
+            <form
               onSubmit={(e) => {
                 // Prevent form submission if verification is already in progress
                 if (isVerifyingRef.current) {
                   e.preventDefault();
-                  console.log("⚠️ [FORM] Preventing form submission - verification in progress");
+                  console.log(
+                    "⚠️ [FORM] Preventing form submission - verification in progress",
+                  );
                   return false;
                 }
                 return handleSubmit(onSubmit)(e);
-              }} 
+              }}
               className="space-y-6"
             >
               {/* Bank Selection */}
@@ -647,7 +659,7 @@ function ScanPageContent() {
                             "hover:border-primary hover:bg-primary/5 hover:shadow-md",
                             verificationMethod === "transaction"
                               ? "border-primary bg-primary/10 shadow-md"
-                              : "border-border bg-card"
+                              : "border-border bg-card",
                           )}
                         >
                           <FileDigit className="h-5 w-5 text-primary" />
@@ -663,7 +675,7 @@ function ScanPageContent() {
                             "hover:border-primary hover:bg-primary/5 hover:shadow-md",
                             verificationMethod === "camera"
                               ? "border-primary bg-primary/10 shadow-md"
-                              : "border-border bg-card"
+                              : "border-border bg-card",
                           )}
                         >
                           <Scan className="h-5 w-5 text-primary" />
@@ -703,7 +715,7 @@ function ScanPageContent() {
                         {...register("transactionId")}
                         className={cn(
                           "h-12 focus-visible:ring-1",
-                          errors.transactionId && "border-destructive"
+                          errors.transactionId && "border-destructive",
                         )}
                       />
                       {errors.transactionId && (
@@ -769,6 +781,22 @@ function ScanPageContent() {
                       <Switch
                         checked={showTip}
                         onCheckedChange={(checked) => {
+                          console.log("🔍 [Scan] Tips toggle clicked:", {
+                            checked,
+                            canAccessTips: canAccessFeature("tips"),
+                            plan: plan,
+                            planName: plan?.name,
+                          });
+
+                          // Check if user has access to tips feature
+                          if (checked && !canAccessFeature("tips")) {
+                            toast.error("Tips feature not available", {
+                              description: `Tips collection is not available in your ${plan?.name || "current"} plan. Please upgrade your plan to enable tips collection.`,
+                              duration: 5000,
+                            });
+                            return;
+                          }
+
                           setShowTip(checked);
                           if (!checked) {
                             setValue("tipAmount", "", {
@@ -796,7 +824,7 @@ function ScanPageContent() {
                           }}
                           className={cn(
                             "h-12 focus-visible:ring-1",
-                            errors.tipAmount && "border-destructive"
+                            errors.tipAmount && "border-destructive",
                           )}
                           inputMode="numeric"
                         />
@@ -836,12 +864,14 @@ function ScanPageContent() {
                       className="mt-6 animate-in fade-in slide-in-from-bottom-4"
                     >
                       {/* Status Header */}
-                      <div className={cn(
-                        "flex items-center justify-between p-4 rounded-t-xl",
-                        verificationResult.success
-                          ? "bg-green-500 dark:bg-green-600"
-                          : "bg-red-500 dark:bg-red-600"
-                      )}>
+                      <div
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-t-xl",
+                          verificationResult.success
+                            ? "bg-green-500 dark:bg-green-600"
+                            : "bg-red-500 dark:bg-red-600",
+                        )}
+                      >
                         <div className="flex items-center gap-3">
                           {verificationResult.success ? (
                             <CheckCircle2 className="h-6 w-6 text-white" />
@@ -853,7 +883,10 @@ function ScanPageContent() {
                           </span>
                         </div>
                         <span className="text-white/90 text-2xl font-bold">
-                          {formatNumberWithCommas((verificationResult.amount ?? 0).toString())} ETB
+                          {formatNumberWithCommas(
+                            (verificationResult.amount ?? 0).toString(),
+                          )}{" "}
+                          ETB
                         </span>
                       </div>
 
@@ -863,7 +896,11 @@ function ScanPageContent() {
                           {/* Bank Logo Column - Compact on mobile */}
                           <div className="flex items-center justify-center p-3 sm:p-5 border-r border-border bg-muted/30 shrink-0">
                             {(() => {
-                              const bankData = BANKS.find(b => b.id === verificationResult.provider.toLowerCase());
+                              const bankData = BANKS.find(
+                                (b) =>
+                                  b.id ===
+                                  verificationResult.provider.toLowerCase(),
+                              );
                               return bankData ? (
                                 <div className="relative w-10 h-10 sm:w-14 sm:h-14">
                                   <Image
@@ -886,8 +923,12 @@ function ScanPageContent() {
                           <div className="flex-1 p-3 sm:p-4 space-y-2 sm:space-y-3 min-w-0">
                             {/* Reference */}
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">Ref</span>
-                              <span className="font-mono text-xs sm:text-sm font-medium text-foreground truncate">{verificationResult.reference}</span>
+                              <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">
+                                Ref
+                              </span>
+                              <span className="font-mono text-xs sm:text-sm font-medium text-foreground truncate">
+                                {verificationResult.reference}
+                              </span>
                             </div>
 
                             {/* Divider */}
@@ -896,7 +937,9 @@ function ScanPageContent() {
                             {/* Sender */}
                             {verificationResult.senderName && (
                               <div className="flex items-center justify-between gap-2">
-                                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">From</span>
+                                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">
+                                  From
+                                </span>
                                 <span className="text-xs sm:text-sm font-medium text-foreground capitalize truncate">
                                   {verificationResult.senderName}
                                 </span>
@@ -905,10 +948,13 @@ function ScanPageContent() {
 
                             {/* Receiver */}
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">To</span>
+                              <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">
+                                To
+                              </span>
                               <div className="text-right min-w-0 flex-1">
                                 <p className="text-xs sm:text-sm font-medium text-foreground truncate">
-                                  {verificationResult.receiverName || "Merchant"}
+                                  {verificationResult.receiverName ||
+                                    "Merchant"}
                                 </p>
                                 {verificationResult.receiverAccount && (
                                   <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">
@@ -921,13 +967,14 @@ function ScanPageContent() {
                         </div>
 
                         {/* Error Message (only for failed) */}
-                        {!verificationResult.success && verificationResult.message && (
-                          <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-                            <p className="text-sm sm:text-base font-medium text-red-600 dark:text-red-400 text-center">
-                              {verificationResult.message}
-                            </p>
-                          </div>
-                        )}
+                        {!verificationResult.success &&
+                          verificationResult.message && (
+                            <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+                              <p className="text-sm sm:text-base font-medium text-red-600 dark:text-red-400 text-center">
+                                {verificationResult.message}
+                              </p>
+                            </div>
+                          )}
                       </div>
                     </div>
                   )}
@@ -940,10 +987,11 @@ function ScanPageContent() {
 
       {/* Camera Scanner Modal */}
       {showCamera && (
-        <CameraScanner
+        <UnifiedScanner
           onScan={handleCameraScan}
           onClose={() => setShowCamera(false)}
-          selectedBank={selectedBank as BankId | null}
+          title="Scan Payment QR Code"
+          description="Position the payment QR code within the frame"
         />
       )}
 

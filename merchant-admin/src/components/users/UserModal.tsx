@@ -5,6 +5,7 @@ import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import Select from "../form/Select";
+import { EyeIcon, EyeCloseIcon } from "@/icons";
 import {
   MerchantUser,
   useCreateMerchantUserMutation,
@@ -18,6 +19,7 @@ interface UserForm {
   phone: string;
   role: string;
   password?: string;
+  confirmPassword?: string;
 }
 
 interface UserModalProps {
@@ -30,12 +32,9 @@ interface UserModalProps {
 }
 
 const roles = [
-  { value: "ADMIN", label: "Admin" },
   { value: "ACCOUNTANT", label: "Accountant" },
   { value: "SALES", label: "Sales" },
   { value: "WAITER", label: "Waiter" },
-  { value: "MERCHANT_OWNER", label: "Owner" },
-  { value: "EMPLOYEE", label: "Employee" },
 ];
 
 export default function UserModal({
@@ -52,10 +51,13 @@ export default function UserModal({
     phone: "",
     role: roles[0].value,
     password: "",
+    confirmPassword: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [createUser] = useCreateMerchantUserMutation();
   const [updateUser] = useUpdateMerchantUserMutation();
@@ -69,6 +71,7 @@ export default function UserModal({
         phone: user.phone || "",
         role: user.role || roles[0].value,
         password: "",
+        confirmPassword: "",
       });
     } else {
       setFormData({
@@ -77,10 +80,13 @@ export default function UserModal({
         phone: "",
         role: roles[0].value,
         password: "",
+        confirmPassword: "",
       });
     }
     setErrors({});
     setSubmitError(null);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   }, [user, mode, isOpen]);
 
   const validateForm = () => {
@@ -90,7 +96,11 @@ export default function UserModal({
     if (!formData.email.trim()) newErrors.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email format";
     if (!formData.phone.trim()) newErrors.phone = "Phone is required";
-    if (mode === "add" && (!formData.password || formData.password.length < 8)) newErrors.password = "Password must be at least 8 characters";
+    if (mode === "add") {
+      if (!formData.password || formData.password.length < 8) newErrors.password = "Password must be at least 8 characters";
+      if (!formData.confirmPassword) newErrors.confirmPassword = "Please confirm your password";
+      else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords do not match";
+    }
     if (!formData.role) newErrors.role = "Role is required";
 
     setErrors(newErrors);
@@ -147,87 +157,134 @@ export default function UserModal({
           <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
             {mode === "add" ? "Add New User" : "Edit User"}
           </h4>
-          <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
-            {mode === "add"
-              ? "Create an account for an employee or team member. They can verify their payment access after account creation."
-              : "Update the user information below."}
-          </p>
+          
         </div>
         {submitError && (
           <p className="px-2 text-sm text-error-500 mb-3">{submitError}</p>
         )}
         <form className="flex flex-col">
           <div className="custom-scrollbar max-h-[500px] overflow-y-auto px-2 pb-3">
-            <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
-              <div className="lg:col-span-2">
-                <Label>
-                  Full Name <span className="text-error-500">*</span>
-                </Label>
-                <Input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter user name"
-                  error={!!errors.name}
-                  hint={errors.name}
-                />
-              </div>
-
-              <div>
-                <Label>
-                  Email Address <span className="text-error-500">*</span>
-                </Label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="user@example.com"
-                  error={!!errors.email}
-                  hint={errors.email}
-                />
-              </div>
-
-              <div>
-                <Label>
-                  Phone Number <span className="text-error-500">*</span>
-                </Label>
-                <Input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+251 911 234 567"
-                  error={!!errors.phone}
-                  hint={errors.phone}
-                />
-              </div>
-
-              {mode === "add" && (
+            <div className="space-y-5">
+              {/* Full Name and Email - Same Row */}
+              <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
                 <div>
                   <Label>
-                    Password <span className="text-error-500">*</span>
+                    Full Name <span className="text-error-500">*</span>
                   </Label>
                   <Input
-                    type="password"
-                    value={formData.password || ""}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Minimum 8 characters"
-                    error={!!errors.password}
-                    hint={errors.password}
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter user name"
+                    error={!!errors.name}
+                    hint={errors.name}
                   />
                 </div>
-              )}
 
-              <div>
-                <Label>
-                  Role <span className="text-error-500">*</span>
-                </Label>
-                <Select
-                  value={formData.role}
-                  onChange={(value) => setFormData({ ...formData, role: value })}
-                  options={roles.map((role) => ({ value: role.value, label: role.label }))}
-                  error={!!errors.role}
-                />
+                <div>
+                  <Label>
+                    Email Address <span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="user@example.com"
+                    error={!!errors.email}
+                    hint={errors.email}
+                  />
+                </div>
               </div>
+
+              {/* Phone Number and Role - Same Row */}
+              <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
+                <div>
+                  <Label>
+                    Phone Number <span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+251 911 234 567"
+                    error={!!errors.phone}
+                    hint={errors.phone}
+                  />
+                </div>
+
+                <div>
+                  <Label>
+                    Role <span className="text-error-500">*</span>
+                  </Label>
+                  <Select
+                    value={formData.role}
+                    onChange={(value) => setFormData({ ...formData, role: value })}
+                    options={roles.map((role) => ({ value: role.value, label: role.label }))}
+                    error={!!errors.role}
+                  />
+                </div>
+              </div>
+
+              {/* Password and Confirm Password - Same Row (Only for Add Mode) */}
+              {mode === "add" && (
+                <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
+                  <div>
+                    <Label>
+                      Password <span className="text-error-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        value={formData.password || ""}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        placeholder="Minimum 8 characters"
+                        error={!!errors.password}
+                        hint={errors.password}
+                        className="pr-12"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                      >
+                        {showPassword ? (
+                          <EyeCloseIcon className="w-5 h-5" />
+                        ) : (
+                          <EyeIcon className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>
+                      Confirm Password <span className="text-error-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={formData.confirmPassword || ""}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                        placeholder="Confirm your password"
+                        error={!!errors.confirmPassword}
+                        hint={errors.confirmPassword}
+                        className="pr-12"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeCloseIcon className="w-5 h-5" />
+                        ) : (
+                          <EyeIcon className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">

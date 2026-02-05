@@ -4,96 +4,56 @@ import Button from "../ui/button/Button";
 import Badge from "../ui/badge/Badge";
 import { CheckCircleIcon } from "@/icons";
 import Link from "next/link";
-
-// Mock data
-const plans = [
-  {
-    id: "early-access",
-    name: "Early Access (Limited)",
-    price: 20,
-    billingCycle: "7 days",
-    description: "Our early access limited offer plan.",
-    features: [
-      "1000 verifications/month",
-      "60 API requests/min",
-      "Webhook notifications",
-      "Priority support",
-      "Advanced analytics",
-      "Custom branding",
-    ],
-    limitations: [],
-    popular: false,
-  },
-  {
-    id: "intermediate",
-    name: "Intermediate",
-    price: 1200,
-    billingCycle: "30 days",
-    description: "Ideal for growing businesses with moderate verification needs.",
-    features: [
-      "2500 verifications/month",
-      "60 API requests/min",
-      "Webhook notifications",
-      "Priority support",
-      "Advanced analytics",
-      "Custom branding",
-    ],
-    limitations: [],
-    popular: true,
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    price: 6000,
-    billingCycle: "30 days",
-    description: "For high-volume businesses requiring maximum verifications and features.",
-    features: [
-      "15000 verifications/month",
-      "120 API requests/min",
-      "Webhook notifications",
-      "Priority support",
-      "Advanced analytics",
-      "Custom branding",
-    ],
-    limitations: [],
-    popular: false,
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    price: 20000,
-    billingCycle: "30 days",
-    description: "For companies which has many customers",
-    features: [
-      "Unlimited verifications/month",
-      "Unlimited API requests/min",
-      "Webhook notifications",
-      "Priority support",
-      "Advanced analytics",
-      "Custom branding",
-    ],
-    limitations: [],
-    popular: false,
-  },
-];
+import { useGetPlansQuery } from "@/lib/redux/features/pricingApi";
 
 export default function PlanComparison() {
-  const getPrice = (plan: typeof plans[0]) => {
-    return `ETB ${plan.price.toFixed(2)}/${plan.billingCycle}`;
+  const { data: plansResponse, isLoading, error } = useGetPlansQuery({ 
+    status: 'ACTIVE',
+    limit: 100,
+    sortBy: 'displayOrder',
+    sortOrder: 'asc'
+  });
+
+  const plans = plansResponse?.data || [];
+
+  const getPrice = (plan: any) => {
+    if (plan.price === 0 && plan.name !== "Free") {
+      return "Custom Pricing";
+    }
+    return `ETB ${plan.price.toLocaleString()}/${plan.billingCycle.toLowerCase()}`;
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="text-gray-500 dark:text-gray-400">Loading plans...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">Failed to load plans</div>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Manage Plans</h1>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Plan Comparison</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Configure and manage subscription plans for vendors
+            Compare all available subscription plans side by side
           </p>
         </div>
-        {/* <Button className="bg-green-500 hover:bg-green-600 text-white border-0">
-          + Add New Plan
-        </Button> */}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -101,12 +61,12 @@ export default function PlanComparison() {
           <div
             key={plan.id}
             className={`relative rounded-xl border p-5 transition-all ${
-              plan.popular
+              plan.isPopular
                 ? "border-purple-500 bg-white dark:border-purple-500 dark:bg-gray-800/50"
                 : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50"
             }`}
           >
-            {plan.popular && (
+            {plan.isPopular && (
               <div className="absolute -top-3 right-3">
                 <Badge color="success" size="sm">
                   Most Popular
@@ -139,23 +99,40 @@ export default function PlanComparison() {
               ))}
             </div>
 
-            <Link href={`/plans/edit/${plan.id}`}>
-              <Button
-                size="sm"
-                className={`w-full ${
-                  plan.popular
-                    ? "bg-blue-500 hover:bg-blue-600 text-white border-0"
-                    : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-0"
-                }`}
-              >
-                Edit Plan
-              </Button>
-            </Link>
+            <div className="space-y-2">
+              <Link href={`/plans/edit/${plan.id}`}>
+                <Button
+                  size="sm"
+                  className={`w-full ${
+                    plan.isPopular
+                      ? "bg-blue-500 hover:bg-blue-600 text-white border-0"
+                      : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white border-0"
+                  }`}
+                >
+                  Edit Plan
+                </Button>
+              </Link>
+              
+              {/* Plan limits info */}
+              <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                {(plan.verificationLimit || plan.limits?.verifications_monthly) && (
+                  <div>
+                    Verifications: {(plan.verificationLimit || plan.limits?.verifications_monthly || 0).toLocaleString()}/month
+                  </div>
+                )}
+                {(plan.apiLimit || plan.limits?.api_calls_monthly) && (
+                  <div>
+                    API Calls: {(plan.apiLimit || plan.limits?.api_calls_monthly || 0).toLocaleString()}/month
+                  </div>
+                )}
+                {!plan.verificationLimit && !plan.limits?.verifications_monthly && !plan.apiLimit && !plan.limits?.api_calls_monthly && (
+                  <div>Unlimited usage</div>
+                )}
+              </div>
+            </div>
           </div>
         ))}
       </div>
-
     </div>
   );
 }
-

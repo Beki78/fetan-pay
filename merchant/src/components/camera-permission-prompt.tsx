@@ -1,22 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCameraPermission } from "@/hooks/useCameraPermission";
+import { useCameraPermissionContext } from "@/contexts/CameraPermissionContext";
 
 export function CameraPermissionPrompt() {
-  const { permission, requestPermission } = useCameraPermission();
+  const { permission, requestPermission } = useCameraPermissionContext();
   const [isRequesting, setIsRequesting] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-
-  // Check if already dismissed in this session
-  useEffect(() => {
-    const wasDismissed = sessionStorage.getItem("camera-permission-dismissed");
-    if (wasDismissed) {
-      setDismissed(true);
+  const [dismissed, setDismissed] = useState(() => {
+    // Initialize from sessionStorage
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("camera-permission-dismissed") === "true";
     }
-  }, []);
+    return false;
+  });
 
   // Don't show if already granted, denied, or dismissed
   if (permission === "granted" || permission === "denied" || dismissed || permission === "unknown") {

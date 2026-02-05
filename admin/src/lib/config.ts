@@ -30,6 +30,13 @@ export const FRONTEND_URL =
     ? 'https://admin.fetanpay.et'
     : 'http://localhost:3000');
 
+// Payment page URL (for transaction links)
+export const PAYMENT_PAGE_URL =
+  process.env.NEXT_PUBLIC_PAYMENT_PAGE_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://fetanpay.et'
+    : 'http://localhost:3001');
+
 // Static assets base URL (for logo previews, etc.)
 export const STATIC_ASSETS_BASE_URL = BASE_URL;
 

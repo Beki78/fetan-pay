@@ -25,8 +25,15 @@ import {
   ApiCookieAuth,
   ApiConsumes,
 } from '@nestjs/swagger';
+import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import type { Request } from 'express';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { SubscriptionGuard } from '../../common/guards/subscription.guard';
+import {
+  ProtectTips,
+  ProtectVerifications,
+  ProtectPaymentProviders,
+} from '../../common/decorators/subscription-protection.decorator';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
 import { SubmitPaymentClaimDto } from './dto/submit-payment-claim.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
@@ -36,7 +43,6 @@ import { LogTransactionDto } from './dto/log-transaction.dto';
 import { ListTipsDto } from './dto/list-tips.dto';
 import { PaymentsService } from './payments.service';
 import { ApiKeyOrSessionGuard } from '../api-keys/guards/api-key-or-session.guard';
-import { ApiKeysModule } from '../api-keys/api-keys.module';
 
 @ApiTags('payments')
 @ApiBearerAuth('bearer')
@@ -46,10 +52,12 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('receiver-accounts/active')
+  @UseGuards(SubscriptionGuard)
+  @ProtectPaymentProviders()
   @ApiOperation({
     summary: 'Set the merchant active receiver account for a provider',
     description:
-      'Sets or updates the active receiver account for a specific payment provider. This account will be used for payment verification.',
+      'Sets or updates the active receiver account for a specific payment provider. This account will be used for payment verification. Limited by subscription plan.',
   })
   @ApiBody({ type: SetActiveReceiverDto })
   @ApiResponse({
@@ -58,13 +66,22 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async setActiveReceiver(@Body() body: SetActiveReceiverDto, @Req() req: Request) {
+  @ApiResponse({
+    status: 403,
+    description: 'Plan limit exceeded - upgrade required',
+  })
+  async setActiveReceiver(
+    @Body() body: SetActiveReceiverDto,
+    @Req() req: Request,
+  ) {
     return this.paymentsService.setActiveReceiverAccount(body, req);
   }
 
   @Get('receiver-accounts/active')
+  @AllowAnonymous()
   @ApiOperation({
-    summary: 'Get the merchant active receiver account for a provider (or all providers)',
+    summary:
+      'Get the merchant active receiver account for a provider (or all providers)',
     description:
       'Retrieves the active receiver account(s) for the authenticated merchant. If provider is specified, returns only that provider. Otherwise, returns all active receiver accounts.',
   })
@@ -79,6 +96,7 @@ export class PaymentsController {
     description: 'Active receiver account(s) retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseGuards(ApiKeyOrSessionGuard)
   async getActiveReceiver(
     @Query('provider') provider: string | undefined,
     @Req() req: Request,
@@ -89,7 +107,8 @@ export class PaymentsController {
   @Post('receiver-accounts/disable')
   @ApiOperation({
     summary: 'Disable the active receiver account for a provider',
-    description: 'Disables the currently active receiver account for a payment provider.',
+    description:
+      'Disables the currently active receiver account for a payment provider.',
   })
   @ApiBody({ type: DisableReceiverDto })
   @ApiResponse({
@@ -98,15 +117,21 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async disableActiveReceiver(@Body() body: DisableReceiverDto, @Req() req: Request) {
+  async disableActiveReceiver(
+    @Body() body: DisableReceiverDto,
+    @Req() req: Request,
+  ) {
     return this.paymentsService.disableActiveReceiverAccount(body, req);
   }
 
   @Post('receiver-accounts/enable')
+  @UseGuards(SubscriptionGuard)
+  @ProtectPaymentProviders()
   @ApiOperation({
-    summary: 'Enable the most recently configured receiver account for a provider',
+    summary:
+      'Enable the most recently configured receiver account for a provider',
     description:
-      'Enables the most recently configured (but currently disabled) receiver account for a payment provider.',
+      'Enables the most recently configured (but currently disabled) receiver account for a payment provider. Limited by subscription plan.',
   })
   @ApiBody({ type: DisableReceiverDto })
   @ApiResponse({
@@ -115,6 +140,10 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Plan limit exceeded - upgrade required',
+  })
   async enableReceiver(@Body() body: DisableReceiverDto, @Req() req: Request) {
     return this.paymentsService.enableLastReceiverAccount(body, req);
   }
@@ -122,7 +151,8 @@ export class PaymentsController {
   @Post('orders')
   @ApiOperation({
     summary: 'Create an order with expected amount (simple mock)',
-    description: 'Creates a new order with an expected payment amount. Used for waiter payment claim verification.',
+    description:
+      'Creates a new order with an expected payment amount. Used for waiter payment claim verification.',
   })
   @ApiBody({ type: CreateOrderDto })
   @ApiResponse({
@@ -158,7 +188,10 @@ export class PaymentsController {
         amount: { type: 'number' },
         tipAmount: { type: 'number' },
         note: { type: 'string' },
-        provider: { type: 'string', enum: ['CBE', 'TELEBIRR', 'AWASH', 'BOA', 'DASHEN'] },
+        provider: {
+          type: 'string',
+          enum: ['CBE', 'TELEBIRR', 'AWASH', 'BOA', 'DASHEN'],
+        },
         otherBankName: { type: 'string' },
         receipt: {
           type: 'string',
@@ -193,7 +226,8 @@ export class PaymentsController {
 
   @Post('claims')
   @ApiOperation({
-    summary: 'Submit a waiter payment claim and verify against order amount + active receiver',
+    summary:
+      'Submit a waiter payment claim and verify against order amount + active receiver',
     description:
       'Submits a payment claim from a waiter and verifies it against the order amount and active receiver account. Only VERIFIED transactions are saved.',
   })
@@ -202,18 +236,24 @@ export class PaymentsController {
     status: 200,
     description: 'Payment claim submitted and verified',
   })
-  @ApiResponse({ status: 400, description: 'Invalid input data or verification failed' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input data or verification failed',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async submitClaim(@Body() body: SubmitPaymentClaimDto, @Req() req: Request) {
     return this.paymentsService.submitAndVerifyClaim(body, req);
   }
 
   @Post('verify')
+  @AllowAnonymous()
+  @UseGuards(ApiKeyOrSessionGuard, ThrottlerGuard, SubscriptionGuard)
+  @ProtectVerifications()
   @ApiOperation({
     summary:
       'Verify a payment by provider+reference+amount against the merchant configured receiver account',
     description:
-      'Verifies a payment transaction by checking the provider, reference, and amount against the merchant\'s configured receiver account. Supports both API key and session authentication. Rate-limited to prevent abuse. Only VERIFIED transactions are saved to the database.',
+      "Verifies a payment transaction by checking the provider, reference, and amount against the merchant's configured receiver account. Supports both API key and session authentication. Rate-limited to prevent abuse. Only VERIFIED transactions are saved to the database. Limited by subscription plan.",
   })
   @ApiBody({ type: VerifyMerchantPaymentDto })
   @ApiResponse({
@@ -232,8 +272,11 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Plan limit exceeded - upgrade required',
+  })
   @ApiResponse({ status: 429, description: 'Too many requests (rate limited)' })
-  @UseGuards(ThrottlerGuard)
   async verifyMerchantPayment(
     @Body() body: VerifyMerchantPaymentDto,
     @Req() req: Request,
@@ -242,15 +285,18 @@ export class PaymentsController {
   }
 
   @Get('verification-history')
+  @AllowAnonymous()
   @ApiOperation({
     summary: 'List merchant payment verification history',
-    description: 'Retrieves paginated list of payment verification history for the authenticated merchant.',
+    description:
+      'Retrieves paginated list of payment verification history for the authenticated merchant.',
   })
   @ApiResponse({
     status: 200,
     description: 'Verification history retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseGuards(ApiKeyOrSessionGuard)
   async listVerificationHistory(
     @Query() query: ListVerificationHistoryDto,
     @Req() req: Request,
@@ -279,6 +325,8 @@ export class PaymentsController {
   }
 
   @Get('tips/summary')
+  @UseGuards(SubscriptionGuard)
+  @ProtectTips()
   @ApiOperation({
     summary: 'Get tips summary for current merchant user',
     description:
@@ -319,6 +367,8 @@ export class PaymentsController {
   }
 
   @Get('tips')
+  @UseGuards(SubscriptionGuard)
+  @ProtectTips()
   @ApiOperation({
     summary: 'List tip transactions for current merchant user',
     description:
@@ -329,10 +379,7 @@ export class PaymentsController {
     description: 'Tip transactions retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async listTips(
-    @Query() query: ListTipsDto,
-    @Req() req: Request,
-  ) {
+  async listTips(@Query() query: ListTipsDto, @Req() req: Request) {
     return this.paymentsService.listTips(query, req);
   }
 }

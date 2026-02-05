@@ -152,13 +152,17 @@ export default function TransactionDetailsRoute() {
 
   // Show different detail page based on record type
   if (hasPayment) {
-    // Extract receipt URL from verificationPayload
+    // Extract receipt URL and sender name from verificationPayload
     let receiptUrl: string | undefined;
     let paymentMethod: string | undefined;
+    let senderName: string | undefined;
     
     if (payment!.verificationPayload && typeof payment!.verificationPayload === 'object') {
       const payload = payment!.verificationPayload as Record<string, unknown>;
       paymentMethod = payload.paymentMethod as string | undefined;
+      
+      // Extract sender name from verification payload
+      senderName = (payload.payer || payload.payerName || payload.sender || payload.senderName) as string | undefined;
       
       // Check for uploaded receipt (manually logged transactions)
       if (payload.receiptUrl && typeof payload.receiptUrl === 'string') {
@@ -186,6 +190,7 @@ export default function TransactionDetailsRoute() {
         verifiedAt={payment!.verifiedAt || undefined}
         receiverName={displayData.receiverName}
         receiverAccount={displayData.receiverAccount}
+        senderName={senderName} // Pass sender name
         verifiedBy={displayData.verifiedBy}
         receiptUrl={receiptUrl}
         onBack={() => router.push("/payments")}

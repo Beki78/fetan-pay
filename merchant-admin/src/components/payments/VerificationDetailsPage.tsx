@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import Button from "../ui/button/Button";
-import { ChevronLeftIcon, CheckCircleIcon } from "@/icons";
+import { ChevronLeftIcon, CheckCircleIcon, DocsIcon } from "@/icons";
 import { ExternalLink } from "lucide-react";
 
 interface VerificationDetailsPageProps {
@@ -13,6 +13,7 @@ interface VerificationDetailsPageProps {
   verifiedAt?: string;
   receiverName?: string;
   receiverAccount?: string;
+  senderName?: string; // Add sender name prop
   verifiedBy?: {
     name?: string | null;
     email?: string | null;
@@ -44,6 +45,7 @@ export default function VerificationDetailsPage({
   verifiedAt,
   receiverName,
   receiverAccount,
+  senderName, // Add sender name parameter
   verifiedBy,
   receiptUrl,
   onBack,
@@ -51,8 +53,19 @@ export default function VerificationDetailsPage({
   const isVerified = status === "VERIFIED";
   const isUnverified = status === "UNVERIFIED";
 
-  const verifierName = verifiedBy?.name || verifiedBy?.user?.name || verifiedBy?.email || verifiedBy?.user?.email || "Unknown";
-  const verifierRole = verifiedBy?.role || "Staff";
+  // Improved verifier name logic for API/webhook verifications
+  const getVerifierInfo = () => {
+    if (!verifiedBy) {
+      return { name: "API/System", role: "Automated" };
+    }
+    
+    const name = verifiedBy?.name || verifiedBy?.user?.name || verifiedBy?.email || verifiedBy?.user?.email || "Unknown Staff";
+    const role = verifiedBy?.role || "Staff";
+    
+    return { name, role };
+  };
+
+  const { name: verifierName, role: verifierRole } = getVerifierInfo();
 
   return (
     <div className="space-y-6">
@@ -163,10 +176,11 @@ export default function VerificationDetailsPage({
                       href={receiptUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                     >
-                      View Receipt
-                      <ExternalLink className="size-3" />
+                      <DocsIcon className="w-4 h-4" />
+                      <span>View Receipt</span>
+                      <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
                 )}
@@ -182,6 +196,12 @@ export default function VerificationDetailsPage({
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Receiver Account</p>
                     <p className="text-base font-medium text-gray-800 dark:text-white">{receiverAccount}</p>
+                  </div>
+                )}
+                {senderName && (
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Sender Name</p>
+                    <p className="text-base font-medium text-gray-800 dark:text-white">{senderName}</p>
                   </div>
                 )}
                 {verifiedAt && (

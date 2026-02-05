@@ -32,11 +32,42 @@ export default function DashboardMetrics() {
   }
 
   if (isError) {
+    // Don't show error messages on dashboard - just show empty state
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20">
-        <p className="text-red-600 dark:text-red-400">
-          Failed to load dashboard metrics. Please try again later.
-        </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { icon: BoxIcon, label: "Total Transactions", value: "0" },
+          { icon: CheckCircleIcon, label: "Verified", value: "0", color: "green" },
+          { icon: TimeIcon, label: "Pending", value: "0", color: "orange" },
+          { icon: DollarLineIcon, label: "Wallet Balance", value: "0.00 ETB", color: "blue" },
+        ].map((metric, index) => (
+          <div
+            key={index}
+            className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${
+                metric.color === 'green' ? 'bg-green-500/10 dark:bg-green-500/20' :
+                metric.color === 'orange' ? 'bg-orange-500/10 dark:bg-orange-500/20' :
+                metric.color === 'blue' ? 'bg-blue-500/10 dark:bg-blue-500/20' :
+                'bg-gray-100 dark:bg-gray-700'
+              }`}>
+                <metric.icon className={`size-5 ${
+                  metric.color === 'green' ? 'text-green-600 dark:text-green-400' :
+                  metric.color === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+                  metric.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+                  'text-gray-600 dark:text-gray-300'
+                }`} />
+              </div>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{metric.label}</span>
+            </div>
+            <h4 className={`text-2xl font-semibold ${
+              metric.color === 'blue' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-white'
+            }`}>
+              {metric.value}
+            </h4>
+          </div>
+        ))}
       </div>
     );
   }

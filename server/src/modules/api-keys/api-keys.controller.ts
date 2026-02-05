@@ -19,6 +19,8 @@ import type { Request } from 'express';
 import { ApiKeysService } from './api-keys.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { SubscriptionGuard } from '../../common/guards/subscription.guard';
+import { ProtectApiKeys } from '../../common/decorators/subscription-protection.decorator';
 
 @ApiTags('api-keys')
 @ApiBearerAuth('bearer')

@@ -204,11 +204,24 @@ model Merchant {
   apiKeys              ApiKey[]
   webhooks             Webhook[]
 
+  // IP Whitelisting
+  ipWhitelistEnabled   Boolean     @default(false)
+  ipAddresses          IpAddress[]
+
   // Email Communications
   emailLogs            EmailLog[]
   smsLogs              SmsLog[]
   engagementEvents     EngagementEvent[]
   unsubscribeList      UnsubscribeList[]
+
+  // Notifications
+  notifications        Notification[]
+
+  // Pricing System
+  subscriptions        Subscription[]
+  planAssignments      PlanAssignment[]
+  billingTransactions  BillingTransaction[]
+  subscriptionUsage    SubscriptionUsage[]
 
   // Provider catalog is global (admin-managed), so no relation here.
 
@@ -549,6 +562,7 @@ model EmailLog {
   // Relations
   engagementEvents EngagementEvent[]
   emailClicks      EmailClick[]
+  notifications    Notification[]
 
   @@index([merchantId])
   @@index([sentByUserId])
@@ -939,4 +953,333 @@ model WebhookDelivery {
   @@index([status])
   @@index([createdAt])
   @@map("webhook_delivery")
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  MERCHANT_REGISTRATION
+  MERCHANT_APPROVED
+  MERCHANT_REJECTED
+  MERCHANT_BANNED
+  MERCHANT_UNBANNED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  WALLET_DEPOSIT_VERIFIED
+  WALLET_BALANCE_LOW
+  TEAM_MEMBER_INVITED
+  API_KEY_CREATED
+  WEBHOOK_FAILED
+  SYSTEM_ALERT
+  CAMPAIGN_COMPLETED
+  BRANDING_UPDATED
+  IP_ADDRESS_DISABLED
+  IP_ADDRESS_ENABLED
+}
+
+enum NotificationUserType {
+  ADMIN
+  MERCHANT_USER
+}
+
+enum IPAddressStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Notification {
+  id            String              @id @default(uuid())
+  
+  // Recipient
+  userId        String              // Better Auth user ID
+  userType      NotificationUserType
+  merchantId    String?             // NULL for admin notifications
+  merchant      Merchant?           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  // Notification content
+  type          NotificationType
+  title         String
+  message       String              // Plain text message
+  data          Json?               // Additional event data (JSON)
+  
+  // Priority and status
+  priority      NotificationPriority
+  isRead        Boolean             @default(false)
+  readAt        DateTime?
+  
+  // Email notification tracking
+  emailSent     Boolean             @default(false)
+  emailLogId    String?             // Reference to EmailLog if email was sent
+  emailLog      EmailLog?           @relation(fields: [emailLogId], references: [id], onDelete: SetNull)
+  
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  
+  @@index([userId, isRead])
+  @@index([userType, merchantId])
+  @@index([type])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("notification")
+}
+
+model IpAddress {
+  id          String          @id @default(uuid())
+  merchantId  String
+  merchant    Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  ipAddress   String          // IP address or CIDR range (e.g., "192.168.1.100" or "192.168.1.0/24")
+  description String?         // Optional description
+  status      IPAddressStatus @default(ACTIVE)
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  @@index([merchantId])
+  @@index([merchantId, status])
+  @@unique([merchantId, ipAddress], name: "merchant_ip_unique")
+  @@map("ip_address")
+}
+// Pricing System Models
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  SUSPENDED
+  PENDING
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+  WEEKLY
+  DAILY
+}
+
+enum PlanAssignmentType {
+  IMMEDIATE
+  SCHEDULED
+}
+
+enum PlanDurationType {
+  PERMANENT
+  TEMPORARY
+}
+
+model Plan {
+  id                String              @id @default(uuid())
+  
+  // Basic plan information
+  name              String              @unique
+  description       String
+  price             Decimal             @db.Decimal(10, 2) // Monthly price in ETB
+  billingCycle      BillingCycle        @default(MONTHLY)
+  
+  // Plan limits and features (flexible JSON structure)
+  limits            Json                @default("{}")  // Flexible limits configuration
+  features          String[]            // Array of feature strings for display
+  
+  // Plan settings
+  status            PlanStatus          @default(ACTIVE)
+  isPopular         Boolean             @default(false)
+  displayOrder      Int                 @default(1)
+  
+  // Metadata
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  createdBy         String?             // Admin user ID who created the plan
+  
+  // Relations
+  subscriptions     Subscription[]
+  planAssignments   PlanAssignment[]
+  billingTransactions BillingTransaction[]
+  
+  @@index([status])
+  @@index([displayOrder])
+  @@map("plan")
+}
+
+model Subscription {
+  id                String              @id @default(uuid())
+  
+  // Merchant and plan
+  merchantId        String
+  merchant          Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
+  
+  // Subscription details
+  status            SubscriptionStatus  @default(ACTIVE)
+  startDate         DateTime            @default(now())
+  endDate           DateTime?           // NULL for permanent subscriptions
+  nextBillingDate   DateTime?           // When the next payment is due
+  
+  // Billing information
+  monthlyPrice      Decimal             @db.Decimal(10, 2) // Price at time of subscription
+  billingCycle      BillingCycle        @default(MONTHLY)
+  
+  // Usage tracking
+  currentUsage      Json?               // Track current month usage (verifications, API calls, etc.)
+  
+  // Metadata
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  cancelledAt       DateTime?
+  cancelledBy       String?             // Admin user ID who cancelled
+  cancellationReason String?
+  
+  // Relations
+  billingTransactions BillingTransaction[]
+  
+  @@index([merchantId])
+  @@index([planId])
+  @@index([status])
+  @@index([nextBillingDate])
+  @@index([merchantId, status])
+  @@map("subscription")
+}
+
+model PlanAssignment {
+  id                String              @id @default(uuid())
+  
+  // Target merchant and plan
+  merchantId        String
+  merchant          Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
+  
+  // Assignment details
+  assignmentType    PlanAssignmentType  @default(IMMEDIATE)
+  scheduledDate     DateTime?           // When to apply the plan (for SCHEDULED type)
+  durationType      PlanDurationType    @default(PERMANENT)
+  endDate           DateTime?           // When the assignment expires (for TEMPORARY type)
+  
+  // Assignment metadata
+  notes             String?             // Admin notes about the assignment
+  isApplied         Boolean             @default(false) // Whether the assignment has been processed
+  appliedAt         DateTime?           // When the assignment was applied
+  
+  // Audit trail
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  assignedBy        String              // Admin user ID who made the assignment
+  
+  @@index([merchantId])
+  @@index([planId])
+  @@index([scheduledDate])
+  @@index([isApplied])
+  @@map("plan_assignment")
+}
+
+model BillingTransaction {
+  id                String              @id @default(uuid())
+  
+  // Transaction details
+  transactionId     String              @unique // Human-readable transaction ID (e.g., TXN-2024-001)
+  merchantId        String
+  merchant          Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
+  subscriptionId    String?
+  subscription      Subscription?       @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  
+  // Payment information
+  amount            Decimal             @db.Decimal(10, 2)
+  currency          String              @default("ETB")
+  paymentReference  String?             // External payment reference (bank transfer, etc.)
+  paymentMethod     String?             // How the payment was made
+  
+  // Pricing receiver account used for verification
+  receiverAccountId String?
+  receiverAccount   PricingReceiverAccount? @relation(fields: [receiverAccountId], references: [id], onDelete: SetNull)
+  
+  // Transaction status and processing
+  status            TransactionStatus   @default(PENDING)
+  processedAt       DateTime?
+  processedBy       String?             // Admin user ID who processed the transaction
+  
+  // Verification details
+  verifiedAt        DateTime?
+  verificationPayload Json?             // Verification response from bank API
+  mismatchReason    String?             // Reason if verification fails
+  
+  // Billing period
+  billingPeriodStart DateTime
+  billingPeriodEnd   DateTime
+  
+  // Metadata
+  notes             String?             // Admin notes
+  receiptUrl        String?             // URL to receipt/invoice
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([merchantId])
+  @@index([planId])
+  @@index([subscriptionId])
+  @@index([receiverAccountId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([transactionId])
+  @@map("billing_transaction")
+}
+
+// Usage tracking for subscription limits
+model SubscriptionUsage {
+  id              String    @id @default(uuid())
+  merchantId      String
+  merchant        Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  // Usage period (monthly reset)
+  period          String    // Format: "YYYY-MM" (e.g., "2024-01")
+  
+  // Usage counters (JSON for flexibility)
+  usage           Json      @default("{}")  // Current usage counts
+  
+  // Metadata
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([merchantId, period])
+  @@index([merchantId])
+  @@index([period])
+  @@map("subscription_usage")
+}
+
+// Pricing Receiver Accounts (similar to wallet receivers)
+model PricingReceiverAccount {
+  id              String              @id @default(uuid())
+  
+  // Admin-configured receiver account for pricing payments
+  provider        TransactionProvider
+  receiverAccount String
+  receiverName    String?
+  receiverLabel   String?
+  
+  // Status
+  status          String              @default("ACTIVE")  // "ACTIVE" | "INACTIVE"
+  
+  // Metadata
+  meta            Json?
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  // Relations
+  verifiedTransactions BillingTransaction[]
+  
+  @@unique([provider, receiverAccount], name: "pricing_receiver_unique")
+  @@index([provider, status])
+  @@map("pricing_receiver_account")
 }

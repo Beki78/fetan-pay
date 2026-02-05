@@ -4,7 +4,10 @@ import Image from "next/image";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Checkbox from "@/components/form/input/Checkbox";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import { useSession } from "@/hooks/useSession";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
+import { useSubscription } from "@/hooks/useSubscription";
 import {
   useGetBrandingQuery,
   useUpdateBrandingMutation,
@@ -12,12 +15,15 @@ import {
 } from "@/lib/services/brandingServiceApi";
 import { useToast } from "@/components/ui/toast/useToast";
 import { Modal } from "@/components/ui/modal";
-import { Trash2, Plus, Edit2 } from "lucide-react";
+import { Trash2, Plus, Edit2, Lock } from "lucide-react";
 import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
 
 export default function BrandingPage() {
+  // All hooks must be called at the top level, before any early returns
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const { user } = useSession();
   const { showToast, ToastComponent } = useToast();
+  const { canAccessFeature, plan, subscription } = useSubscription();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState("#5CFFCE");
@@ -27,6 +33,9 @@ export default function BrandingPage() {
   const [showPoweredBy, setShowPoweredBy] = useState(true);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  // Check if user has access to custom branding
+  const hasCustomBrandingAccess = canAccessFeature('customBranding');
 
   // Get merchantId from session or localStorage
   const merchantId = (() => {
@@ -42,7 +51,7 @@ export default function BrandingPage() {
     return null;
   })();
 
-  // Fetch existing branding
+  // Fetch existing branding - must be called before early returns
   const {
     data: brandingData,
     isLoading: isLoadingBranding,
@@ -51,14 +60,14 @@ export default function BrandingPage() {
     skip: !merchantId,
   });
 
-  // Check if branding exists (has an ID)
-  const hasBranding = brandingData?.id !== null && brandingData?.id !== undefined;
-
-  // Update mutation
+  // Update mutation - must be called before early returns
   const [updateBranding, { isLoading: isSaving }] = useUpdateBrandingMutation();
   const [deleteBranding, { isLoading: isDeleting }] = useDeleteBrandingMutation();
 
-  // Load branding data into form
+  // Check if branding exists (has an ID)
+  const hasBranding = brandingData?.id !== null && brandingData?.id !== undefined;
+
+  // Load branding data into form - must be called before early returns
   useEffect(() => {
     if (brandingData && hasBranding) {
       setPrimaryColor(brandingData.primaryColor || "#5CFFCE");
@@ -88,6 +97,20 @@ export default function BrandingPage() {
       setLogoFile(null);
     }
   }, [brandingData, hasBranding]);
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -225,6 +248,44 @@ export default function BrandingPage() {
   return (
     <div className="space-y-6">
       <ToastComponent />
+      
+      {/* Subscription Protection Banner */}
+      {!hasCustomBrandingAccess && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <Lock className="w-8 h-8 text-purple-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Custom Branding Not Available
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
+                Custom branding is not included in your current <strong>{plan?.name || 'Free'}</strong> plan. 
+                Upgrade to unlock logo customization, color themes, and remove the "Powered by FetanPay" branding.
+              </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  size="sm"
+                  onClick={() => window.location.href = '/billing'}
+                  className="bg-purple-500 hover:bg-purple-600 text-white"
+                >
+                  Upgrade Plan
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.location.href = '/billing'}
+                  className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                >
+                  View Plans
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -238,7 +299,7 @@ export default function BrandingPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {hasBranding && (
+          {hasBranding && hasCustomBrandingAccess && (
             <Button
               size="sm"
               variant="outline"
@@ -252,8 +313,12 @@ export default function BrandingPage() {
           )}
           <Button
             size="sm"
-            onClick={handleSave}
-            disabled={isSaving}
+            onClick={hasCustomBrandingAccess ? handleSave : () => showToast({
+              type: 'warning',
+              message: 'Please upgrade your plan to access custom branding',
+              duration: 4000,
+            })}
+            disabled={isSaving || !hasCustomBrandingAccess}
             className="bg-purple-500 hover:bg-purple-600 text-white border-0 disabled:opacity-50"
           >
             {hasBranding ? (
@@ -364,8 +429,17 @@ export default function BrandingPage() {
                         size="sm"
                         variant="outline"
                         type="button"
+                        disabled={!hasCustomBrandingAccess}
                         onClick={() => {
-                          document.getElementById("logo-upload")?.click();
+                          if (hasCustomBrandingAccess) {
+                            document.getElementById("logo-upload")?.click();
+                          } else {
+                            showToast({
+                              type: 'warning',
+                              message: 'Please upgrade your plan to access custom branding',
+                              duration: 4000,
+                            });
+                          }
                         }}
                       >
                         Upload Logo
@@ -376,6 +450,7 @@ export default function BrandingPage() {
                       type="file"
                       accept="image/png,image/jpeg,image/jpg,image/svg+xml"
                       onChange={handleLogoUpload}
+                      disabled={!hasCustomBrandingAccess}
                       className="hidden"
                     />
                     {isUploadingLogo && (
@@ -419,7 +494,8 @@ export default function BrandingPage() {
                         type="color"
                         value={primaryColor}
                         onChange={(e) => setPrimaryColor(e.target.value)}
-                        className="w-12 h-12 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer appearance-none"
+                        disabled={!hasCustomBrandingAccess}
+                        className="w-12 h-12 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ backgroundColor: primaryColor }}
                       />
                     </div>
@@ -428,6 +504,7 @@ export default function BrandingPage() {
                       value={primaryColor}
                       onChange={(e) => setPrimaryColor(e.target.value)}
                       placeholder="#5CFFCE"
+                      disabled={!hasCustomBrandingAccess}
                       className="flex-1"
                     />
                   </div>
@@ -444,7 +521,8 @@ export default function BrandingPage() {
                         type="color"
                         value={secondaryColor}
                         onChange={(e) => setSecondaryColor(e.target.value)}
-                        className="w-12 h-12 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer appearance-none"
+                        disabled={!hasCustomBrandingAccess}
+                        className="w-12 h-12 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ backgroundColor: secondaryColor }}
                       />
                     </div>
@@ -453,6 +531,7 @@ export default function BrandingPage() {
                       value={secondaryColor}
                       onChange={(e) => setSecondaryColor(e.target.value)}
                       placeholder="#4F46E5"
+                      disabled={!hasCustomBrandingAccess}
                       className="flex-1"
                     />
                   </div>
@@ -476,6 +555,7 @@ export default function BrandingPage() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Your Business Name"
+                    disabled={!hasCustomBrandingAccess}
                     className="w-full"
                   />
                   <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -493,6 +573,7 @@ export default function BrandingPage() {
                     value={tagline}
                     onChange={(e) => setTagline(e.target.value)}
                     placeholder="Your tagline here"
+                    disabled={!hasCustomBrandingAccess}
                     className="w-full"
                   />
                 </div>
@@ -507,6 +588,7 @@ export default function BrandingPage() {
               <Checkbox
                 checked={showPoweredBy}
                 onChange={setShowPoweredBy}
+                disabled={!hasCustomBrandingAccess}
                 label="Show 'Powered by FetanPay' badge"
               />
             </div>

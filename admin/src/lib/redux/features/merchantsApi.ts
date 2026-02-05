@@ -113,6 +113,18 @@ export const merchantsApi = baseApi.injectEndpoints({
         { type: "Merchant" as const, id: arg.merchantId },
       ],
     }),
+    notifyMerchantBan: build.mutation<{ message: string }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/merchant-accounts/${id}/notify-ban`,
+        method: "POST",
+      }),
+    }),
+    notifyMerchantUnban: build.mutation<{ message: string }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/merchant-accounts/${id}/notify-unban`,
+        method: "POST",
+      }),
+    }),
   }),
 });
 
@@ -123,4 +135,6 @@ export const {
   useRejectMerchantMutation,
   useDeactivateUserMutation,
   useActivateUserMutation,
+  useNotifyMerchantBanMutation,
+  useNotifyMerchantUnbanMutation,
 } = merchantsApi;

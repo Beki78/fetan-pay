@@ -1,15 +1,31 @@
 "use client";
-import React from "react";
 import DashboardMetrics from "@/components/dashboard/DashboardMetrics";
 import Subscription from "@/components/dashboard/Subscription";
 import QuickActions from "@/components/dashboard/QuickActions";
 import RecentTransactions from "@/components/dashboard/RecentTransactions";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import { useGetDashboardStatsQuery } from "@/lib/services/dashboardServiceApi";
 import { useSession } from "@/hooks/useSession";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 
 export default function Dashboard() {
   const { data: dashboardStats, isLoading: isStatsLoading } = useGetDashboardStatsQuery();
   const { user } = useSession();
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   // Mock subscription data - In production, this would come from API/context
   // Set hasActiveSubscription to false to show "No Active Subscription" banner

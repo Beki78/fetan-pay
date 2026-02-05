@@ -50,9 +50,15 @@ export default function UserTable({
   const [statusFilter, setStatusFilter] = useState<"All" | "ACTIVE" | "INVITED" | "SUSPENDED">("All");
   const [roleFilter, setRoleFilter] = useState<string>("All");
 
-  // Get unique roles for filter
+  // Get unique roles for filter (exclude MERCHANT_OWNER)
   const roles = useMemo(() => {
-    const uniqueRoles = Array.from(new Set(users.map((u) => u.role).filter(Boolean)));
+    const uniqueRoles = Array.from(
+      new Set(
+        users
+          .filter((u) => u.role && u.role !== "MERCHANT_OWNER") // Exclude MERCHANT_OWNER from filter options
+          .map((u) => u.role)
+      )
+    );
     return ["All", ...uniqueRoles];
   }, [users]);
 
@@ -71,26 +77,32 @@ export default function UserTable({
 
   // Filter users
   const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const matchesSearch =
-        (user.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (user.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (user.phone || "").includes(searchQuery);
+    return users
+      .filter((user) => {
+        // Hide merchant owner/admin users from the list
+        if (user.role === "MERCHANT_OWNER") {
+          return false;
+        }
 
-      const matchesStatus =
-        statusFilter === "All" || user.status === statusFilter;
+        const matchesSearch =
+          (user.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (user.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (user.phone || "").includes(searchQuery);
 
-      const matchesRole =
-        roleFilter === "All" || user.role === roleFilter;
+        const matchesStatus =
+          statusFilter === "All" || user.status === statusFilter;
 
-      return matchesSearch && matchesStatus && matchesRole;
-    });
+        const matchesRole =
+          roleFilter === "All" || user.role === roleFilter;
+
+        return matchesSearch && matchesStatus && matchesRole;
+      });
   }, [searchQuery, statusFilter, roleFilter, users]);
 
   return (
     <div className="space-y-4">
       {/* Search and Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center ">
         <div className="flex-1 max-w-md">
           <Input
             type="text"
@@ -110,7 +122,6 @@ export default function UserTable({
           >
             <option value="All">All Status</option>
             <option value="ACTIVE">Active</option>
-            <option value="INVITED">Pending</option>
             <option value="SUSPENDED">Inactive</option>
           </select>
           <select

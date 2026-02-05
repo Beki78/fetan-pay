@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import { PendingApprovalBanner } from "@/components/common/AccountStatus";
+import { useGetUnreadCountQuery } from "@/lib/services/notificationsApi";
 import {
   BoltIcon,
   ChevronDownIcon,
@@ -18,9 +19,58 @@ import {
   ShootingStarIcon,
   TaskIcon,
   DocsIcon,
+  BellIcon,
+  NotificationBellIcon,
+  WebhookIcon,
+  ChatIcon,
 } from "../icons/index";
 
 // Custom icon components for better representation
+const NotificationMenuItem = ({ isExpanded, isHovered, isMobileOpen, pathname }: { 
+  isExpanded: boolean; 
+  isHovered: boolean; 
+  isMobileOpen: boolean; 
+  pathname: string; 
+}) => {
+  const { data: unreadCountData } = useGetUnreadCountQuery();
+  const unreadCount = unreadCountData?.count || 0;
+  const isActive = pathname === '/notifications';
+
+  return (
+    <Link
+      href="/notifications"
+      className={`menu-item group ${
+        isActive ? "menu-item-active" : "menu-item-inactive"
+      }`}
+    >
+      <span
+        className={`relative ${
+          isActive
+            ? "menu-item-icon-active"
+            : "menu-item-icon-inactive"
+        }`}
+      >
+        <NotificationBellIcon />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center min-w-4 text-[10px] font-medium">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </span>
+      {(isExpanded || isHovered || isMobileOpen) && (
+        <span className={`menu-item-text flex items-center justify-between w-full`}>
+          Notifications
+          {unreadCount > 0 && (
+            <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-5 text-[10px] font-medium ml-auto">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </span>
+      )}
+    </Link>
+  );
+};
+
 const CreditCardIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <g clipPath="url(#clip0_4418_4360)">
@@ -161,11 +211,20 @@ const mainItems: NavItem[] = [
     name: "Analytics",
     path: "/analytics",
   },
-  
+  {
+    icon: <ChatIcon />,
+    name: "Tips",
+    path: "/tips",
+  },
   {
     icon: <CreditCardIcon />,
     name: "Plans",
-    path: "/plans",
+    subItems: [
+      { name: "Plans", path: "/plans" },
+      { name: "Plan Stats", path: "/plan-stats" },
+      { name: "Transactions", path: "/plans/transactions" },
+      { name: "Pricing Receivers", path: "/pricing/receivers" },
+    ],
   },
   {
   icon: <UsersIcon />,
@@ -173,7 +232,7 @@ const mainItems: NavItem[] = [
   path: "/users",
   },
   {
-    icon: <PaperPlaneIcon />,
+    icon: <ChatIcon />,
     name: "Communications",
     path: "/communications",
   },
@@ -187,9 +246,9 @@ const mainItems: NavItem[] = [
     ],
   },
   {
-    icon: <PieChartIcon />,
-    name: "Plan Stats",
-    path: "/plan-stats",
+    icon: <PaperPlaneIcon />,
+    name: "Webhooks",
+    path: "/webhooks-management",
   },
   {
     icon: <BoltIcon />,
@@ -284,8 +343,16 @@ const AppSidebar: React.FC = () => {
                 </span>
               )}
             </button>
-          ) : (
-            nav.path && (
+          ) : nav.path ? (
+            // Special handling for notifications
+            nav.name === "Notifications" ? (
+              <NotificationMenuItem 
+                isExpanded={isExpanded} 
+                isHovered={isHovered} 
+                isMobileOpen={isMobileOpen} 
+                pathname={pathname} 
+              />
+            ) : (
               <Link
                 href={nav.path}
                 className={`menu-item group ${
@@ -306,7 +373,7 @@ const AppSidebar: React.FC = () => {
                 )}
               </Link>
             )
-          )}
+          ) : null}
           {nav.subItems && (isExpanded || isHovered || isMobileOpen) && (
             <div
               ref={(el) => {
@@ -364,6 +431,17 @@ const AppSidebar: React.FC = () => {
           )}
         </li>
       ))}
+      {/* Add notifications as a special item for main menu */}
+      {menuType === "main" && (
+        <li>
+          <NotificationMenuItem 
+            isExpanded={isExpanded} 
+            isHovered={isHovered} 
+            isMobileOpen={isMobileOpen} 
+            pathname={pathname} 
+          />
+        </li>
+      )}
     </ul>
   );
 

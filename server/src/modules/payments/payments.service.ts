@@ -16,6 +16,7 @@ import { MerchantUsersService } from '../merchant-users/merchant-users.service';
 import { VerificationService } from '../verifier/services/verification.service';
 import { WalletService } from '../wallet/wallet.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { UsageTrackerService } from '../../common/services/usage-tracker.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { DisableReceiverDto } from './dto/disable-receiver.dto';
 import { SetActiveReceiverDto } from './dto/set-active-receiver.dto';
@@ -40,6 +41,7 @@ export class PaymentsService {
     private readonly verificationService: VerificationService,
     private readonly walletService: WalletService,
     private readonly webhooksService: WebhooksService,
+    private readonly usageTracker: UsageTrackerService,
     private readonly configService: ConfigService,
   ) {
     // Get payment page URL from environment variables
@@ -236,20 +238,25 @@ export class PaymentsService {
 
     if (existingPayment?.status === 'VERIFIED') {
       // Trigger duplicate webhook before throwing
-      this.webhooksService.triggerWebhook('payment.duplicate', membership.merchantId, {
-        payment: {
-          id: existingPayment.id,
-          reference: body.reference,
-          provider: body.provider,
-          status: 'VERIFIED',
-          verifiedAt: existingPayment.verifiedAt?.toISOString(),
-        },
-        merchant: {
-          id: membership.merchantId,
-        },
-      }).catch((error) => {
-        console.error('[Webhooks] Error triggering payment.duplicate webhook:', error);
-      });
+      this.webhooksService
+        .triggerWebhook('payment.duplicate', membership.merchantId, {
+          payment: {
+            id: existingPayment.id,
+            reference: body.reference,
+            provider: body.provider,
+            status: 'VERIFIED',
+            verifiedAt: existingPayment.verifiedAt?.toISOString(),
+          },
+          merchant: {
+            id: membership.merchantId,
+          },
+        })
+        .catch((error) => {
+          console.error(
+            '[Webhooks] Error triggering payment.duplicate webhook:',
+            error,
+          );
+        });
 
       throw new ConflictException(
         `Transaction already verified at ${existingPayment.verifiedAt?.toLocaleString() ?? 'an earlier time'}`,
@@ -435,6 +442,7 @@ export class PaymentsService {
           receiverAccount: { connect: { id: activeReceiver.id } },
           verificationPayload: normalizedPayload as Prisma.InputJsonValue,
           verifiedAt: new Date(),
+          // Set verifiedBy based on authentication type
           ...(membership.merchantUserId
             ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
             : {}),
@@ -454,7 +462,7 @@ export class PaymentsService {
             },
           },
           provider: body.provider,
-          reference: effectiveReference,
+          reference: body.reference, // Store the original user-entered reference
           claimedAmount,
           tipAmount,
           status,
@@ -462,6 +470,7 @@ export class PaymentsService {
           receiverAccount: { connect: { id: activeReceiver.id } },
           verificationPayload: normalizedPayload as Prisma.InputJsonValue,
           verifiedAt: new Date(),
+          // Set verifiedBy based on authentication type
           ...(membership.merchantUserId
             ? { verifiedBy: { connect: { id: membership.merchantUserId } } }
             : {}),
@@ -518,43 +527,61 @@ export class PaymentsService {
 
     // Trigger webhooks based on payment status
     if (status === PaymentStatus.VERIFIED && payment) {
+      // Track verification usage for subscription limits
+      try {
+        await this.usageTracker.trackVerification(membership.merchantId);
+      } catch (error) {
+        console.error('[Usage] Error tracking verification usage:', error);
+        // Don't fail the payment verification if usage tracking fails
+      }
+
       // Payment verified successfully
-      this.webhooksService.triggerWebhook('payment.verified', membership.merchantId, {
-        payment: {
-          id: payment.id,
-          reference: effectiveReference,
-          provider: body.provider,
-          amount: claimedAmount.toNumber(),
-          status: 'VERIFIED',
-          verifiedAt: payment.verifiedAt?.toISOString(),
-          tipAmount: tipAmount?.toNumber() ?? null,
-        },
-        merchant: {
-          id: membership.merchantId,
-        },
-      }).catch((error) => {
-        console.error('[Webhooks] Error triggering payment.verified webhook:', error);
-      });
+      this.webhooksService
+        .triggerWebhook('payment.verified', membership.merchantId, {
+          payment: {
+            id: payment.id,
+            reference: effectiveReference,
+            provider: body.provider,
+            amount: claimedAmount.toNumber(),
+            status: 'VERIFIED',
+            verifiedAt: payment.verifiedAt?.toISOString(),
+            tipAmount: tipAmount?.toNumber() ?? null,
+          },
+          merchant: {
+            id: membership.merchantId,
+          },
+        })
+        .catch((error) => {
+          console.error(
+            '[Webhooks] Error triggering payment.verified webhook:',
+            error,
+          );
+        });
     } else if (status === PaymentStatus.UNVERIFIED) {
       // Payment verification failed
-      this.webhooksService.triggerWebhook('payment.unverified', membership.merchantId, {
-        payment: {
-          reference: body.reference,
-          provider: body.provider,
-          amount: claimedAmount.toNumber(),
-          status: 'UNVERIFIED',
-          checks: {
-            referenceFound,
-            receiverMatches,
-            amountMatches,
+      this.webhooksService
+        .triggerWebhook('payment.unverified', membership.merchantId, {
+          payment: {
+            reference: body.reference,
+            provider: body.provider,
+            amount: claimedAmount.toNumber(),
+            status: 'UNVERIFIED',
+            checks: {
+              referenceFound,
+              receiverMatches,
+              amountMatches,
+            },
           },
-        },
-        merchant: {
-          id: membership.merchantId,
-        },
-      }).catch((error) => {
-        console.error('[Webhooks] Error triggering payment.unverified webhook:', error);
-      });
+          merchant: {
+            id: membership.merchantId,
+          },
+        })
+        .catch((error) => {
+          console.error(
+            '[Webhooks] Error triggering payment.unverified webhook:',
+            error,
+          );
+        });
     }
 
     return {
@@ -604,7 +631,11 @@ export class PaymentsService {
     // Security: Waiter/Sales can only see their own verification history.
     // API key auth doesn't have role restrictions
     const restrictedRoles = ['WAITER', 'SALES'];
-    if (membership.role && restrictedRoles.includes(membership.role) && membership.merchantUserId) {
+    if (
+      membership.role &&
+      restrictedRoles.includes(membership.role) &&
+      membership.merchantUserId
+    ) {
       where.verifiedById = membership.merchantUserId;
     }
 
@@ -1067,6 +1098,14 @@ export class PaymentsService {
         where: { id: order.id },
         data: { status: 'PAID' },
       });
+
+      // Track verification usage for subscription limits
+      try {
+        await this.usageTracker.trackVerification(membership.merchantId);
+      } catch (error) {
+        console.error('[Usage] Error tracking verification usage:', error);
+        // Don't fail the payment verification if usage tracking fails
+      }
     }
 
     return {
@@ -1381,6 +1420,14 @@ export class PaymentsService {
         },
       },
     });
+
+    // Track verification usage for subscription limits
+    try {
+      await this.usageTracker.trackVerification(membership.merchantId);
+    } catch (error) {
+      console.error('[Usage] Error tracking verification usage:', error);
+      // Don't fail the transaction logging if usage tracking fails
+    }
 
     return {
       payment,

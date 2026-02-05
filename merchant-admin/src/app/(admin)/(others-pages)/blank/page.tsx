@@ -1,4 +1,4 @@
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import { Metadata } from "next";
 import React from "react";
 

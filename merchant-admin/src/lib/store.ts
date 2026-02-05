@@ -8,6 +8,9 @@ import { dashboardServiceApi } from './services/dashboardServiceApi';
 import { walletServiceApi } from './services/walletServiceApi';
 import { apiKeysServiceApi } from './services/apiKeysServiceApi';
 import { webhooksServiceApi } from './services/webhooksServiceApi';
+import { notificationsServiceApi } from './services/notificationsServiceApi';
+import { ipAddressesServiceApi } from './services/ipAddressesServiceApi';
+import { pricingServiceApi } from './services/pricingServiceApi';
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +23,9 @@ export const store = configureStore({
     [walletServiceApi.reducerPath]: walletServiceApi.reducer,
     [apiKeysServiceApi.reducerPath]: apiKeysServiceApi.reducer,
     [webhooksServiceApi.reducerPath]: webhooksServiceApi.reducer,
+    [notificationsServiceApi.reducerPath]: notificationsServiceApi.reducer,
+    [ipAddressesServiceApi.reducerPath]: ipAddressesServiceApi.reducer,
+    [pricingServiceApi.reducerPath]: pricingServiceApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -32,6 +38,9 @@ export const store = configureStore({
       walletServiceApi.middleware,
       apiKeysServiceApi.middleware,
       webhooksServiceApi.middleware,
+      notificationsServiceApi.middleware,
+      ipAddressesServiceApi.middleware,
+      pricingServiceApi.middleware,
     ),
 });
 

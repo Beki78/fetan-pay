@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from '../auth';
 import logger from './modules/verifier/utils/logger';
@@ -15,19 +16,35 @@ async function bootstrap() {
   logger.info(`Node version: ${process.version}`);
   logger.info(`Platform: ${process.platform}`);
 
+  // Enable global validation pipes with transformation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+
   // Enable CORS
   const allowedOrigins = [
     // Development
     'http://localhost:3000',
     'http://localhost:3001',
-    'http://localhost:3002',
+    'http://localhost:3002', // Landing page
     'http://localhost:3003',
+    'http://localhost:3009',
+    'https://jenine-sphagnous-coleen.ngrok-free.dev',
     // Production subdomains
     'https://admin.fetanpay.et',
     'https://merchant.fetanpay.et',
+    'https://fetanpay.com', // Landing page production
     'https://client.fetanpay.et',
     'http://admin.fetanpay.et',
     'http://merchant.fetanpay.et',
+    'http://fetanpay.com', // Landing page production
     'http://client.fetanpay.et',
   ];
 

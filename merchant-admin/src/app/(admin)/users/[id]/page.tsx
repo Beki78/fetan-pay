@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
 import { Modal } from "@/components/ui/modal";
@@ -226,12 +226,12 @@ export default function UserDetailPage() {
                 <p className="text-gray-800 dark:text-white/90">{user.role}</p>
               </div>
 
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                   Status
                 </label>
                 <p className="text-gray-800 dark:text-white/90">{user.status}</p>
-              </div>
+              </div> */}
 
               <div>
                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
@@ -257,7 +257,7 @@ export default function UserDetailPage() {
         </ComponentCard>
 
         {/* Activity Summary */}
-        <ComponentCard title="Activity Summary">
+        {/* <ComponentCard title="Activity Summary">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
@@ -289,7 +289,7 @@ export default function UserDetailPage() {
               <span className="text-gray-800 dark:text-white/90 font-medium">{user.role}</span>
             </div>
           </div>
-        </ComponentCard>
+        </ComponentCard> */}
 
         {/* Transaction History */}
         <ComponentCard title="Transaction History">

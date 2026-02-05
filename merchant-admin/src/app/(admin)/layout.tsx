@@ -4,6 +4,7 @@ import { useSidebar } from "@/context/SidebarContext";
 import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
+// import TrialBanner from "@/components/billing/TrialBanner";
 import React, { useEffect } from "react";
 import { useSession } from "@/hooks/useSession";
 import { useRouter } from "next/navigation";
@@ -52,6 +53,10 @@ export default function AdminLayout({
       >
         {/* Header */}
         <AppHeader />
+        {/* Trial Banner */}
+        {/* <div className="px-4 md:px-6">
+          <TrialBanner />
+        </div> */}
         {/* Page Content */}
         <div className="p-4 w-full md:p-6 overflow-x-hidden">{children}</div>
       </div>

@@ -13,6 +13,7 @@ import type { Request } from 'express';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { UpdateWebhookDto } from './dto/update-webhook.dto';
 import { MerchantUsersService } from '../merchant-users/merchant-users.service';
+import { UsageTrackerService } from '../../common/services/usage-tracker.service';
 import { encrypt, decrypt } from '../../common/encryption.util';
 
 @Injectable()
@@ -22,12 +23,21 @@ export class WebhooksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly merchantUsersService: MerchantUsersService,
+    private readonly usageTracker: UsageTrackerService,
   ) {}
 
   /**
-   * Get merchant ID from request (for session-based auth)
+   * Get merchant ID from request (supports both API key and session auth)
    */
   private async getMerchantIdFromRequest(req: Request): Promise<string> {
+    // Check if API key authentication was used
+    const reqWithAuth = req as any;
+    if (reqWithAuth.authType === 'api_key' && reqWithAuth.merchantId) {
+      // API key authentication - return merchant ID directly
+      return reqWithAuth.merchantId;
+    }
+
+    // Fall back to session authentication (Better Auth)
     const membership = await this.merchantUsersService.me(req);
     const membershipData = membership as any;
     const merchantId = membershipData.membership?.merchant?.id;
@@ -59,10 +69,15 @@ export class WebhooksService {
   async createWebhook(dto: CreateWebhookDto, req: Request) {
     const merchantId = await this.getMerchantIdFromRequest(req);
 
-    // Get merchant user ID who is creating the webhook
-    const membership = await this.merchantUsersService.me(req);
-    const membershipData = membership as any;
-    const merchantUserId = membershipData.membership?.id;
+    // Get merchant user ID who is creating the webhook (only for session auth)
+    let merchantUserId = null;
+    const reqWithAuth = req as any;
+    if (reqWithAuth.authType !== 'api_key') {
+      // Only get merchant user ID for session authentication
+      const membership = await this.merchantUsersService.me(req);
+      const membershipData = membership as any;
+      merchantUserId = membershipData.membership?.id;
+    }
 
     // Check if merchant exists and is active
     const merchant = await this.prisma.merchant.findUnique({
@@ -95,7 +110,7 @@ export class WebhooksService {
         maxRetries: dto.maxRetries ?? 3,
         timeout: dto.timeout ?? 30000,
         status: 'ACTIVE',
-        createdBy: merchantUserId || null,
+        createdBy: merchantUserId,
       },
       select: {
         id: true,
@@ -441,10 +456,10 @@ export class WebhooksService {
     }
 
     const payloadString = JSON.stringify(payload);
-    
+
     // Decrypt secret for signature generation
     const secret = decrypt(webhook.secret);
-    
+
     const signature = this.generateSignature(payloadString, secret);
 
     // Create delivery record
@@ -506,6 +521,19 @@ export class WebhooksService {
           },
         },
       });
+
+      // Track webhook delivery usage for successful deliveries
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          await this.usageTracker.trackWebhookDelivery(webhook.merchantId);
+        } catch (error) {
+          this.logger.error(
+            '[Usage] Error tracking webhook delivery usage:',
+            error,
+          );
+          // Don't fail the webhook delivery if usage tracking fails
+        }
+      }
 
       // If failed and retries remaining, schedule retry
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -686,4 +714,3 @@ export class WebhooksService {
     return { message: 'Delivery retry initiated' };
   }
 }
-

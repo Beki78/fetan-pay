@@ -4,8 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAccountStatus } from "@/hooks/useAccountStatus";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useSidebar } from "../context/SidebarContext";
 import { PendingApprovalBanner } from "@/components/common/AccountStatus";
+import { useGetUnreadCountQuery } from "@/lib/services/notificationsServiceApi";
+import { useToast } from "@/components/ui/toast/useToast";
 import {
   BoltIcon,
   ChevronDownIcon,
@@ -19,9 +22,58 @@ import {
   ShootingStarIcon,
   TaskIcon,
   DocsIcon,
+  BellIcon,
+  NotificationBellIcon,
+  LockIcon,
+  TipsIcon,
 } from "../icons/index";
 
 // Custom icon components for better representation
+const NotificationMenuItem = ({ isExpanded, isHovered, isMobileOpen, pathname }: { 
+  isExpanded: boolean; 
+  isHovered: boolean; 
+  isMobileOpen: boolean; 
+  pathname: string; 
+}) => {
+  const { data: unreadCountData } = useGetUnreadCountQuery();
+  const unreadCount = unreadCountData?.count || 0;
+  const isActive = pathname === '/notifications';
+
+  return (
+    <Link
+      href="/notifications"
+      className={`menu-item group ${
+        isActive ? "menu-item-active" : "menu-item-inactive"
+      }`}
+    >
+      <span
+        className={`relative ${
+          isActive
+            ? "menu-item-icon-active"
+            : "menu-item-icon-inactive"
+        }`}
+      >
+        <NotificationBellIcon />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center min-w-4 text-[10px] font-medium">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </span>
+      {(isExpanded || isHovered || isMobileOpen) && (
+        <span className={`menu-item-text flex items-center justify-between w-full`}>
+          Notifications
+          {unreadCount > 0 && (
+            <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-5 text-[10px] font-medium ml-auto">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </span>
+      )}
+    </Link>
+  );
+};
+
 const CreditCardIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <g clipPath="url(#clip0_4418_4360)">
@@ -145,6 +197,11 @@ const mainItems: NavItem[] = [
     path: "/analytics",
   },
   {
+    icon: <TipsIcon />,
+    name: "Tips",
+    path: "/tips",
+  },
+  {
     icon: <WalletIcon />,
     name: "Wallet",
     path: "/wallet",
@@ -158,6 +215,11 @@ const mainItems: NavItem[] = [
     icon: <UsersIcon />,
     name: "Users",
     path: "/users",
+  },
+  {
+    icon: <NotificationBellIcon />,
+    name: "Notifications",
+    path: "/notifications",
   },
 ];
 
@@ -218,8 +280,125 @@ const resourcesItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
+  const { canAccessFeature, getFeatureLimit } = useSubscription();
+  const { showToast } = useToast();
 
   const { status: accountStatus, isStatusConfirmed } = useAccountStatus();
+
+  // Handle protected feature clicks
+  const handleProtectedFeatureClick = (featureName: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    showToast({
+      type: 'warning',
+      message: `Please upgrade your plan to access ${featureName}`,
+      duration: 4000,
+    });
+  };
+
+  // Component for protected menu items
+  const ProtectedMenuItem = ({ 
+    nav, 
+    feature, 
+    isActive: itemIsActive 
+  }: { 
+    nav: NavItem; 
+    feature: keyof import('@/hooks/useSubscription').SubscriptionFeatures;
+    isActive: boolean;
+  }) => {
+    const hasAccess = canAccessFeature(feature);
+    const featureLimit = getFeatureLimit(feature);
+    
+    if (hasAccess && nav.path) {
+      return (
+        <Link
+          href={nav.path}
+          className={`menu-item group ${
+            itemIsActive ? "menu-item-active" : "menu-item-inactive"
+          }`}
+        >
+          <span
+            className={`${
+              itemIsActive
+                ? "menu-item-icon-active"
+                : "menu-item-icon-inactive"
+            }`}
+          >
+            {nav.icon}
+          </span>
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className={`menu-item-text`}>{nav.name}</span>
+          )}
+        </Link>
+      );
+    }
+
+    // For numeric features with 0 limit, show locked
+    if (typeof featureLimit === 'number' && featureLimit === 0) {
+      return (
+        <button
+          onClick={(e) => handleProtectedFeatureClick(nav.name, e)}
+          className="menu-item group menu-item-inactive cursor-pointer opacity-60"
+        >
+          <span className="menu-item-icon-inactive">
+            {nav.icon}
+          </span>
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className="menu-item-text flex items-center justify-between w-full">
+              <span>{nav.name}</span>
+              <LockIcon className="w-4 h-4 text-gray-400 ml-2" />
+            </span>
+          )}
+        </button>
+      );
+    }
+
+    // For boolean features that are false, show locked
+    if (typeof featureLimit === 'boolean' && !featureLimit) {
+      return (
+        <button
+          onClick={(e) => handleProtectedFeatureClick(nav.name, e)}
+          className="menu-item group menu-item-inactive cursor-pointer opacity-60"
+        >
+          <span className="menu-item-icon-inactive">
+            {nav.icon}
+          </span>
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className="menu-item-text flex items-center justify-between w-full">
+              <span>{nav.name}</span>
+              <LockIcon className="w-4 h-4 text-gray-400 ml-2" />
+            </span>
+          )}
+        </button>
+      );
+    }
+
+    // Default: allow access (for numeric limits > 0)
+    if (nav.path) {
+      return (
+        <Link
+          href={nav.path}
+          className={`menu-item group ${
+            itemIsActive ? "menu-item-active" : "menu-item-inactive"
+          }`}
+        >
+          <span
+            className={`${
+              itemIsActive
+                ? "menu-item-icon-active"
+                : "menu-item-icon-inactive"
+            }`}
+          >
+            {nav.icon}
+          </span>
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className={`menu-item-text`}>{nav.name}</span>
+          )}
+        </Link>
+      );
+    }
+
+    return null;
+  };
 
   const renderMenuItems = (
     navItems: NavItem[],
@@ -280,6 +459,37 @@ const AppSidebar: React.FC = () => {
                     <span className={`menu-item-text`}>{nav.name}</span>
                   )}
                 </a>
+              ) : nav.name === "Notifications" ? (
+                <NotificationMenuItem 
+                  isExpanded={isExpanded} 
+                  isHovered={isHovered} 
+                  isMobileOpen={isMobileOpen} 
+                  pathname={pathname} 
+                />
+              ) : nav.name === "Branding" ? (
+                <ProtectedMenuItem
+                  nav={nav}
+                  feature="customBranding"
+                  isActive={isActive(nav.path!)}
+                />
+              ) : nav.name === "Analytics" ? (
+                <ProtectedMenuItem
+                  nav={nav}
+                  feature="advancedAnalytics"
+                  isActive={isActive(nav.path!)}
+                />
+              ) : nav.name === "Tips" ? (
+                <ProtectedMenuItem
+                  nav={nav}
+                  feature="tips"
+                  isActive={isActive(nav.path!)}
+                />
+              ) : nav.name === "Payment Providers" ? (
+                <ProtectedMenuItem
+                  nav={nav}
+                  feature="paymentProviders"
+                  isActive={isActive(nav.path!)}
+                />
               ) : (
                 <Link
                   href={nav.path}

@@ -6,14 +6,18 @@ import AlertBanner from "@/components/ui/alert/AlertBanner";
 import TopUpModal from "@/components/wallet/TopUpModal";
 import CompletePaymentModal from "@/components/wallet/CompletePaymentModal";
 import BankSelectionModal from "@/components/wallet/BankSelectionModal";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import { useGetWalletBalanceQuery, useGetWalletTransactionsQuery, useGetDepositReceiversQuery, useVerifyDepositMutation, useGetWalletConfigQuery, useGetPendingDepositsQuery, useCreatePendingDepositMutation } from "@/lib/services/walletServiceApi";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 import { DollarLineIcon } from "@/icons";
 import Link from "next/link";
 import { toast } from "sonner";
 import type { WalletDepositReceiverAccount } from "@/lib/services/walletServiceApi";
 
 export default function WalletPage() {
+  // All hooks must be called at the top level, before any early returns
   const router = useRouter();
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
   const [isBankSelectionModalOpen, setIsBankSelectionModalOpen] = useState(false);
   const [isCompletePaymentModalOpen, setIsCompletePaymentModalOpen] = useState(false);
@@ -24,7 +28,9 @@ export default function WalletPage() {
     receiver: WalletDepositReceiverAccount;
     expiresAt: Date;
   } | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Wallet functionality hooks - must be called before early returns
   const { data: walletBalance, isLoading: isBalanceLoading } = useGetWalletBalanceQuery();
   const { data: walletConfig, isLoading: isConfigLoading } = useGetWalletConfigQuery();
   const { data: transactionsData, isLoading: isTransactionsLoading } = useGetWalletTransactionsQuery({
@@ -38,9 +44,7 @@ export default function WalletPage() {
   const [verifyDeposit, { isLoading: isVerifying }] = useVerifyDepositMutation();
   const [createPendingDeposit, { isLoading: isCreatingDeposit }] = useCreatePendingDepositMutation();
 
-  // Real-time countdown timer - updates every second
-  const [currentTime, setCurrentTime] = useState(new Date());
-
+  // Real-time countdown timer - updates every second - must be called before early returns
   useEffect(() => {
     // Only start the timer if there are pending deposits
     if (!pendingDeposits || pendingDeposits.length === 0) {
@@ -54,6 +58,19 @@ export default function WalletPage() {
 
     return () => clearInterval(interval);
   }, [pendingDeposits]);
+
+  // Show approval status if merchant is not approved
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const balance = walletBalance?.balance ?? 0;
   const recentTransactions = transactionsData?.transactions ?? [];
@@ -281,9 +298,9 @@ export default function WalletPage() {
           </div>
           <Button
             onClick={handleTopUp}
-            className="bg-white text-blue-600 hover:bg-blue-50 dark:bg-white dark:text-blue-600 dark:hover:bg-blue-50 px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+            className="bg-white hover:bg-gray-50 px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-lg border border-white/20"
           >
-            Top Up
+            <span className="text-blue-600 font-semibold">Top Up</span>
           </Button>
         </div>
       </div>

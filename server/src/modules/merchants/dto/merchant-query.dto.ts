@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { MerchantStatusDto } from './admin-create-merchant.dto';
 
 export class MerchantQueryDto {
@@ -20,12 +21,14 @@ export class MerchantQueryDto {
 
   @ApiPropertyOptional({ description: 'Page number (1-indexed)', default: 1 })
   @IsOptional()
+  @Transform(({ value }) => parseInt(value, 10))
   @IsNumber()
   @Min(1)
   page?: number = 1;
 
   @ApiPropertyOptional({ description: 'Page size', default: 20 })
   @IsOptional()
+  @Transform(({ value }) => parseInt(value, 10))
   @IsNumber()
   @Min(1)
   pageSize?: number = 20;

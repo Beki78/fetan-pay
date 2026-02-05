@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import {
   CheckCircleIcon,
   AlertIcon,
@@ -12,6 +13,7 @@ import {
   CopyIcon,
 } from "@/icons";
 import RegenerateSecretModal from "@/components/webhooks/RegenerateSecretModal";
+import IPWhitelistManager from "@/components/webhooks/IPWhitelistManager";
 import {
   useListWebhooksQuery,
   useCreateWebhookMutation,
@@ -20,6 +22,7 @@ import {
   useTestWebhookMutation,
   useRegenerateSecretMutation,
 } from "@/lib/services/webhooksServiceApi";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 import { toast } from "sonner";
 
 interface CodeBlockProps {
@@ -56,15 +59,13 @@ function CodeBlock({ code, language }: CodeBlockProps) {
 }
 
 export default function WebhooksPage() {
+  // All hooks must be called at the top level, before any early returns
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const { data: webhooks = [], isLoading, refetch } = useListWebhooksQuery();
   const [createWebhook, { isLoading: isCreating }] = useCreateWebhookMutation();
   const [updateWebhook, { isLoading: isUpdating }] = useUpdateWebhookMutation();
   const [testWebhook, { isLoading: isTesting }] = useTestWebhookMutation();
   const [regenerateSecret, { isLoading: isRegenerating }] = useRegenerateSecretMutation();
-
-  // Get the first webhook or use empty state
-  const currentWebhook = webhooks.length > 0 ? webhooks[0] : null;
-
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
@@ -75,7 +76,16 @@ export default function WebhooksPage() {
     "payment.unverified",
   ]);
 
-  // Check localStorage for stored secret
+  // Get the first webhook or use empty state
+  const currentWebhook = webhooks.length > 0 ? webhooks[0] : null;
+
+  // Get delivery stats - must be called before early returns
+  const { data: deliveries = [] } = useGetDeliveryLogsQuery(
+    { webhookId: currentWebhook?.id || "", limit: 100 },
+    { skip: !currentWebhook?.id }
+  );
+
+  // Check localStorage for stored secret - must be called before early returns
   useEffect(() => {
     if (currentWebhook) {
       setWebhookUrl(currentWebhook.url);
@@ -94,6 +104,20 @@ export default function WebhooksPage() {
       setWebhookSecret("");
     }
   }, [currentWebhook]);
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const handleCopy = () => {
     // Only copy if we have the actual secret (not masked)
@@ -190,12 +214,6 @@ export default function WebhooksPage() {
       );
     }
   };
-
-  // Get delivery stats
-  const { data: deliveries = [] } = useGetDeliveryLogsQuery(
-    { webhookId: currentWebhook?.id || "", limit: 100 },
-    { skip: !currentWebhook?.id }
-  );
 
   const successCount = deliveries.filter((d) => d.status === "SUCCESS").length;
   const failureCount = deliveries.filter((d) => d.status === "FAILED").length;
@@ -345,6 +363,9 @@ export default function WebhooksPage() {
         </div>
       )}
 
+      {/* IP Address Whitelisting Section */}
+      <IPWhitelistManager />
+
       {/* Recent Deliveries Section */}
       <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
         <div className="flex items-center justify-between mb-4">
@@ -444,7 +465,7 @@ export default function WebhooksPage() {
             Events that trigger webhook notifications
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Payment Verified Event */}
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
             <div className="flex items-center gap-3 mb-2">
@@ -472,6 +493,51 @@ export default function WebhooksPage() {
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400">
               Triggered when payment verification fails
+            </p>
+          </div>
+
+          {/* Payment Duplicate Event */}
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                <AlertIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                payment.duplicate
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Triggered when a duplicate payment is detected
+            </p>
+          </div>
+
+          {/* Wallet Charged Event */}
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                <InfoIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                wallet.charged
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Triggered when wallet is charged for verification fee
+            </p>
+          </div>
+
+          {/* Wallet Insufficient Event */}
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                <AlertIcon className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                wallet.insufficient
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Triggered when wallet has insufficient balance
             </p>
           </div>
 
@@ -577,25 +643,25 @@ $data = json_decode($payload, true);
         </div>
         <div className="space-y-3">
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Always verify the signature before processing
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Return a 2xx status code quickly to acknowledge receipt
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Process webhooks asynchronously if needed
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Handle duplicate events idempotently using payment reference
             </p>

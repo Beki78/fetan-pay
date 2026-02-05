@@ -1,12 +1,14 @@
 "use client";
 import React, { useState } from "react";
 import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import PageBreadcrumb from "@/components/common/PageBreadcrumb";
 import VendorTable from "@/components/vendors/VendorTable";
 import VendorModal from "@/components/vendors/VendorModal";
+import MerchantApprovalStatus from "@/components/common/MerchantApprovalStatus";
 import Button from "@/components/ui/button/Button";
 import { PlusIcon } from "@/icons";
 import { Modal } from "@/components/ui/modal";
+import { useAccountStatus } from "@/hooks/useAccountStatus";
 
 interface Vendor {
   id?: string;
@@ -19,11 +21,26 @@ interface Vendor {
 }
 
 export default function VendorsPage() {
+  const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<string | null>(null);
+
+  // Show loading spinner while checking account status
+  if (isStatusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show approval status if merchant is not approved
+  if (accountStatus === "pending") {
+    return <MerchantApprovalStatus />;
+  }
 
   const handleAdd = () => {
     setSelectedVendor(null);
