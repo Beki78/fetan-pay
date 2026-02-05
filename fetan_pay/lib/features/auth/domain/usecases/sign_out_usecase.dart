@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/usecases/usecase.dart';
+import '../../../../core/error/failures.dart';
 import '../repositories/auth_repository.dart';
 
 class SignOutUseCase implements NoParamsUseCase<void> {
@@ -8,7 +9,7 @@ class SignOutUseCase implements NoParamsUseCase<void> {
   SignOutUseCase(this.repository);
 
   @override
-  Future<Either<Exception, void>> call() async {
+  Future<Either<Failure, void>> call() async {
     return await repository.signOut();
   }
 }

@@ -5,9 +5,8 @@ abstract class AuthEvent {}
 class LoginRequested extends AuthEvent {
   final String email;
   final String password;
-  final UserRole role;
 
-  LoginRequested(this.email, this.password, this.role);
+  LoginRequested(this.email, this.password);
 }
 
 class QRLoginRequested extends AuthEvent {

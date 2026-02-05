@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Exclude sensitive data from cloud backup -->
+        <exclude domain="sharedpref" path="fetan_pay_secure_prefs.xml"/>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+        <exclude domain="database" path="*.db"/>
+        <exclude domain="file" path=".cookies/"/>
+    </cloud-backup>
+    <device-transfer>
+        <!-- Exclude sensitive data from device transfer -->
+        <exclude domain="sharedpref" path="fetan_pay_secure_prefs.xml"/>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+        <exclude domain="database" path="*.db"/>
+        <exclude domain="file" path=".cookies/"/>
+    </device-transfer>
+</data-extraction-rules>

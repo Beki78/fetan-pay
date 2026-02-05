@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum UserRole { waiter, admin }
+enum UserRole { sales, waiter, employee, merchantOwner, admin }
 
 class User extends Equatable {
   final String id;
@@ -95,17 +95,34 @@ class User extends Equatable {
   static UserRole _parseUserRole(String? roleString) {
     switch (roleString?.toLowerCase()) {
       case 'admin':
+      case 'superadmin':
         return UserRole.admin;
+      case 'merchant_owner':
+      case 'merchantowner':
+        return UserRole.merchantOwner;
+      case 'sales':
+        return UserRole.sales;
       case 'waiter':
-      case 'employee':  // Map EMPLOYEE role to waiter (merchant)
         return UserRole.waiter;
+      case 'employee':
+        return UserRole.employee;
       default:
-        return UserRole.waiter;
+        // Default to employee for unknown roles (merchant interface)
+        return UserRole.employee;
     }
   }
 
   @override
-  List<Object?> get props => [id, email, role, firstName, lastName, merchantId, createdAt, updatedAt];
+  List<Object?> get props => [
+    id,
+    email,
+    role,
+    firstName,
+    lastName,
+    merchantId,
+    createdAt,
+    updatedAt,
+  ];
 }
 
 class AuthSession extends Equatable {

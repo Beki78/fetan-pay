@@ -172,7 +172,7 @@ Some endpoints (like payment verification) are rate-limited to prevent abuse.`,
   });
 
   const port = Number(process.env.PORT ?? 3003);
-  const server = await app.listen(port);
+  const server = await app.listen(port, '0.0.0.0');
   logger.info(`Server running on port ${port}`);
   logger.info(`Node version: ${process.version}`);
   logger.info(`Platform: ${process.platform}`);

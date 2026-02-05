@@ -2,6 +2,10 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        gradlePluginPortal()
+        // Add additional repositories for better dependency resolution
+        maven { url = uri("https://jitpack.io") }
+        maven { url = uri("https://plugins.gradle.org/m2/") }
     }
 }
 

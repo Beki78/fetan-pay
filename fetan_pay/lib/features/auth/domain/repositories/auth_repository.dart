@@ -1,19 +1,20 @@
 import 'package:dartz/dartz.dart';
+import '../../../../core/error/failures.dart';
 import '../../data/models/user_model.dart';
 import '../../data/models/login_models.dart';
 
 abstract class AuthRepository {
   /// Sign in with email and password
-  Future<Either<AuthError, User>> signInWithEmail(String email, String password);
+  Future<Either<Failure, User>> signInWithEmail(String email, String password);
 
   /// Sign out the current user
-  Future<Either<AuthError, void>> signOut();
+  Future<Either<Failure, void>> signOut();
 
   /// Get the current authenticated user
-  Future<Either<AuthError, User?>> getCurrentUser();
+  Future<Either<Failure, User?>> getCurrentUser();
 
   /// Validate QR code for login
-  Future<Either<AuthError, QRLoginResponse>> validateQRCode(String qrData, String origin);
+  Future<Either<Failure, QRLoginResponse>> validateQRCode(String qrData, String origin);
 
   /// Check if user is authenticated
   Future<bool> isAuthenticated();

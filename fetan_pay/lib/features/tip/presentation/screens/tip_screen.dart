@@ -3,82 +3,60 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/bloc/theme/theme_bloc.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../../../widgets/app_card.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../bloc/tip_bloc.dart';
+import '../bloc/tip_event.dart';
+import '../bloc/tip_state.dart';
+import '../../data/models/tip_models.dart';
 
-class TipScreen extends StatefulWidget {
+class TipScreen extends StatelessWidget {
   const TipScreen({super.key});
 
   @override
-  State<TipScreen> createState() => _TipScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => getIt<TipBloc>()..add(const RefreshTips()),
+      child: const TipScreenContent(),
+    );
+  }
 }
 
-class _TipScreenState extends State<TipScreen> {
-  bool _isLoading = true;
-  final Map<String, double> _tipStats = {
-    'today': 250.50,
-    'thisWeek': 1250.75,
-    'thisMonth': 4850.25,
-    'total': 15680.90,
-  };
+class TipScreenContent extends StatefulWidget {
+  const TipScreenContent({super.key});
 
-  final List<Map<String, dynamic>> _recentTips = [
-    {
-      'id': '1',
-      'amount': 50.00,
-      'paymentAmount': 500.00,
-      'reference': 'TXN-123456789',
-      'status': 'VERIFIED',
-      'verifiedBy': 'John Doe',
-      'date': DateTime.now().subtract(const Duration(hours: 2)),
-    },
-    {
-      'id': '2',
-      'amount': 25.50,
-      'paymentAmount': 250.00,
-      'reference': 'TXN-987654321',
-      'status': 'VERIFIED',
-      'verifiedBy': 'Jane Smith',
-      'date': DateTime.now().subtract(const Duration(hours: 5)),
-    },
-    {
-      'id': '3',
-      'amount': 75.25,
-      'paymentAmount': 750.00,
-      'reference': 'TXN-456789123',
-      'status': 'VERIFIED',
-      'verifiedBy': 'Mike Johnson',
-      'date': DateTime.now().subtract(const Duration(hours: 8)),
-    },
-    {
-      'id': '4',
-      'amount': 100.00,
-      'paymentAmount': 1000.00,
-      'reference': 'TXN-789123456',
-      'status': 'VERIFIED',
-      'verifiedBy': 'Sarah Wilson',
-      'date': DateTime.now().subtract(const Duration(days: 1)),
-    },
-  ];
+  @override
+  State<TipScreenContent> createState() => _TipScreenContentState();
+}
+
+class _TipScreenContentState extends State<TipScreenContent> {
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Simulate loading
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    });
+    _scrollController.addListener(_onScroll);
   }
 
-  String _formatCurrency(double amount) {
-    final formatter = NumberFormat.currency(
-      locale: 'en_ET',
-      symbol: 'ETB ',
-      decimalDigits: 2,
-    );
-    return formatter.format(amount);
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_isBottom) {
+      context.read<TipBloc>().add(const LoadMoreTips());
+    }
+  }
+
+  bool get _isBottom {
+    if (!_scrollController.hasClients) return false;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.offset;
+    return currentScroll >= (maxScroll * 0.9);
   }
 
   Color _getStatusColor(String status) {
@@ -88,6 +66,7 @@ class _TipScreenState extends State<TipScreen> {
       case 'pending':
         return Colors.orange;
       case 'failed':
+      case 'unverified':
         return Colors.red;
       default:
         return Colors.grey;
@@ -122,7 +101,7 @@ class _TipScreenState extends State<TipScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: ClipRRect(
@@ -131,7 +110,6 @@ class _TipScreenState extends State<TipScreen> {
                           'assets/images/logo/fetan-logo.png',
                           fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
-                            // Fallback to icon if image fails to load
                             return Icon(
                               Icons.account_balance,
                               color: theme.colorScheme.primary,
@@ -165,7 +143,8 @@ class _TipScreenState extends State<TipScreen> {
                     ),
                     BlocBuilder<ThemeBloc, ThemeState>(
                       builder: (context, themeState) {
-                        final isDarkMode = themeState.themeMode == ThemeMode.dark;
+                        final isDarkMode =
+                            themeState.themeMode == ThemeMode.dark;
                         return IconButton(
                           onPressed: () {
                             context.read<ThemeBloc>().add(ToggleTheme());
@@ -174,7 +153,9 @@ class _TipScreenState extends State<TipScreen> {
                             isDarkMode ? Icons.dark_mode : Icons.light_mode,
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
-                          tooltip: isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                          tooltip: isDarkMode
+                              ? 'Switch to Light Mode'
+                              : 'Switch to Dark Mode',
                         );
                       },
                     ),
@@ -184,142 +165,235 @@ class _TipScreenState extends State<TipScreen> {
 
               // Content
               Expanded(
-                child: SingleChildScrollView(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 672),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: BlocBuilder<TipBloc, TipState>(
+                  builder: (context, state) {
+                    if (state is TipLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (state is TipError) {
+                      return Center(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Summary Cards
-                      GridView.count(
-                        crossAxisCount: ResponsiveUtils.getGridCrossAxisCount(context),
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          _buildStatCard(
-                            'Today',
-                            _tipStats['today']!,
-                            Icons.today,
-                            theme.colorScheme.primary,
-                            _isLoading,
-                          ),
-                          _buildStatCard(
-                            'This Week',
-                            _tipStats['thisWeek']!,
-                            Icons.calendar_view_week,
-                            theme.colorScheme.secondary,
-                            _isLoading,
-                          ),
-                          _buildStatCard(
-                            'This Month',
-                            _tipStats['thisMonth']!,
-                            Icons.calendar_month,
-                            Colors.green,
-                            _isLoading,
-                          ),
-                          _buildStatCard(
-                            'Total',
-                            _tipStats['total']!,
-                            Icons.account_balance_wallet,
-                            theme.colorScheme.onSurfaceVariant,
-                            _isLoading,
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Recent Tips
-                      AppCard(
-                        padding: const EdgeInsets.all(20),
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.receipt_long,
-                                color: theme.colorScheme.primary,
-                                size: 24,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: theme.colorScheme.error,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error loading tips',
+                              style: theme.textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              state.message,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Recent Tips',
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {
+                                context.read<TipBloc>().add(
+                                  const RefreshTips(),
+                                );
+                              },
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (state is TipLoaded) {
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          context.read<TipBloc>().add(const RefreshTips());
+                        },
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 672),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Summary Cards
+                                    GridView.count(
+                                      crossAxisCount:
+                                          ResponsiveUtils.getGridCrossAxisCount(
+                                            context,
+                                          ),
+                                      crossAxisSpacing: 12,
+                                      mainAxisSpacing: 12,
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      children: [
+                                        _buildStatCard(
+                                          'Today',
+                                          state.statistics.today,
+                                          Icons.today,
+                                          theme.colorScheme.primary,
+                                        ),
+                                        _buildStatCard(
+                                          'This Week',
+                                          state.statistics.thisWeek,
+                                          Icons.calendar_view_week,
+                                          theme.colorScheme.secondary,
+                                        ),
+                                        _buildStatCard(
+                                          'This Month',
+                                          state.statistics.thisMonth,
+                                          Icons.calendar_month,
+                                          Colors.green,
+                                        ),
+                                        _buildStatCard(
+                                          'Total',
+                                          state.statistics.total,
+                                          Icons.account_balance_wallet,
+                                          theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 24),
+
+                                    // Recent Tips
+                                    AppCard(
+                                      padding: const EdgeInsets.all(20),
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.receipt_long,
+                                              color: theme.colorScheme.primary,
+                                              size: 24,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              'Recent Tips',
+                                              style: theme.textTheme.titleLarge
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+
+                                        if (state.tips.isEmpty)
+                                          Center(
+                                            child: Column(
+                                              children: [
+                                                Icon(
+                                                  Icons.receipt_long,
+                                                  size: 48,
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant
+                                                      .withValues(alpha: 0.5),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                Text(
+                                                  'No tips recorded yet',
+                                                  style: theme
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.copyWith(
+                                                        color: theme
+                                                            .colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'Tips will appear here after payment verifications',
+                                                  style: theme
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: theme
+                                                            .colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ],
+                                            ),
+                                          )
+                                        else
+                                          Column(
+                                            children: [
+                                              ListView.separated(
+                                                shrinkWrap: true,
+                                                physics:
+                                                    const NeverScrollableScrollPhysics(),
+                                                itemCount: state.tips.length,
+                                                separatorBuilder:
+                                                    (context, index) => Divider(
+                                                      color: theme
+                                                          .colorScheme
+                                                          .outline
+                                                          .withValues(
+                                                            alpha: 0.3,
+                                                          ),
+                                                      height: 16,
+                                                    ),
+                                                itemBuilder: (context, index) {
+                                                  final tip = state.tips[index];
+                                                  return _buildTipItem(
+                                                    tip,
+                                                    theme,
+                                                  );
+                                                },
+                                              ),
+                                              if (state.isLoadingMore)
+                                                const Padding(
+                                                  padding: EdgeInsets.all(16.0),
+                                                  child:
+                                                      CircularProgressIndicator(),
+                                                ),
+                                            ],
+                                          ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 20),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          if (_isLoading)
-                            const Center(
-                              child: CircularProgressIndicator(),
-                            )
-                          else if (_recentTips.isEmpty)
-                            Center(
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.receipt_long,
-                                    size: 48,
-                                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No tips recorded yet',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Tips will appear here after payment verifications',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _recentTips.length,
-                              separatorBuilder: (context, index) => Divider(
-                                color: theme.colorScheme.outline.withOpacity(0.3),
-                                height: 16,
-                              ),
-                              itemBuilder: (context, index) {
-                                final tip = _recentTips[index];
-                                return _buildTipItem(tip, theme);
-                              },
                             ),
-                        ],
-                      ),
+                          ),
+                        ),
+                      );
+                    }
 
-                      const SizedBox(height: 20),
-                    ],
-                  ),
+                    return const SizedBox.shrink();
+                  },
                 ),
               ),
-          )
-          )
-          )
-          ],
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStatCard(String title, double amount, IconData icon, Color color, bool isLoading) {
+  Widget _buildStatCard(
+    String title,
+    double amount,
+    IconData icon,
+    Color color,
+  ) {
     return AppCard(
       padding: const EdgeInsets.all(16),
       children: [
@@ -329,14 +403,10 @@ class _TipScreenState extends State<TipScreen> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 16,
-              ),
+              child: Icon(icon, color: color, size: 16),
             ),
             const Spacer(),
           ],
@@ -350,25 +420,19 @@ class _TipScreenState extends State<TipScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        if (isLoading)
-          const SizedBox(
-            height: 24,
-            child: LinearProgressIndicator(),
-          )
-        else
-          Text(
-            _formatCurrency(amount),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
+        Text(
+          CurrencyFormatter.formatWhole(amount),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
           ),
+        ),
       ],
     );
   }
 
-  Widget _buildTipItem(Map<String, dynamic> tip, ThemeData theme) {
-    final date = tip['date'] as DateTime;
+  Widget _buildTipItem(TipItem tip, ThemeData theme) {
+    final date = DateTime.parse(tip.createdAt);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,7 +441,7 @@ class _TipScreenState extends State<TipScreen> {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: theme.colorScheme.secondary.withOpacity(0.1),
+            color: theme.colorScheme.secondary.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -395,7 +459,7 @@ class _TipScreenState extends State<TipScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      _formatCurrency(tip['amount']),
+                      CurrencyFormatter.formatWhole(tip.tipAmount),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: theme.colorScheme.secondary,
@@ -406,15 +470,18 @@ class _TipScreenState extends State<TipScreen> {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(tip['status']).withOpacity(0.1),
+                      color: _getStatusColor(tip.status).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      tip['status'],
+                      tip.status,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: _getStatusColor(tip['status']),
+                        color: _getStatusColor(tip.status),
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
@@ -429,7 +496,7 @@ class _TipScreenState extends State<TipScreen> {
                   Expanded(
                     flex: 2,
                     child: Text(
-                      'Payment: ${_formatCurrency(tip['paymentAmount'])}',
+                      'Payment: ${CurrencyFormatter.formatWhole(tip.claimedAmount)}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -441,7 +508,7 @@ class _TipScreenState extends State<TipScreen> {
                   Expanded(
                     flex: 3,
                     child: Text(
-                      tip['reference'],
+                      tip.reference,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontFamily: 'RobotoMono',
@@ -474,9 +541,9 @@ class _TipScreenState extends State<TipScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (tip['verifiedBy'] != null)
+                        if (tip.verifiedBy != null)
                           Text(
-                            'By: ${tip['verifiedBy']}',
+                            'By: ${tip.verifiedBy!.name ?? tip.verifiedBy!.email ?? 'Unknown'}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),

@@ -1,31 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-class VerificationResult {
-  final bool success;
-  final String status;
-  final String reference;
-  final String provider;
-  final String? senderName;
-  final String? receiverAccount;
-  final String? receiverName;
-  final double? amount;
-  final Map<String, dynamic>? details;
-  final String? message;
-
-  const VerificationResult({
-    required this.success,
-    required this.status,
-    required this.reference,
-    required this.provider,
-    this.senderName,
-    this.receiverAccount,
-    this.receiverName,
-    this.amount,
-    this.details,
-    this.message,
-  });
-}
+import 'package:fetan_pay/features/scan/data/models/scan_models.dart';
 
 class VerificationResultCard extends StatelessWidget {
   final VerificationResult result;

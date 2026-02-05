@@ -1,8 +1,8 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/usecases/usecase.dart';
+import '../../../../core/error/failures.dart';
 import '../repositories/auth_repository.dart';
 import '../../data/models/user_model.dart';
-import '../../data/models/login_models.dart';
 
 class SignInUseCase implements UseCase<User, SignInParams> {
   final AuthRepository repository;
@@ -10,7 +10,7 @@ class SignInUseCase implements UseCase<User, SignInParams> {
   SignInUseCase(this.repository);
 
   @override
-  Future<Either<AuthError, User>> call(SignInParams params) async {
+  Future<Either<Failure, User>> call(SignInParams params) async {
     return await repository.signInWithEmail(params.email, params.password);
   }
 }

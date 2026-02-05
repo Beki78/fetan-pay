@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/usecases/usecase.dart';
+import '../../../../core/error/failures.dart';
 import '../repositories/auth_repository.dart';
 import '../../data/models/login_models.dart';
 
@@ -9,7 +10,7 @@ class ValidateQRUseCase implements UseCase<QRLoginResponse, ValidateQRParams> {
   ValidateQRUseCase(this.repository);
 
   @override
-  Future<Either<Exception, QRLoginResponse>> call(ValidateQRParams params) async {
+  Future<Either<Failure, QRLoginResponse>> call(ValidateQRParams params) async {
     return await repository.validateQRCode(params.qrData, params.origin);
   }
 }

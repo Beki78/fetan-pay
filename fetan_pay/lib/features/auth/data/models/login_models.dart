@@ -4,16 +4,10 @@ class LoginRequest extends Equatable {
   final String email;
   final String password;
 
-  const LoginRequest({
-    required this.email,
-    required this.password,
-  });
+  const LoginRequest({required this.email, required this.password});
 
   Map<String, dynamic> toJson() {
-    return {
-      'email': email,
-      'password': password,
-    };
+    return {'email': email, 'password': password};
   }
 
   @override
@@ -23,37 +17,37 @@ class LoginRequest extends Equatable {
 class LoginResponse extends Equatable {
   final String message;
   final bool success;
+  final String? token;
+  final Map<String, dynamic>? user;
 
   const LoginResponse({
     required this.message,
     required this.success,
+    this.token,
+    this.user,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
       message: json['message'] as String? ?? '',
       success: json['success'] as bool? ?? false,
+      token: json['token'] as String?,
+      user: json['user'] as Map<String, dynamic>?,
     );
   }
 
   @override
-  List<Object> get props => [message, success];
+  List<Object?> get props => [message, success, token, user];
 }
 
 class QRLoginRequest extends Equatable {
   final String qrData;
   final String origin;
 
-  const QRLoginRequest({
-    required this.qrData,
-    required this.origin,
-  });
+  const QRLoginRequest({required this.qrData, required this.origin});
 
   Map<String, dynamic> toJson() {
-    return {
-      'qrData': qrData,
-      'origin': origin,
-    };
+    return {'qrData': qrData, 'origin': origin};
   }
 
   @override
@@ -90,10 +84,7 @@ class AuthError implements Exception {
   final String message;
   final String? code;
 
-  const AuthError({
-    required this.message,
-    this.code,
-  });
+  const AuthError({required this.message, this.code});
 
   factory AuthError.fromJson(Map<String, dynamic> json) {
     return AuthError(

@@ -6,10 +6,12 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:animate_do/animate_do.dart';
 import '../bloc/auth_bloc.dart';
 import '../../data/models/user_model.dart';
+import '../../../shared/presentation/screens/main_navigation_screen.dart';
+import '../../../shared/presentation/screens/admin_main_screen.dart';
 import '../../../../widgets/app_button.dart';
-import '../../../../widgets/app_card.dart';
 import '../../../../widgets/app_text_field.dart';
 import '../../../../widgets/breathing_logo_loader.dart';
+import '../../../../core/utils/secure_logger.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,10 +21,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController(text: 'waiter@test.com');
-  final _passwordController = TextEditingController(text: 'waiter123');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isMerchantLogin = true;
 
   @override
   void dispose() {
@@ -31,13 +32,20 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _updateCredentialsForLoginType() {
-    if (_isMerchantLogin) {
-      _emailController.text = 'waiter@test.com';
-      _passwordController.text = 'waiter123';
-    } else {
-      _emailController.text = 'admin@fetanpay.et';
-      _passwordController.text = 'admin123';
+  /// Determines the target screen based on user role
+  Widget _getTargetScreenForRole(UserRole role) {
+    switch (role) {
+      case UserRole.merchantOwner:
+        // MERCHANT_OWNER goes to admin interface
+        return const AdminMainScreen();
+      case UserRole.sales:
+      case UserRole.waiter:
+      case UserRole.employee:
+        // SALES, WAITER, EMPLOYEE go to merchant interface
+        return const MainNavigationScreen();
+      case UserRole.admin:
+        // ADMIN goes to admin interface
+        return const AdminMainScreen();
     }
   }
 
@@ -46,7 +54,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_isValidQRFormat(qrData)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Invalid QR code format. Please scan a login QR code from the merchant system.'),
+          content: Text(
+            'Invalid QR code format. Please scan a login QR code from the merchant system.',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -56,12 +66,12 @@ class _LoginScreenState extends State<LoginScreen> {
     // Send QR data directly to the BLoC for processing
     context.read<AuthBloc>().add(QRLoginRequested(qrData));
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('QR code scanned successfully! Logging in...'),
-            backgroundColor: Colors.green,
-          ),
-        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('QR code scanned successfully! Logging in...'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   bool _isValidQRFormat(String qrData) {
@@ -109,8 +119,8 @@ class _LoginScreenState extends State<LoginScreen> {
             child: const Text('OK'),
           ),
         ],
-        ),
-      );
+      ),
+    );
   }
 
   @override
@@ -133,13 +143,23 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
-            // Navigate to main app
-            Navigator.of(context).pushReplacementNamed('/main');
+            // Role-based routing based on API response
+            final targetScreen = _getTargetScreenForRole(state.user.role);
+
+            // Use a slight delay to ensure the UI is ready
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => targetScreen),
+                );
+              }
+            });
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: theme.colorScheme.error,
+                duration: const Duration(seconds: 4),
               ),
             );
           }
@@ -239,8 +259,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
                                         colors: [
-                                          theme.colorScheme.primary.withOpacity(0.2),
-                                          theme.colorScheme.primary.withOpacity(0.1),
+                                          theme.colorScheme.primary.withOpacity(
+                                            0.2,
+                                          ),
+                                          theme.colorScheme.primary.withOpacity(
+                                            0.1,
+                                          ),
                                         ],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
@@ -248,7 +272,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       borderRadius: BorderRadius.circular(20),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: theme.colorScheme.primary.withOpacity(0.2),
+                                          color: theme.colorScheme.primary
+                                              .withOpacity(0.2),
                                           blurRadius: 20,
                                           offset: const Offset(0, 10),
                                         ),
@@ -259,13 +284,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                       child: Image.asset(
                                         'assets/images/logo/fetan-logo.png',
                                         fit: BoxFit.contain,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Icon(
-                                            Icons.account_balance_rounded,
-                                            size: 50,
-                                            color: theme.colorScheme.primary,
-                                          );
-                                        },
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Icon(
+                                                Icons.account_balance_rounded,
+                                                size: 50,
+                                                color:
+                                                    theme.colorScheme.primary,
+                                              );
+                                            },
                                       ),
                                     ),
                                   ),
@@ -279,7 +306,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                       letterSpacing: -0.5,
                                     ),
                                   ),
-                                  
                                 ],
                               ),
                             ),
@@ -287,419 +313,305 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           SizedBox(height: size.height * 0.03),
 
-                        // Enhanced Login Form
-                        FadeInUp(
-                          delay: const Duration(milliseconds: 200),
-                          child: Container(
-                            padding: const EdgeInsets.all(32),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  theme.colorScheme.surfaceContainerLow,
-                                  theme.colorScheme.surfaceContainerLowest,
+                          // Enhanced Login Form
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 200),
+                            child: Container(
+                              padding: const EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    theme.colorScheme.surfaceContainerLow,
+                                    theme.colorScheme.surfaceContainerLowest,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withOpacity(0.3),
+                                  width: 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: theme.shadowColor.withOpacity(0.08),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
                                 ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
                               ),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: theme.colorScheme.outlineVariant.withOpacity(0.3),
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: theme.shadowColor.withOpacity(0.08),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                // Welcome Header
-                                FadeInUp(
-                                  delay: const Duration(milliseconds: 300),
-                                  child: Column(
-                                    children: [
-                                      
-                                      
-                                      Text(
-                                        'Welcome back',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w700,
-                                          color: theme.colorScheme.onSurface,
+                              child: Column(
+                                children: [
+                                  // Welcome Header
+                                  FadeInUp(
+                                    delay: const Duration(milliseconds: 300),
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          'Welcome back',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w700,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                          textAlign: TextAlign.center,
                                         ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Sign in to your account to continue',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 14,
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                          fontWeight: FontWeight.w500,
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Sign in to access your account',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14,
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          textAlign: TextAlign.center,
                                         ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                const SizedBox(height: 32),
-
-                                // Email Field
-                                FadeInUp(
-                                  delay: const Duration(milliseconds: 400),
-                                  child: AppTextField(
-                                    controller: _emailController,
-                                    label: 'Email',
-                                    hint: 'Enter your email',
-                                    prefixIcon: Icons.mail_rounded,
-                                    keyboardType: TextInputType.emailAddress,
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your email';
-                                      }
-                                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                                        return 'Please enter a valid email';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Password Field
-                                FadeInUp(
-                                  delay: const Duration(milliseconds: 500),
-                                  child: AppTextField(
-                                    controller: _passwordController,
-                                    label: 'Password',
-                                    hint: 'Enter your password',
-                                    prefixIcon: Icons.lock_rounded,
-                                    obscureText: true,
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your password';
-                                      }
-                                      if (value.length < 6) {
-                                        return 'Password must be at least 6 characters';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(height: 32),
-
-                                // Enhanced Login Type Toggle
-                                FadeInUp(
-                                  delay: const Duration(milliseconds: 600),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                                          theme.colorScheme.surfaceContainerHigh.withOpacity(0.3),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: theme.colorScheme.outlineVariant.withOpacity(0.3),
-                                        width: 1,
-                                      ),
+                                      ],
                                     ),
+                                  ),
+
+                                  const SizedBox(height: 32),
+
+                                  // Email Field
+                                  FadeInUp(
+                                    delay: const Duration(milliseconds: 400),
+                                    child: AppTextField(
+                                      controller: _emailController,
+                                      label: 'Email',
+                                      hint: 'Enter your email',
+                                      prefixIcon: Icons.mail_rounded,
+                                      keyboardType: TextInputType.emailAddress,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter your email';
+                                        }
+                                        if (!RegExp(
+                                          r'^[^@]+@[^@]+\.[^@]+',
+                                        ).hasMatch(value)) {
+                                          return 'Please enter a valid email';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+
+                                  // Password Field
+                                  FadeInUp(
+                                    delay: const Duration(milliseconds: 500),
+                                    child: AppTextField(
+                                      controller: _passwordController,
+                                      label: 'Password',
+                                      hint: 'Enter your password',
+                                      prefixIcon: Icons.lock_rounded,
+                                      obscureText: true,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter your password';
+                                        }
+                                        if (value.length < 6) {
+                                          return 'Password must be at least 6 characters';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(height: 32),
+
+                                  // Enhanced Login Button
+                                  FadeInUp(
+                                    delay: const Duration(milliseconds: 600),
+                                    child: AppButton(
+                                      text: 'Sign In',
+                                      onPressed: () {
+                                        if (_formKey.currentState?.validate() ??
+                                            false) {
+                                          context.read<AuthBloc>().add(
+                                            LoginRequested(
+                                              _emailController.text.trim(),
+                                              _passwordController.text.trim(),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      size: AppButtonSize.large,
+                                      icon: Icons.login_rounded,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  // Enhanced Divider
+                                  FadeInUp(
+                                    delay: const Duration(milliseconds: 700),
                                     child: Row(
                                       children: [
                                         Expanded(
-                                          child: GestureDetector(
-                                            onTap: () {
-                                              setState(() {
-                                                _isMerchantLogin = true;
-                                                _updateCredentialsForLoginType();
-                                              });
-                                              HapticFeedback.lightImpact();
-                                            },
-                                            child: AnimatedContainer(
-                                              duration: const Duration(milliseconds: 300),
-                                              padding: const EdgeInsets.symmetric(vertical: 14),
-                                              decoration: BoxDecoration(
-                                                gradient: _isMerchantLogin
-                                                    ? LinearGradient(
-                                                        colors: [
-                                                          theme.colorScheme.primary,
-                                                          theme.colorScheme.primary.withOpacity(0.9),
-                                                        ],
-                                                        begin: Alignment.topLeft,
-                                                        end: Alignment.bottomRight,
-                                                      )
-                                                    : null,
-                                                borderRadius: BorderRadius.circular(12),
-                                                boxShadow: _isMerchantLogin
-                                                    ? [
-                                                        BoxShadow(
-                                                          color: theme.colorScheme.primary.withOpacity(0.3),
-                                                          blurRadius: 8,
-                                                          offset: const Offset(0, 4),
-                                                        ),
-                                                      ]
-                                                    : null,
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.store_rounded,
-                                                    size: 18,
-                                                    color: _isMerchantLogin
-                                                        ? theme.colorScheme.onPrimary
-                                                        : theme.colorScheme.onSurfaceVariant,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    'Merchant',
-                                                    style: GoogleFonts.poppins(
-                                                      color: _isMerchantLogin
-                                                          ? theme.colorScheme.onPrimary
-                                                          : theme.colorScheme.onSurfaceVariant,
-                                                      fontWeight: FontWeight.w600,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
+                                          child: Container(
+                                            height: 1,
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Colors.transparent,
+                                                  theme.colorScheme.outline
+                                                      .withOpacity(0.3),
                                                 ],
+                                                begin: Alignment.centerLeft,
+                                                end: Alignment.centerRight,
                                               ),
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: GestureDetector(
-                                            onTap: () {
-                                              setState(() {
-                                                _isMerchantLogin = false;
-                                                _updateCredentialsForLoginType();
-                                              });
-                                              HapticFeedback.lightImpact();
-                                            },
-                                            child: AnimatedContainer(
-                                              duration: const Duration(milliseconds: 300),
-                                              padding: const EdgeInsets.symmetric(vertical: 14),
-                                              decoration: BoxDecoration(
-                                                gradient: !_isMerchantLogin
-                                                    ? LinearGradient(
-                                                        colors: [
-                                                          theme.colorScheme.primary,
-                                                          theme.colorScheme.primary.withOpacity(0.9),
-                                                        ],
-                                                        begin: Alignment.topLeft,
-                                                        end: Alignment.bottomRight,
-                                                      )
-                                                    : null,
-                                                borderRadius: BorderRadius.circular(12),
-                                                boxShadow: !_isMerchantLogin
-                                                    ? [
-                                                        BoxShadow(
-                                                          color: theme.colorScheme.primary.withOpacity(0.3),
-                                                          blurRadius: 8,
-                                                          offset: const Offset(0, 4),
-                                                        ),
-                                                      ]
-                                                    : null,
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.admin_panel_settings_rounded,
-                                                    size: 18,
-                                                    color: !_isMerchantLogin
-                                                        ? theme.colorScheme.onPrimary
-                                                        : theme.colorScheme.onSurfaceVariant,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    'Admin',
-                                                    style: GoogleFonts.poppins(
-                                                      color: !_isMerchantLogin
-                                                          ? theme.colorScheme.onPrimary
-                                                          : theme.colorScheme.onSurfaceVariant,
-                                                      fontWeight: FontWeight.w600,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 8,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 32),
-
-                                // Enhanced Login Button
-                                FadeInUp(
-                                  delay: const Duration(milliseconds: 700),
-                                  child: AppButton(
-                                    text: 'Sign In as ${_isMerchantLogin ? 'Merchant' : 'Admin'}',
-                                    onPressed: () {
-                                      if (_formKey.currentState?.validate() ?? false) {
-                                        final role = _isMerchantLogin ? UserRole.waiter : UserRole.admin;
-                                        context.read<AuthBloc>().add(
-                                          LoginRequested(
-                                            _emailController.text.trim(),
-                                            _passwordController.text.trim(),
-                                            role,
+                                          margin: const EdgeInsets.symmetric(
+                                            horizontal: 12,
                                           ),
-                                        );
-                                      }
-                                    },
-                                    size: AppButtonSize.large,
-                                    icon: Icons.login_rounded,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-
-                                // Enhanced Divider
-                                FadeInUp(
-                                  delay: const Duration(milliseconds: 800),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          height: 1,
                                           decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                Colors.transparent,
-                                                theme.colorScheme.outline.withOpacity(0.3),
-                                              ],
-                                              begin: Alignment.centerLeft,
-                                              end: Alignment.centerRight,
+                                            color: theme
+                                                .colorScheme
+                                                .surfaceContainerHighest
+                                                .withOpacity(0.5),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                                        decoration: BoxDecoration(
-                                          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          'Or',
-                                          style: GoogleFonts.poppins(
-                                            color: theme.colorScheme.onSurfaceVariant,
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Container(
-                                          height: 1,
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                theme.colorScheme.outline.withOpacity(0.3),
-                                                Colors.transparent,
-                                              ],
-                                              begin: Alignment.centerLeft,
-                                              end: Alignment.centerRight,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-
-                                // Enhanced QR Code Login Button
-                                FadeInUp(
-                                  delay: const Duration(milliseconds: 900),
-                                  child: Column(
-                                    children: [
-                                      Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          theme.colorScheme.secondary.withOpacity(0.1),
-                                          theme.colorScheme.secondary.withOpacity(0.05),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: theme.colorScheme.secondary.withOpacity(0.3),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: AppButton(
-                                      text: 'Scan QR Code to Login',
-                                      onPressed: () async {
-                                        final result = await Navigator.of(context).push<String>(
-                                          MaterialPageRoute(
-                                            builder: (context) => const LoginQRScannerScreen(),
-                                          ),
-                                        );
-
-                                        if (result != null && result.isNotEmpty && mounted) {
-                                          _handleQRLogin(result);
-                                        }
-                                      },
-                                      variant: AppButtonVariant.outline,
-                                      icon: Icons.qr_code_scanner_rounded,
-                                      size: AppButtonSize.large,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        'Note: QR codes must be generated from the merchant admin panel (localhost:3001)\nGo to Users → Select user → Generate QR Code',
-                                        style: GoogleFonts.poppins(
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w400,
-                                          height: 1.4,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      // Development test button - remove in production
-                                      if (const bool.fromEnvironment('dart.vm.product') == false) ...[
-                                        const SizedBox(height: 8),
-                                        TextButton(
-                                          onPressed: () => _showQRTestInfo(context),
                                           child: Text(
-                                            'QR Testing Info',
+                                            'Or',
                                             style: GoogleFonts.poppins(
-                                              color: theme.colorScheme.primary,
-                                              fontSize: 12,
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
                                               fontWeight: FontWeight.w500,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Container(
+                                            height: 1,
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  theme.colorScheme.outline
+                                                      .withOpacity(0.3),
+                                                  Colors.transparent,
+                                                ],
+                                                begin: Alignment.centerLeft,
+                                                end: Alignment.centerRight,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(height: 24),
+
+                                  // Enhanced QR Code Login Button
+                                  FadeInUp(
+                                    delay: const Duration(milliseconds: 800),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                theme.colorScheme.secondary
+                                                    .withOpacity(0.1),
+                                                theme.colorScheme.secondary
+                                                    .withOpacity(0.05),
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            border: Border.all(
+                                              color: theme.colorScheme.secondary
+                                                  .withOpacity(0.3),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: AppButton(
+                                            text: 'Scan QR Code to Login',
+                                            onPressed: () async {
+                                              final result =
+                                                  await Navigator.of(
+                                                    context,
+                                                  ).push<String>(
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          const LoginQRScannerScreen(),
+                                                    ),
+                                                  );
+
+                                              if (result != null &&
+                                                  result.isNotEmpty &&
+                                                  mounted) {
+                                                _handleQRLogin(result);
+                                              }
+                                            },
+                                            variant: AppButtonVariant.outline,
+                                            icon: Icons.qr_code_scanner_rounded,
+                                            size: AppButtonSize.large,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'Note: QR codes must be generated from the merchant admin panel (localhost:3001)\nGo to Users → Select user → Generate QR Code',
+                                          style: GoogleFonts.poppins(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w400,
+                                            height: 1.4,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        // Development test button - remove in production
+                                        if (const bool.fromEnvironment(
+                                              'dart.vm.product',
+                                            ) ==
+                                            false) ...[
+                                          const SizedBox(height: 8),
+                                          TextButton(
+                                            onPressed: () =>
+                                                _showQRTestInfo(context),
+                                            child: Text(
+                                              'QR Testing Info',
+                                              style: GoogleFonts.poppins(
+                                                color:
+                                                    theme.colorScheme.primary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
 
-                        SizedBox(height: size.height * 0.05),
-                      ],
+                          SizedBox(height: size.height * 0.05),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ]);
+              ],
+            );
           },
         ),
       ),
@@ -724,9 +636,12 @@ class _LoginQRScannerScreenState extends State<LoginQRScannerScreen> {
     super.initState();
     try {
       _controller = MobileScannerController();
-      debugPrint('MobileScanner controller initialized');
+      SecureLogger.debug('MobileScanner controller initialized');
     } catch (e) {
-      debugPrint('Error initializing MobileScanner controller: $e');
+      SecureLogger.error(
+        'Error initializing MobileScanner controller',
+        error: e,
+      );
     }
   }
 
@@ -734,9 +649,9 @@ class _LoginQRScannerScreenState extends State<LoginQRScannerScreen> {
   void dispose() {
     try {
       _controller?.dispose();
-      debugPrint('MobileScanner controller disposed');
+      SecureLogger.debug('MobileScanner controller disposed');
     } catch (e) {
-      debugPrint('Error disposing MobileScanner controller: $e');
+      SecureLogger.error('Error disposing MobileScanner controller', error: e);
     }
     super.dispose();
   }
@@ -751,7 +666,7 @@ class _LoginQRScannerScreenState extends State<LoginQRScannerScreen> {
       final barcode = barcodes.first;
       if (barcode.rawValue == null || barcode.rawValue!.isEmpty) return;
 
-      debugPrint('QR Code scanned: ${barcode.rawValue}');
+      SecureLogger.qrEvent('QR Code scanned successfully');
 
       setState(() {
         _isScanning = false;
@@ -767,7 +682,7 @@ class _LoginQRScannerScreenState extends State<LoginQRScannerScreen> {
         }
       });
     } catch (e) {
-      debugPrint('Error handling barcode: $e');
+      SecureLogger.error('Error handling barcode', error: e);
       // Continue scanning if there's an error
       setState(() {
         _isScanning = true;
@@ -820,7 +735,8 @@ class _LoginQRScannerScreenState extends State<LoginQRScannerScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            _scannedValue ?? 'Scan login QR from merchant admin',
+                            _scannedValue ??
+                                'Scan login QR from merchant admin',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -850,111 +766,110 @@ class _LoginQRScannerScreenState extends State<LoginQRScannerScreen> {
                         ],
                       ),
                     ),
-                    ),
-                  ),
-                ])),  
-                // Left overlay
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.15,
-                    height: MediaQuery.of(context).size.height * 0.5,
-                    color: Colors.black.withOpacity(0.7),
                   ),
                 ),
-                // Right overlay
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.15,
-                    height: MediaQuery.of(context).size.height * 0.5,
-                    color: Colors.black.withOpacity(0.7),
-                  ),
+              ],
+            ),
+          ),
+          // Left overlay
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.15,
+              height: MediaQuery.of(context).size.height * 0.5,
+              color: Colors.black.withOpacity(0.7),
+            ),
+          ),
+          // Right overlay
+          Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.15,
+              height: MediaQuery.of(context).size.height * 0.5,
+              color: Colors.black.withOpacity(0.7),
+            ),
+          ),
+          // Rectangular scanning frame
+          Center(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.7,
+              height: MediaQuery.of(context).size.width * 0.7,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.8),
+                  width: 2,
                 ),
-                // Rectangular scanning frame
-                Center(
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.7,
-                    height: MediaQuery.of(context).size.width * 0.7,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.8),
-                        width: 2,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Stack(
+                children: [
+                  // Corner markers
+                  // Top-left corner
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Colors.white, width: 4),
+                          left: BorderSide(color: Colors.white, width: 4),
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Stack(
-                      children: [
-                        // Corner markers
-                        // Top-left corner
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                top: BorderSide(color: Colors.white, width: 4),
-                                left: BorderSide(color: Colors.white, width: 4),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Top-right corner
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                top: BorderSide(color: Colors.white, width: 4),
-                                right: BorderSide(color: Colors.white, width: 4),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Bottom-left corner
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Colors.white, width: 4),
-                                left: BorderSide(color: Colors.white, width: 4),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Bottom-right corner
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Colors.white, width: 4),
-                                right: BorderSide(color: Colors.white, width: 4),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
-                ),
-              
-            ]));
-          
-      
-    
-  
+                  // Top-right corner
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Colors.white, width: 4),
+                          right: BorderSide(color: Colors.white, width: 4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Bottom-left corner
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.white, width: 4),
+                          left: BorderSide(color: Colors.white, width: 4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Bottom-right corner
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.white, width: 4),
+                          right: BorderSide(color: Colors.white, width: 4),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
