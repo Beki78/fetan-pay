@@ -29,9 +29,7 @@ export default function AuthLayout({
                     alt="FetanPay"
                   />
                 </Link>
-                <p className="text-center text-gray-400 dark:text-white/60">
-                  FetanPay
-                </p>
+               
               </div>
             </div>
           </div>

@@ -52,12 +52,10 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('receiver-accounts/active')
-  @UseGuards(SubscriptionGuard)
-  @ProtectPaymentProviders()
   @ApiOperation({
     summary: 'Set the merchant active receiver account for a provider',
     description:
-      'Sets or updates the active receiver account for a specific payment provider. This account will be used for payment verification. Limited by subscription plan.',
+      'Sets or updates the active receiver account for a specific payment provider. This account will be used for payment verification. ONBOARDING EXCEPTION: PENDING merchants can add ONE bank account without subscription limits. After approval, subscription limits apply.',
   })
   @ApiBody({ type: SetActiveReceiverDto })
   @ApiResponse({
@@ -74,7 +72,13 @@ export class PaymentsController {
     @Body() body: SetActiveReceiverDto,
     @Req() req: Request,
   ) {
-    return this.paymentsService.setActiveReceiverAccount(body, req);
+    // Check if this is an onboarding scenario (PENDING merchant adding first bank account)
+    // If so, bypass subscription guard. Otherwise, enforce subscription limits.
+    const result = await this.paymentsService.setActiveReceiverAccountWithGuard(
+      body,
+      req,
+    );
+    return result;
   }
 
   @Get('receiver-accounts/active')
@@ -125,13 +129,11 @@ export class PaymentsController {
   }
 
   @Post('receiver-accounts/enable')
-  @UseGuards(SubscriptionGuard)
-  @ProtectPaymentProviders()
   @ApiOperation({
     summary:
       'Enable the most recently configured receiver account for a provider',
     description:
-      'Enables the most recently configured (but currently disabled) receiver account for a payment provider. Limited by subscription plan.',
+      'Enables the most recently configured (but currently disabled) receiver account for a payment provider. ONBOARDING EXCEPTION: PENDING merchants can enable ONE bank account without subscription limits. After approval, subscription limits apply.',
   })
   @ApiBody({ type: DisableReceiverDto })
   @ApiResponse({
@@ -145,7 +147,7 @@ export class PaymentsController {
     description: 'Plan limit exceeded - upgrade required',
   })
   async enableReceiver(@Body() body: DisableReceiverDto, @Req() req: Request) {
-    return this.paymentsService.enableLastReceiverAccount(body, req);
+    return this.paymentsService.enableLastReceiverAccountWithGuard(body, req);
   }
 
   @Post('orders')

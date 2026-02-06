@@ -74,6 +74,31 @@ export class MerchantsController {
     return this.merchantsService.selfRegister(body);
   }
 
+  @Post('link-user')
+  @ApiOperation({
+    summary: 'Link Better Auth user to MerchantUser after signup',
+    description:
+      'Links a Better Auth user to their MerchantUser record after completing signup. This is called automatically after Better Auth signup completes.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User linked successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Merchant user not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async linkUser(@Req() req: Request) {
+    const user = (req as any).user;
+    if (!user?.id || !user?.email) {
+      throw new ForbiddenException('Not authenticated');
+    }
+
+    const result = await this.merchantsService.linkUserToMerchant(
+      user.email,
+      user.id,
+    );
+    return { success: true, linked: !!result };
+  }
+
   @Get()
   @ApiOperation({
     summary: 'List merchants with users (paginated)',

@@ -148,6 +148,36 @@ export class MerchantsService {
     return merchant;
   }
 
+  /**
+   * Link Better Auth user to MerchantUser after signup
+   * This is called after the user completes Better Auth signup
+   */
+  async linkUserToMerchant(email: string, userId: string) {
+    // Find MerchantUser by email where userId is null or doesn't match
+    const merchantUser = await (this.prisma as any).merchantUser.findFirst({
+      where: {
+        email,
+        OR: [{ userId: null }, { userId: { not: userId } }],
+      },
+    });
+
+    if (!merchantUser) {
+      console.log(`No merchant user found for email ${email} to link`);
+      return null;
+    }
+
+    // Update the MerchantUser with the Better Auth userId
+    const updated = await (this.prisma as any).merchantUser.update({
+      where: { id: merchantUser.id },
+      data: { userId },
+    });
+
+    console.log(
+      `Linked Better Auth user ${userId} to MerchantUser ${merchantUser.id}`,
+    );
+    return updated;
+  }
+
   async adminCreate(dto: AdminCreateMerchantDto) {
     const targetStatus = dto.status ?? MerchantStatusDto.ACTIVE;
     const existingUser = await this.findAuthUserByEmail(dto.ownerEmail);
