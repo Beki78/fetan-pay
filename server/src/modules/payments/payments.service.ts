@@ -704,10 +704,81 @@ export class PaymentsService {
   }
 
   /**
+   * Wrapper method that checks if subscription guard should be applied
+   * ONBOARDING EXCEPTION: PENDING merchants can add ONE bank account without subscription limits
+   */
+  async setActiveReceiverAccountWithGuard(
+    body: SetActiveReceiverDto,
+    req: Request,
+  ) {
+    const membership = await this.requireMembership(req);
+
+    // Check merchant status and existing accounts
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: membership.merchantId },
+      select: { status: true },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    // Count existing ACTIVE receiver accounts across all providers
+    const activeAccountsCount = await this.prisma.merchantReceiverAccount.count(
+      {
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+      },
+    );
+
+    const isPendingMerchant = merchant.status === 'PENDING';
+    const isFirstBankAccount = activeAccountsCount === 0;
+    const allowOnboardingException = isPendingMerchant && isFirstBankAccount;
+
+    // If this is NOT an onboarding exception, enforce subscription limits
+    if (!allowOnboardingException) {
+      // Manually check subscription limits since we removed the guard from controller
+      const subscription = await this.prisma.subscription.findFirst({
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+        include: {
+          plan: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Check if merchant has reached payment provider limit
+      const planLimits = (subscription?.plan as any)?.limits || {};
+      const paymentProviderLimit = planLimits.payment_providers || 2; // Default to 2 for free plan
+
+      if (activeAccountsCount >= paymentProviderLimit) {
+        const planName = subscription?.plan?.name || 'Free';
+        throw new ForbiddenException({
+          message: `You have reached the maximum number of payment providers for your ${planName} plan (${activeAccountsCount}/${paymentProviderLimit}). Please upgrade your plan to add more payment providers.`,
+          feature: 'payment_providers',
+          currentPlan: planName,
+          currentUsage: activeAccountsCount,
+          limit: paymentProviderLimit,
+          upgradeRequired: true,
+        });
+      }
+    }
+
+    // Proceed with setting the receiver account
+    return this.setActiveReceiverAccount(body, req);
+  }
+
+  /**
    * Contract:
    * - Uses the current authenticated user to resolve MerchantUser + merchantId.
    * - Only one ACTIVE receiver per (merchant, provider) is enforced by marking previous ACTIVE as INACTIVE.
    * - Handles account number updates by deleting old records with different account numbers.
+   * - ONBOARDING EXCEPTION: PENDING merchants can add ONE bank account without subscription limits.
+   *   After merchant approval, subscription limits are enforced.
    */
   async setActiveReceiverAccount(body: SetActiveReceiverDto, req: Request) {
     const membership = await this.requireMembership(req);
@@ -715,6 +786,34 @@ export class PaymentsService {
     const desiredStatus = body.enabled === false ? 'INACTIVE' : 'ACTIVE';
 
     return this.prisma.$transaction(async (tx) => {
+      // Check merchant status for onboarding exception
+      const merchant = await tx.merchant.findUnique({
+        where: { id: membership.merchantId },
+        select: { status: true },
+      });
+
+      if (!merchant) {
+        throw new NotFoundException('Merchant not found');
+      }
+
+      // Count existing ACTIVE receiver accounts across all providers
+      const activeAccountsCount = await tx.merchantReceiverAccount.count({
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+      });
+
+      // ONBOARDING EXCEPTION: Allow PENDING merchants to add ONE bank account
+      // This allows them to complete onboarding without subscription limits
+      const isPendingMerchant = merchant.status === 'PENDING';
+      const isFirstBankAccount = activeAccountsCount === 0;
+      const allowOnboardingException = isPendingMerchant && isFirstBankAccount;
+
+      // If merchant is ACTIVE (approved) and trying to add a new account,
+      // subscription limits will be enforced by the SubscriptionGuard at the controller level
+      // We only bypass the guard for PENDING merchants adding their first account
+
       // Step 1: Find existing record for this merchant + provider (regardless of account number)
       // We only allow one receiver account per merchant + provider combination
       const existingRecord = await tx.merchantReceiverAccount.findFirst({
@@ -827,6 +926,75 @@ export class PaymentsService {
     });
 
     return { disabledCount: updated.count };
+  }
+
+  /**
+   * Wrapper method for enabling receiver accounts with subscription guard check
+   * ONBOARDING EXCEPTION: PENDING merchants can enable ONE bank account without subscription limits
+   */
+  async enableLastReceiverAccountWithGuard(
+    body: DisableReceiverDto,
+    req: Request,
+  ) {
+    const membership = await this.requireMembership(req);
+
+    // Check merchant status and existing accounts
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: membership.merchantId },
+      select: { status: true },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    // Count existing ACTIVE receiver accounts across all providers
+    const activeAccountsCount = await this.prisma.merchantReceiverAccount.count(
+      {
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+      },
+    );
+
+    const isPendingMerchant = merchant.status === 'PENDING';
+    const isFirstBankAccount = activeAccountsCount === 0;
+    const allowOnboardingException = isPendingMerchant && isFirstBankAccount;
+
+    // If this is NOT an onboarding exception, enforce subscription limits
+    if (!allowOnboardingException) {
+      // Manually check subscription limits
+      const subscription = await this.prisma.subscription.findFirst({
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+        include: {
+          plan: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Check if merchant has reached payment provider limit
+      const planLimits = (subscription?.plan as any)?.limits || {};
+      const paymentProviderLimit = planLimits.payment_providers || 2; // Default to 2 for free plan
+
+      if (activeAccountsCount >= paymentProviderLimit) {
+        const planName = subscription?.plan?.name || 'Free';
+        throw new ForbiddenException({
+          message: `You have reached the maximum number of payment providers for your ${planName} plan (${activeAccountsCount}/${paymentProviderLimit}). Please upgrade your plan to add more payment providers.`,
+          feature: 'payment_providers',
+          currentPlan: planName,
+          currentUsage: activeAccountsCount,
+          limit: paymentProviderLimit,
+          upgradeRequired: true,
+        });
+      }
+    }
+
+    // Proceed with enabling the receiver account
+    return this.enableLastReceiverAccount(body, req);
   }
 
   /**
@@ -1681,26 +1849,62 @@ export class PaymentsService {
       throw new ForbiddenException('Not authenticated');
     }
 
-    const membership = await this.merchantUsersService.me(req);
-    interface MembershipResponse {
-      membership?: {
-        id: string;
-        role: string;
-        merchant?: {
-          id: string;
-        };
-      };
+    // Try to get ACTIVE membership first
+    let membershipData: any = null;
+    try {
+      const membership = await this.merchantUsersService.me(req);
+      membershipData = membership;
+    } catch (error) {
+      // If me() throws (e.g., INVITED status or PENDING merchant),
+      // try to find the membership directly for onboarding
+      console.log(
+        'me() threw error, checking for INVITED membership:',
+        (error as Error).message,
+      );
     }
-    const membershipData = membership as MembershipResponse;
-    const merchantId = membershipData.membership?.merchant?.id;
-    const merchantUserId = membershipData.membership?.id;
-    const role = membershipData.membership?.role;
+
+    // If no ACTIVE membership found, check for INVITED membership (for onboarding)
+    if (!membershipData?.membership) {
+      const invitedMembership = await this.prisma.merchantUser.findFirst({
+        where: {
+          userId,
+          status: 'INVITED', // Allow INVITED status for onboarding
+        },
+        include: {
+          merchant: {
+            select: {
+              id: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      if (invitedMembership) {
+        membershipData = {
+          membership: {
+            id: invitedMembership.id,
+            role: invitedMembership.role,
+            status: invitedMembership.status,
+            merchant: {
+              id: invitedMembership.merchant.id,
+              status: invitedMembership.merchant.status,
+            },
+          },
+        };
+      }
+    }
+
+    const merchantId = membershipData?.membership?.merchant?.id;
+    const merchantUserId = membershipData?.membership?.id;
+    const role = membershipData?.membership?.role;
+    const membershipStatus = membershipData?.membership?.status;
 
     if (!merchantId || !merchantUserId || !role) {
       throw new ForbiddenException('Merchant membership required');
     }
 
-    return { merchantId, merchantUserId, userId, role };
+    return { merchantId, merchantUserId, userId, role, membershipStatus };
   }
 
   private toDecimal(value: number, field: string) {

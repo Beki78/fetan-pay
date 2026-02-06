@@ -29,3 +29,27 @@ export async function selfRegisterMerchant(
 
   return json;
 }
+
+/**
+ * Link Better Auth user to MerchantUser after signup
+ * This should be called after the user completes Better Auth signup
+ */
+export async function linkUserToMerchant() {
+  const res = await fetch(`${API_BASE_URL}/merchant-accounts/link-user`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include", // Include cookies for Better Auth session
+  });
+
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    console.error("Failed to link user to merchant:", json);
+    // Don't throw - this is a non-critical operation
+    return { success: false };
+  }
+
+  return json;
+}
