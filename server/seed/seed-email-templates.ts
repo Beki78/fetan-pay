@@ -13,7 +13,7 @@ const prisma = new PrismaClient({ adapter });
 
 async function seedEmailTemplates() {
   console.info('🌱 Seeding email templates...');
-  
+
   const defaultTemplates = [
     {
       id: 'seed_template_welcome',
@@ -149,7 +149,14 @@ async function seedEmailTemplates() {
           </div>
         </div>
       `,
-      variables: ['merchantName', 'alertType', 'alertTime', 'alertLocation', 'alertDevice', 'securityUrl'],
+      variables: [
+        'merchantName',
+        'alertType',
+        'alertTime',
+        'alertLocation',
+        'alertDevice',
+        'securityUrl',
+      ],
       isActive: true,
     },
   ];
@@ -171,7 +178,10 @@ async function seedEmailTemplates() {
 
   console.info('✅ Email templates seeded successfully!', {
     count: defaultTemplates.length,
-    templates: defaultTemplates.map(t => ({ name: t.name, category: t.category })),
+    templates: defaultTemplates.map((t) => ({
+      name: t.name,
+      category: t.category,
+    })),
   });
 }
 

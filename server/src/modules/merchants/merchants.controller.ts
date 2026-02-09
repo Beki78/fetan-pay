@@ -594,4 +594,83 @@ export class MerchantsController {
     this.requireAdmin(req);
     return this.merchantsService.sendUnbanNotification(id);
   }
+
+  @Post('promote-to-verified')
+  @ApiOperation({
+    summary:
+      'Promote merchant from UNVERIFIED to PENDING after email verification',
+    description:
+      'Called after user verifies their email. Promotes merchant from UNVERIFIED to PENDING and notifies admins.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: {
+          type: 'string',
+          description: 'Email of the merchant owner',
+        },
+      },
+      required: ['email'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Merchant promoted to PENDING successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Merchant not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Email not verified or merchant not in UNVERIFIED status',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async promoteToVerified(
+    @Body() body: { email: string },
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user;
+    if (!user?.id || !user?.email) {
+      throw new ForbiddenException('Not authenticated');
+    }
+
+    // Ensure the authenticated user is promoting their own merchant
+    if (user.email !== body.email) {
+      throw new ForbiddenException(
+        'Can only promote your own merchant account',
+      );
+    }
+
+    const result = await this.merchantsService.promoteToVerified(body.email);
+    return { success: true, merchant: result };
+  }
+
+  @Post(':id/send-verification-reminder')
+  @ApiOperation({
+    summary: 'Send verification reminder to unverified merchant (Admin only)',
+    description:
+      "Sends a verification reminder email to the merchant owner who hasn't verified their email yet.",
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification reminder sent successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Merchant not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Merchant is not in unverified status',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async sendVerificationReminder(@Param('id') id: string, @Req() req: Request) {
+    this.requireAdmin(req);
+    return this.merchantsService.sendVerificationReminder(id);
+  }
 }

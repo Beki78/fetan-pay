@@ -1,6 +1,6 @@
 import { baseApi } from "../api";
 
-export type MerchantStatus = "PENDING" | "ACTIVE";
+export type MerchantStatus = "UNVERIFIED" | "PENDING" | "ACTIVE";
 
 export interface MerchantUser {
   id: string;
@@ -125,6 +125,12 @@ export const merchantsApi = baseApi.injectEndpoints({
         method: "POST",
       }),
     }),
+    sendVerificationReminder: build.mutation<{ message: string }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/merchant-accounts/${id}/send-verification-reminder`,
+        method: "POST",
+      }),
+    }),
   }),
 });
 
@@ -137,4 +143,5 @@ export const {
   useActivateUserMutation,
   useNotifyMerchantBanMutation,
   useNotifyMerchantUnbanMutation,
+  useSendVerificationReminderMutation,
 } = merchantsApi;

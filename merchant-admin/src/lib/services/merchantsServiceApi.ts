@@ -53,3 +53,27 @@ export async function linkUserToMerchant() {
 
   return json;
 }
+
+
+/**
+ * Promote merchant from UNVERIFIED to PENDING after email verification
+ * This should be called after the user verifies their email
+ */
+export async function promoteToVerified(email: string) {
+  const res = await fetch(`${API_BASE_URL}/merchant-accounts/promote-to-verified`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include", // Include cookies for Better Auth session
+    body: JSON.stringify({ email }),
+  });
+
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(json?.message || json?.error || "Failed to promote merchant");
+  }
+
+  return json;
+}

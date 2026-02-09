@@ -41,7 +41,6 @@ const bankAccountSchema = z.object({
 
 export default function SignUpForm() {
   const {
-    signInWithGoogle,
     signUpWithEmailAndPassword,
     isLoading,
   } = useAuth();
@@ -189,6 +188,7 @@ export default function SignUpForm() {
       const normalizedPhone = phone ? normalizeEthiopianPhone(phone) : undefined;
 
       try {
+        // Step 1: Register merchant account
         await selfRegisterMerchant({
           name: businessName,
           contactEmail: email,
@@ -198,22 +198,22 @@ export default function SignUpForm() {
           ownerName: fullName,
         });
 
+        // Step 2: Create user account (Better Auth automatically sends OTP when requireEmailVerification: true)
         const ok = await signUpWithEmailAndPassword(email, password, fullName);
         if (!ok) {
           setError("Account created for business, but user signup failed. Please retry login or contact support.");
           return;
         }
 
-        // Link the Better Auth user to the MerchantUser record
-        await linkUserToMerchant();
-
-        toast.success("Account created successfully!");
-        setAccountCreated(true);
-        setCurrentStep(2);
+        // Better Auth automatically sends OTP on signup when requireEmailVerification: true
+        // Redirect to email verification page
+        toast.success("Account created! Please check your email for verification code.");
+        router.push(`/verify-email?email=${encodeURIComponent(email)}&source=signup`);
         
-      } catch (err) {
-        console.error("❌ Self registration error", err);
-        setError((err as Error)?.message || "Failed to create merchant record.");
+      } catch (err: any) {
+        console.error("❌ Registration error", err);
+        // Display the actual API error message
+        setError(err?.message || "Failed to create account. Please try again.");
       }
     } catch (validationError) {
       if (validationError instanceof z.ZodError) {

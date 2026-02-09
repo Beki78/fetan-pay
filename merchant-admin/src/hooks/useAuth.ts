@@ -421,11 +421,40 @@ export const useAuth = (): UseAuthReturn => {
             "❌ Email/Password authentication error:",
             result.error
           );
-          setError(
-            (result.error as { message?: string }).message ||
-              "Authentication failed. Please try again."
-          );
           
+          const errorMessage = (result.error as { message?: string }).message || "";
+          
+          // Check if email is not verified
+          if (
+            errorMessage.toLowerCase().includes("not verified") || 
+            errorMessage.toLowerCase().includes("verify") ||
+            errorMessage.toLowerCase().includes("verification") ||
+            errorMessage.toLowerCase().includes("email verification")
+          ) {
+            // Send OTP for email verification
+            try {
+              if (!emailOtpClient) throw new Error("Email OTP client not available");
+              await emailOtpClient.sendVerificationOtp({
+                email,
+                type: "email-verification",
+              });
+              
+              setError("Please verify your email address to continue. We've sent you a verification code.");
+              
+              // Redirect to verification page after a short delay
+              setTimeout(() => {
+                window.location.href = `/verify-email?email=${encodeURIComponent(email)}&source=login`;
+              }, 1500);
+              
+              return false;
+            } catch (otpError) {
+              console.error("Failed to send verification OTP:", otpError);
+              setError("Email not verified. Please contact support.");
+              return false;
+            }
+          }
+          
+          setError(errorMessage || "Authentication failed. Please try again.");
           return false;
         }
         return false;
@@ -435,13 +464,12 @@ export const useAuth = (): UseAuthReturn => {
           (error as Error)?.message ||
             "Failed to authenticate. Please try again."
         );
-     
         return false;
       } finally {
         setIsLoading(false);
       }
     },
-    [refreshSession]
+    [refreshSession, emailOtpClient]
   );
 
   // Email and password registration

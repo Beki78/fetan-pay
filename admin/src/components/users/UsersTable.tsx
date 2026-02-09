@@ -64,7 +64,7 @@ export default function UsersTable() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-            Merchants
+            Pending Merchants
             {data?.total !== undefined && (
               <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
                 ({data.total} total)

@@ -9,6 +9,7 @@ import {
 } from 'class-validator';
 
 export enum MerchantStatusDto {
+  UNVERIFIED = 'UNVERIFIED',
   PENDING = 'PENDING',
   ACTIVE = 'ACTIVE',
 }

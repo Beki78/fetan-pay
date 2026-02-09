@@ -1,4 +1,5 @@
-// DEPRECATED: Use API_BASE_URL from @/lib/config instead
-// This file is kept for backward compatibility but will be removed
-import { API_BASE_URL } from './config';
-export { API_BASE_URL };
+// OTP Configuration - Must match server/auth.ts
+export const OTP_EXPIRY_MINUTES = 10;
+export const OTP_EXPIRY_SECONDS = OTP_EXPIRY_MINUTES * 60;
+export const OTP_LENGTH = 4;
+export const OTP_RESEND_COOLDOWN_SECONDS = 60;

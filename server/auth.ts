@@ -111,11 +111,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: false,
-    // Email verification is disabled - users can sign in immediately after signup
-    requireEmailVerification: false,
+    // Require email verification before allowing login
+    requireEmailVerification: true, // Changed to true - blocks unverified logins at API level
     minPasswordLength: 8,
     maxPasswordLength: 20,
-    autoSignIn: true,
+    autoSignIn: true, // Auto sign in after email verification
   },
   plugins: [
     admin({
@@ -155,9 +155,9 @@ export const auth = betterAuth({
     }),
     emailOTP({
       overrideDefaultEmailVerification: true,
-      otpLength: 6,
-      expiresIn: 5 * 60, // 5 minutes
-      allowedAttempts: 3,
+      otpLength: 4, // 4-digit OTP for better UX
+      expiresIn: 10 * 60, // 10 minutes - more time for users
+      allowedAttempts: 5, // 5 attempts - more forgiving
       async sendVerificationOTP({ email, otp, type }) {
         console.info('[auth] sendVerificationOTP -> sending', { email, type });
         await emailService.sendOtpEmail(email, otp, type);

@@ -1760,4 +1760,117 @@ export class NotificationService {
       );
     }
   }
+
+  /**
+   * Send verification reminder to unverified merchant
+   */
+  async sendVerificationReminder(
+    ownerEmail: string,
+    ownerName: string,
+    merchantName: string,
+  ) {
+    try {
+      // Build verification URL with auto-request parameter
+      const merchantAppUrl =
+        process.env.MERCHANT_APP_URL || 'http://localhost:3001';
+      const verificationUrl = `${merchantAppUrl}/verify-email?email=${encodeURIComponent(ownerEmail)}&autoRequest=true`;
+
+      // Get email template
+      const emailTemplate = await (this.prisma as any).emailTemplate.findFirst({
+        where: {
+          name: 'verification-reminder',
+          isActive: true,
+        },
+      });
+
+      if (!emailTemplate) {
+        this.logger.warn(
+          `Email template 'verification-reminder' not found or inactive. Sending generic reminder.`,
+        );
+
+        // Send generic reminder with verification link
+        const subject = 'Verify Your Email - FetanPay';
+        const content = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <p>Hi ${ownerName},</p>
+            <p>We noticed you haven't verified your email address yet for your merchant account "${merchantName}".</p>
+            <p>To complete your registration, please click the button below to verify your email:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${verificationUrl}" 
+                 style="display: inline-block; padding: 14px 28px; background-color: #5CFFCE; color: #000; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Verify Email Address
+              </a>
+            </div>
+            
+            <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #0066cc; font-size: 14px;">${verificationUrl}</p>
+            
+            <p style="color: #666; font-size: 13px; margin-top: 20px;">
+              <strong>Note:</strong> Clicking this link will automatically send you a new verification code.
+            </p>
+            
+            <p style="margin-top: 30px;">Thank you,<br>FetanPay Team</p>
+          </div>
+        `;
+
+        await this.emailService.sendNotificationEmail(
+          ownerEmail,
+          subject,
+          content,
+        );
+
+        this.logger.log(`Generic verification reminder sent to ${ownerEmail}`);
+        return;
+      }
+
+      const variables = {
+        ownerName,
+        merchantName,
+        verificationUrl,
+      };
+      const subject = this.substituteVariables(
+        emailTemplate.subject,
+        variables,
+      );
+      const content = this.substituteVariables(
+        emailTemplate.content,
+        variables,
+      );
+
+      // Create email log entry
+      const emailLog = await (this.prisma as any).emailLog.create({
+        data: {
+          toEmail: ownerEmail,
+          subject,
+          content,
+          templateId: emailTemplate.id,
+          sentByUserId: 'system',
+          status: 'PENDING',
+        },
+      });
+
+      await this.emailService.sendNotificationEmail(
+        ownerEmail,
+        subject,
+        content,
+      );
+
+      await (this.prisma as any).emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      });
+
+      this.logger.log(`Verification reminder sent to ${ownerEmail}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send verification reminder to ${ownerEmail}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
 }

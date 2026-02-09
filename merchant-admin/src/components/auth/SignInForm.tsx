@@ -8,6 +8,8 @@ import Link from "next/link";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { authClient } from "@/lib/auth-client";
+import toast from "react-hot-toast";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -43,7 +45,10 @@ export default function SignInForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const success = await signInWithEmailAndPassword(email, password, isChecked);
+    
     if (success) {
+      // Email verified - proceed to dashboard
+      toast.success("Welcome back!");
       // Use window.location for production to ensure cookies are set
       if (process.env.NODE_ENV === 'production') {
         window.location.href = "/";
@@ -51,6 +56,7 @@ export default function SignInForm() {
         router.push("/");
       }
     }
+    // Error handling is done in useAuth hook
   };
 
   return (

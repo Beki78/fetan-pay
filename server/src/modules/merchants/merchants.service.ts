@@ -109,43 +109,62 @@ export class MerchantsService {
   async selfRegister(dto: SelfRegisterMerchantDto) {
     const existingUser = await this.findAuthUserByEmail(dto.ownerEmail);
 
-    const merchant = await (this.prisma as any).merchant.create({
-      data: {
-        name: dto.name,
-        tin: dto.tin,
-        contactEmail: dto.contactEmail,
-        contactPhone: dto.contactPhone,
-        status: 'PENDING', // merchant stays pending until verification/approval
-        source: 'self_registered',
-        users: {
-          create: {
-            role: 'MERCHANT_OWNER',
-            status: 'INVITED', // owner must complete auth login/verification
-            email: dto.ownerEmail,
-            phone: dto.ownerPhone,
-            name: dto.ownerName,
-            userId: existingUser?.id,
+    try {
+      const merchant = await (this.prisma as any).merchant.create({
+        data: {
+          name: dto.name,
+          tin: dto.tin,
+          contactEmail: dto.contactEmail,
+          contactPhone: dto.contactPhone,
+          status: 'UNVERIFIED', // Start as UNVERIFIED until email is verified
+          source: 'self_registered',
+          users: {
+            create: {
+              role: 'MERCHANT_OWNER',
+              status: 'INVITED', // owner must complete auth login/verification
+              email: dto.ownerEmail,
+              phone: dto.ownerPhone,
+              name: dto.ownerName,
+              userId: existingUser?.id,
+            },
           },
         },
-      },
-      include: { users: true },
-    });
+        include: { users: true },
+      });
 
-    // Send notification to admins about new merchant registration
-    try {
-      await this.notificationService.notifyMerchantRegistration(
-        merchant.id,
-        merchant.name,
-      );
-    } catch (error) {
-      console.error(
-        'Failed to send merchant registration notification:',
-        error,
-      );
-      // Don't fail the registration if notification fails
+      // Don't send notification to admins yet - wait for email verification
+      // Notification will be sent when merchant is promoted to PENDING
+
+      return merchant;
+    } catch (error: any) {
+      // Handle Prisma unique constraint violations
+      if (error.code === 'P2002') {
+        const field =
+          error.meta?.driverAdapterError?.cause?.constraint?.fields?.[0] ||
+          error.meta?.target?.[0];
+
+        if (field === 'contactEmail' || field === '"contactEmail"') {
+          throw new BadRequestException(
+            'A merchant with this email already exists. Please use a different email address.',
+          );
+        } else if (field === 'contactPhone' || field === '"contactPhone"') {
+          throw new BadRequestException(
+            'A merchant with this phone number already exists. Please use a different phone number.',
+          );
+        } else if (field === 'tin' || field === '"tin"') {
+          throw new BadRequestException(
+            'A merchant with this TIN already exists. Please use a different TIN.',
+          );
+        } else {
+          throw new BadRequestException(
+            'A merchant with these details already exists. Please check your information.',
+          );
+        }
+      }
+
+      // Re-throw other errors
+      throw error;
     }
-
-    return merchant;
   }
 
   /**
@@ -178,35 +197,120 @@ export class MerchantsService {
     return updated;
   }
 
+  /**
+   * Promote merchant from UNVERIFIED to PENDING after email verification
+   * This is called after the user verifies their email
+   */
+  async promoteToVerified(email: string) {
+    // Find merchant by owner email
+    const merchant = await (this.prisma as any).merchant.findFirst({
+      where: {
+        contactEmail: email,
+        status: 'UNVERIFIED',
+      },
+      include: {
+        users: {
+          where: { role: 'MERCHANT_OWNER' },
+        },
+      },
+    });
+
+    if (!merchant) {
+      console.log(`No unverified merchant found for email ${email}`);
+      return null;
+    }
+
+    // Check if user has verified their email in Better Auth
+    const authUser = await this.findAuthUserByEmail(email);
+    if (!authUser?.emailVerified) {
+      throw new BadRequestException('Email not verified yet');
+    }
+
+    // Update merchant status to PENDING
+    const updated = await (this.prisma as any).merchant.update({
+      where: { id: merchant.id },
+      data: {
+        status: 'PENDING',
+      },
+    });
+
+    // Send notification to admins about new merchant registration
+    try {
+      await this.notificationService.notifyMerchantRegistration(
+        merchant.id,
+        merchant.name,
+      );
+    } catch (error) {
+      console.error(
+        'Failed to send merchant registration notification:',
+        error,
+      );
+      // Don't fail the promotion if notification fails
+    }
+
+    console.log(`Promoted merchant ${merchant.id} from UNVERIFIED to PENDING`);
+    return updated;
+  }
+
   async adminCreate(dto: AdminCreateMerchantDto) {
     const targetStatus = dto.status ?? MerchantStatusDto.ACTIVE;
     const existingUser = await this.findAuthUserByEmail(dto.ownerEmail);
 
-    const merchant = await (this.prisma as any).merchant.create({
-      data: {
-        name: dto.name,
-        tin: dto.tin,
-        contactEmail: dto.contactEmail,
-        contactPhone: dto.contactPhone,
-        status: targetStatus as unknown as MerchantStatus,
-        source: 'admin_created',
-        approvedAt:
-          targetStatus === MerchantStatusDto.ACTIVE ? new Date() : undefined,
-        users: {
-          create: {
-            role: 'MERCHANT_OWNER',
-            status: 'INVITED',
-            email: dto.ownerEmail,
-            phone: dto.ownerPhone,
-            name: dto.ownerName,
-            userId: existingUser?.id,
+    try {
+      const merchant = await (this.prisma as any).merchant.create({
+        data: {
+          name: dto.name,
+          tin: dto.tin,
+          contactEmail: dto.contactEmail,
+          contactPhone: dto.contactPhone,
+          status: targetStatus as unknown as MerchantStatus,
+          source: 'admin_created',
+          approvedAt:
+            targetStatus === MerchantStatusDto.ACTIVE ? new Date() : undefined,
+          users: {
+            create: {
+              role: 'MERCHANT_OWNER',
+              status: 'INVITED',
+              email: dto.ownerEmail,
+              phone: dto.ownerPhone,
+              name: dto.ownerName,
+              userId: existingUser?.id,
+            },
           },
         },
-      },
-      include: { users: true },
-    });
+        include: { users: true },
+      });
 
-    return merchant;
+      return merchant;
+    } catch (error: any) {
+      // Handle Prisma unique constraint violations
+      if (error.code === 'P2002') {
+        const field =
+          error.meta?.driverAdapterError?.cause?.constraint?.fields?.[0] ||
+          error.meta?.target?.[0];
+
+        if (field === 'contactEmail' || field === '"contactEmail"') {
+          throw new BadRequestException(
+            'A merchant with this email already exists. Please use a different email address.',
+          );
+        } else if (field === 'contactPhone' || field === '"contactPhone"') {
+          throw new BadRequestException(
+            'A merchant with this phone number already exists. Please use a different phone number.',
+          );
+        } else if (field === 'tin' || field === '"tin"') {
+          throw new BadRequestException(
+            'A merchant with this TIN already exists. Please use a different TIN.',
+          );
+        } else {
+          throw new BadRequestException(
+            'A merchant with these details already exists. Please check your information.',
+          );
+        }
+      }
+
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   async findOne(id: string) {
@@ -904,5 +1008,49 @@ export class MerchantsService {
     }
 
     return { message: 'Unban notification sent successfully' };
+  }
+
+  /**
+   * Send verification reminder to unverified merchant
+   */
+  async sendVerificationReminder(merchantId: string) {
+    const merchant = await (this.prisma as any).merchant.findUnique({
+      where: { id: merchantId },
+      include: {
+        users: {
+          where: { role: 'MERCHANT_OWNER' },
+          select: { email: true, name: true },
+        },
+      },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    if (merchant.status !== 'UNVERIFIED') {
+      throw new BadRequestException('Merchant is not in unverified status');
+    }
+
+    const ownerEmail = merchant.users[0]?.email;
+    const ownerName = merchant.users[0]?.name;
+
+    if (!ownerEmail) {
+      throw new BadRequestException('Merchant owner email not found');
+    }
+
+    // Send verification reminder email
+    try {
+      await this.notificationService.sendVerificationReminder(
+        ownerEmail,
+        ownerName || merchant.name,
+        merchant.name,
+      );
+    } catch (error) {
+      console.error('Failed to send verification reminder:', error);
+      throw error;
+    }
+
+    return { message: 'Verification reminder sent successfully' };
   }
 }
