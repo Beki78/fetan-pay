@@ -64,9 +64,10 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onMar
 
   const getPriorityColor = (priority: NotificationPriority) => {
     switch (priority) {
-      case 'HIGH':
       case 'CRITICAL':
         return "text-red-600 dark:text-red-400";
+      case 'HIGH':
+        return "text-orange-600 dark:text-orange-400";
       case 'MEDIUM':
         return "text-yellow-600 dark:text-yellow-400";
       case 'LOW':
