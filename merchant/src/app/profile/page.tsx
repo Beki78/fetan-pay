@@ -245,21 +245,9 @@ export default function ProfilePage() {
 
           {/* Actions */}
           <Card>
-            <CardHeader>
-              <CardTitle>Settings</CardTitle>
-            </CardHeader>
+            
             <CardContent className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => {
-                  // TODO: Navigate to settings page
-                  toast.info("Settings coming soon");
-                }}
-              >
-                <Settings className="size-4 mr-2" />
-                Settings
-              </Button>
+             
               <Button
                 variant="outline"
                 className="w-full justify-start text-destructive hover:text-destructive"
