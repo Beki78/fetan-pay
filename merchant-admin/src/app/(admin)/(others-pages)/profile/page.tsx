@@ -46,6 +46,7 @@ export default function Settings() {
     businessName: "",
     businessEmail: "",
     businessPhone: "",
+    tin: "",
   });
   const [userName, setUserName] = useState<string>("");
   const [currentMerchantUserId, setCurrentMerchantUserId] = useState<string | null>(null);
@@ -113,6 +114,7 @@ export default function Settings() {
         businessName: "",
         businessEmail: "",
         businessPhone: "",
+        tin: "",
       });
       setUserName(user?.name || "");
       setCurrentMerchantUserId(null);
@@ -189,6 +191,7 @@ export default function Settings() {
           businessName: profile.name || "",
           businessEmail: profile.contactEmail || "",
           businessPhone: profile.contactPhone || "",
+          tin: profile.tin || "",
         });
         
         // Fetch current merchant user membership to get merchant user ID
@@ -296,10 +299,11 @@ export default function Settings() {
     setIsSaving(true);
     try {
       // Update merchant profile (business info)
+      // Note: Email cannot be changed via this endpoint for security reasons
       await updateMerchantProfile(merchantId, {
         name: formData.businessName,
-        contactEmail: formData.businessEmail,
         contactPhone: formData.businessPhone,
+        tin: formData.tin,
       });
 
       // Update user name if changed
@@ -369,6 +373,7 @@ export default function Settings() {
         businessName: profile.name || "",
         businessEmail: profile.contactEmail || "",
         businessPhone: profile.contactPhone || "",
+        tin: profile.tin || "",
       });
 
       // Refresh session to get updated user data (without page reload)
@@ -630,8 +635,12 @@ export default function Settings() {
                   <Input
                     type="email"
                     value={formData.businessEmail}
-                    onChange={(e) => handleInputChange("businessEmail", e.target.value)}
+                    disabled
+                    className="bg-gray-50 dark:bg-gray-800/50 cursor-not-allowed"
                   />
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Email cannot be changed. Contact support if you need to update it.
+                  </p>
                 </div>
               </div>
             </div>

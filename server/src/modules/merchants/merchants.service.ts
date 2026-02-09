@@ -292,30 +292,34 @@ export class MerchantsService {
       throw new UnauthorizedException('Not authenticated');
     }
 
-    // Verify user is a member of this merchant
+    // Verify user is a member of this merchant (regardless of approval status)
+    // This allows unapproved merchants to update their profile before approval
     const membership = await (this.prisma as any).merchantUser.findFirst({
       where: {
         merchantId,
         userId: authUserId,
-        status: 'ACTIVE',
+        // Removed status: 'ACTIVE' check to allow unapproved merchants to update
       },
     });
 
     if (!membership) {
       throw new UnauthorizedException(
-        'You do not have permission to update this merchant profile',
+        'You do not have permission to update this merchant profile. You must be a member of this merchant.',
       );
     }
+
+    // Prepare update data - explicitly exclude contactEmail for security
+    const updateData: any = {};
+    if (dto.name !== undefined) updateData.name = dto.name;
+    if (dto.contactPhone !== undefined)
+      updateData.contactPhone = dto.contactPhone;
+    if (dto.tin !== undefined) updateData.tin = dto.tin;
+    // contactEmail is intentionally not included - users cannot change email via this endpoint
 
     // Update merchant profile
     const updated = await (this.prisma as any).merchant.update({
       where: { id: merchantId },
-      data: {
-        name: dto.name,
-        contactEmail: dto.contactEmail,
-        contactPhone: dto.contactPhone,
-        tin: dto.tin,
-      },
+      data: updateData,
       include: { users: true },
     });
 

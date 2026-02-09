@@ -7,10 +7,8 @@ export class UpdateMerchantProfileDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Contact email' })
-  @IsOptional()
-  @IsEmail()
-  contactEmail?: string;
+  // Email is intentionally excluded from updates for security reasons
+  // Users should contact support to change their registered email
 
   @ApiPropertyOptional({ description: 'Contact phone number' })
   @IsOptional()
@@ -24,4 +22,3 @@ export class UpdateMerchantProfileDto {
   @IsString()
   tin?: string;
 }
-
