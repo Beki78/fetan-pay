@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
+import PhoneInput from "../form/input/PhoneInput";
 import Label from "../form/Label";
 import Select from "../form/Select";
 import { EyeIcon, EyeCloseIcon } from "@/icons";
@@ -142,9 +143,16 @@ export default function UserModal({
         onSave(created);
       }
       onClose();
-    } catch (err) {
-      console.error("Failed to create user", err);
-      setSubmitError((err as Error)?.message || "Failed to create user");
+    } catch (err: any) {
+      console.error("Failed to save user:", err);
+      
+      // Extract detailed error message from API response
+      const errorMessage = 
+        err?.data?.message || 
+        err?.message || 
+        (mode === "add" ? "Failed to create user" : "Failed to update user");
+      
+      setSubmitError(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -202,11 +210,10 @@ export default function UserModal({
                   <Label>
                     Phone Number <span className="text-error-500">*</span>
                   </Label>
-                  <Input
-                    type="tel"
+                  <PhoneInput
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+251 911 234 567"
+                    onChange={(value) => setFormData({ ...formData, phone: value })}
+                    placeholder="9XXXXXXXX"
                     error={!!errors.phone}
                     hint={errors.phone}
                   />

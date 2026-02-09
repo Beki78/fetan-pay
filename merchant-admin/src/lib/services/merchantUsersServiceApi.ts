@@ -37,12 +37,20 @@ export const merchantUsersServiceApi = createApi({
     baseUrl: API_BASE_URL,
     credentials: "include",
   }),
+  tagTypes: ["MerchantUsers", "MerchantUser"],
   endpoints: (builder) => ({
     getMerchantUsers: builder.query<MerchantUser[], string>({
       query: (merchantId) => ({
         url: `/merchant-accounts/${merchantId}/users`,
         method: "GET",
       }),
+      providesTags: (result, error, merchantId) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: "MerchantUser" as const, id })),
+              { type: "MerchantUsers" as const, id: merchantId },
+            ]
+          : [{ type: "MerchantUsers" as const, id: merchantId }],
     }),
 
     getMerchantUser: builder.query<MerchantUser, { merchantId: string; id: string }>({
@@ -50,6 +58,7 @@ export const merchantUsersServiceApi = createApi({
         url: `/merchant-accounts/${merchantId}/users/${id}`,
         method: "GET",
       }),
+      providesTags: (result, error, { id }) => [{ type: "MerchantUser", id }],
     }),
 
     createMerchantUser: builder.mutation<MerchantUser, CreateMerchantUserInput>({
@@ -58,6 +67,9 @@ export const merchantUsersServiceApi = createApi({
         method: "POST",
         body,
       }),
+      invalidatesTags: (result, error, { merchantId }) => [
+        { type: "MerchantUsers", id: merchantId },
+      ],
     }),
 
     updateMerchantUser: builder.mutation<MerchantUser, UpdateMerchantUserInput>({
@@ -66,6 +78,10 @@ export const merchantUsersServiceApi = createApi({
         method: "PATCH",
         body,
       }),
+      invalidatesTags: (result, error, { merchantId, id }) => [
+        { type: "MerchantUser", id },
+        { type: "MerchantUsers", id: merchantId },
+      ],
     }),
 
     deactivateMerchantUser: builder.mutation<MerchantUser, { merchantId: string; id: string; actionBy: string }>({
@@ -74,6 +90,10 @@ export const merchantUsersServiceApi = createApi({
         method: "PATCH",
         body,
       }),
+      invalidatesTags: (result, error, { merchantId, id }) => [
+        { type: "MerchantUser", id },
+        { type: "MerchantUsers", id: merchantId },
+      ],
     }),
 
     activateMerchantUser: builder.mutation<MerchantUser, { merchantId: string; id: string; actionBy: string }>({
@@ -82,6 +102,10 @@ export const merchantUsersServiceApi = createApi({
         method: "PATCH",
         body,
       }),
+      invalidatesTags: (result, error, { merchantId, id }) => [
+        { type: "MerchantUser", id },
+        { type: "MerchantUsers", id: merchantId },
+      ],
     }),
 
     getQRCode: builder.query<{ qrCodeImage: string; qrCodeData: string; email: string; generatedAt: string }, { merchantId: string; userId: string }>({

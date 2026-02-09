@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import PaymentProvidersList from "@/components/payment-providers/PaymentProvidersList";
 import ConfigureProviderModal from "@/components/payment-providers/ConfigureProviderModal";
-import { useToast } from "@/components/ui/toast/useToast";
+import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { LockIcon } from "@/icons";
 import Button from "@/components/ui/button/Button";
@@ -24,7 +24,6 @@ interface ProviderData {
 export default function PaymentProvidersPage() {
   const [configureModalOpen, setConfigureModalOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<ProviderData | null>(null);
-  const { showToast, ToastComponent } = useToast();
   const { getFeatureLimit, isFeatureUnlimited, plan } = useSubscription();
 
   const { data: receiverAccountsData, refetch: refetchReceiverAccounts } = useGetActiveReceiverAccountsQuery();
@@ -73,19 +72,17 @@ export default function PaymentProvidersPage() {
       // Allow editing existing ACTIVE providers, but not adding new ones or enabling INACTIVE ones
       if (!existing) {
         // No existing configuration - this would be a new provider
-        showToast({
-          type: 'warning',
-          message: `You have reached the maximum number of payment providers for your ${plan?.name || 'current'} plan (${currentProvidersCount}/${paymentProvidersLimit}). To add more providers, please upgrade your plan.`,
-          duration: 5000,
-        });
+        toast.warning(
+          `You have reached the maximum number of payment providers for your ${plan?.name || 'current'} plan (${currentProvidersCount}/${paymentProvidersLimit}). To add more providers, please upgrade your plan.`,
+          { duration: 5000 }
+        );
         return;
       } else if (existing.status !== 'ACTIVE') {
         // Existing configuration but currently inactive - enabling would exceed limit
-        showToast({
-          type: 'warning',
-          message: `You have reached the maximum number of payment providers for your ${plan?.name || 'current'} plan (${currentProvidersCount}/${paymentProvidersLimit}). To enable more providers, please upgrade your plan.`,
-          duration: 5000,
-        });
+        toast.warning(
+          `You have reached the maximum number of payment providers for your ${plan?.name || 'current'} plan (${currentProvidersCount}/${paymentProvidersLimit}). To enable more providers, please upgrade your plan.`,
+          { duration: 5000 }
+        );
         return;
       }
       // If existing and ACTIVE, allow editing (no additional provider count)
@@ -114,61 +111,59 @@ export default function PaymentProvidersPage() {
     const providerName = providerId === "cbe" ? "CBE" : providerId.toUpperCase();
     
     if (action === "disable") {
-      showToast(`Provider ${providerName} disabled`, "success");
+      toast.success(`Provider ${providerName} disabled`);
     } else if (action === "enable") {
-      showToast(`Provider ${providerName} enabled`, "success");
+      toast.success(`Provider ${providerName} enabled`);
     } else {
-      showToast(`Provider ${providerName} configured successfully`, "success");
+      toast.success(`Provider ${providerName} configured successfully`);
     }
   };
 
   const handleDisableProvider = async (providerId: string) => {
     const provider = providerToTransactionProvider(providerId);
     if (!provider) {
-      showToast(`Unknown provider: ${providerId}`, "error");
+      toast.error(`Unknown provider: ${providerId}`);
       return;
     }
 
     try {
       await disableActiveReceiverAccount({ provider }).unwrap();
-      showToast(`Provider ${providerId.toUpperCase()} disabled`, "success");
+      toast.success(`Provider ${providerId.toUpperCase()} disabled`);
     } catch (e: any) {
-      showToast(e?.data?.message ?? "Failed to disable provider", "error");
+      toast.error(e?.data?.message ?? "Failed to disable provider");
     }
   };
 
   const handleEnableProvider = (providerId: string) => {
     const provider = providerToTransactionProvider(providerId);
     if (!provider) {
-      showToast(`Unknown provider: ${providerId}`, "error");
+      toast.error(`Unknown provider: ${providerId}`);
       return;
     }
 
     // Check if enabling this provider would exceed the limit
     if (!isUnlimited && currentProvidersCount >= paymentProvidersLimit) {
-      showToast({
-        type: 'warning',
-        message: `You have reached the maximum number of payment providers for your ${plan?.name || 'current'} plan (${currentProvidersCount}/${paymentProvidersLimit}). Please upgrade your plan to enable more providers.`,
-        duration: 5000,
-      });
+      toast.warning(
+        `You have reached the maximum number of payment providers for your ${plan?.name || 'current'} plan (${currentProvidersCount}/${paymentProvidersLimit}). Please upgrade your plan to enable more providers.`,
+        { duration: 5000 }
+      );
       return;
     }
 
     enableLastReceiverAccount({ provider })
       .unwrap()
       .then(() => {
-        showToast(`Provider ${providerId.toUpperCase()} enabled`, "success");
+        toast.success(`Provider ${providerId.toUpperCase()} enabled`);
       })
       .catch((e: any) => {
         // Handle subscription limit error from backend
         if (e?.status === 403 && e?.data?.upgradeRequired) {
-          showToast({
-            type: 'warning',
-            message: e.data.message || `Payment provider limit reached for your ${plan?.name || 'current'} plan. Please upgrade to enable more providers.`,
-            duration: 5000,
-          });
+          toast.warning(
+            e.data.message || `Payment provider limit reached for your ${plan?.name || 'current'} plan. Please upgrade to enable more providers.`,
+            { duration: 5000 }
+          );
         } else {
-          showToast(e?.data?.message ?? "Failed to enable provider", "error");
+          toast.error(e?.data?.message ?? "Failed to enable provider");
         }
       });
   };
@@ -182,7 +177,7 @@ export default function PaymentProvidersPage() {
     const provider = providerToTransactionProvider(input.providerId);
     if (!provider) {
       const errorMsg = `Unknown provider: ${input.providerId}`;
-      showToast(errorMsg, "error");
+      toast.error(errorMsg);
       throw new Error(errorMsg);
     }
 
@@ -193,12 +188,12 @@ export default function PaymentProvidersPage() {
 
       if (!trimmedAccountNumber || !trimmedAccountHolderName) {
         const errorMsg = "Account number and holder name are required";
-        showToast(errorMsg, "error");
+        toast.error(errorMsg);
         throw new Error(errorMsg);
       }
 
       // Call the API
-      const result = await setActiveReceiverAccount({
+      await setActiveReceiverAccount({
         provider,
         receiverAccount: trimmedAccountNumber,
         receiverName: trimmedAccountHolderName,
@@ -210,7 +205,7 @@ export default function PaymentProvidersPage() {
       await refetchReceiverAccounts();
 
       // Show success message
-      showToast("Payment provider updated successfully", "success");
+      toast.success("Payment provider updated successfully");
 
       // Close modal after a short delay to allow toast to be visible
       setTimeout(() => {
@@ -220,11 +215,7 @@ export default function PaymentProvidersPage() {
       // Handle subscription limit error from backend
       if (e?.status === 403 && e?.data?.upgradeRequired) {
         const errorMessage = e.data.message || `Payment provider limit reached for your ${plan?.name || 'current'} plan. Please upgrade to enable more providers.`;
-        showToast({
-          type: 'warning',
-          message: errorMessage,
-          duration: 5000,
-        });
+        toast.warning(errorMessage, { duration: 5000 });
       } else {
         // Extract error message
         const errorMessage =
@@ -233,7 +224,7 @@ export default function PaymentProvidersPage() {
           "Failed to update payment provider. Please try again.";
 
         // Show error toast
-        showToast(errorMessage, "error");
+        toast.error(errorMessage);
       }
 
       // Re-throw so modal can display the error
@@ -243,9 +234,6 @@ export default function PaymentProvidersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      <ToastComponent />
-
       {/* Subscription Protection Banner */}
       {!isUnlimited && currentProvidersCount >= paymentProvidersLimit && (
         <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-6">

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   UnauthorizedException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { NotificationService } from '../notifications/notification.service';
@@ -628,7 +629,19 @@ export class MerchantsService {
         e?.body?.message ||
         e?.message ||
         'Failed to create auth user for merchant employee';
-      throw new Error(details);
+
+      // Check if it's a duplicate user error
+      if (
+        details.toLowerCase().includes('already exists') ||
+        details.toLowerCase().includes('duplicate') ||
+        e?.status === 409 ||
+        e?.statusCode === 409
+      ) {
+        throw new ConflictException(details);
+      }
+
+      // For other errors, throw BadRequestException with the error message
+      throw new BadRequestException(details);
     }
 
     // Generate QR code token
