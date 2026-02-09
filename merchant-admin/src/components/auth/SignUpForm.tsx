@@ -80,7 +80,10 @@ export default function SignUpForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
-  const { data: providersData } = useGetPaymentProvidersQuery();
+  // Only fetch payment providers when we reach Step 2 (bank setup)
+  const { data: providersData } = useGetPaymentProvidersQuery(undefined, {
+    skip: currentStep !== 2, // Don't fetch until Step 2
+  });
   const [setActiveReceiverAccount] = useSetActiveReceiverAccountMutation();
 
   // Map providers to bank format

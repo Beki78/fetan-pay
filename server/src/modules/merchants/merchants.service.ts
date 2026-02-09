@@ -109,6 +109,36 @@ export class MerchantsService {
   async selfRegister(dto: SelfRegisterMerchantDto) {
     const existingUser = await this.findAuthUserByEmail(dto.ownerEmail);
 
+    // Check if merchant with this phone already exists
+    if (dto.contactPhone) {
+      const existingMerchant = await (this.prisma as any).merchant.findUnique({
+        where: { contactPhone: dto.contactPhone },
+        select: { id: true, name: true, contactEmail: true },
+      });
+
+      if (existingMerchant) {
+        throw new BadRequestException(
+          `A merchant with phone number ${dto.contactPhone} already exists. Please use a different phone number or contact support if this is your business.`,
+        );
+      }
+    }
+
+    // Check if merchant with this email already exists
+    if (dto.contactEmail) {
+      const existingMerchantByEmail = await (
+        this.prisma as any
+      ).merchant.findFirst({
+        where: { contactEmail: dto.contactEmail },
+        select: { id: true, name: true, contactPhone: true },
+      });
+
+      if (existingMerchantByEmail) {
+        throw new BadRequestException(
+          `A merchant with email ${dto.contactEmail} already exists. Please use a different email or contact support if this is your business.`,
+        );
+      }
+    }
+
     const merchant = await (this.prisma as any).merchant.create({
       data: {
         name: dto.name,

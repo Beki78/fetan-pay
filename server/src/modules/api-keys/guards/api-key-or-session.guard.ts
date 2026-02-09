@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiKeyGuard } from './api-key.guard';
 import { ApiKeysService } from '../api-keys.service';
@@ -40,7 +41,12 @@ export class ApiKeyOrSessionGuard implements CanActivate {
     }
 
     // Fall back to session authentication (handled by Better Auth middleware)
-    // If no session exists, Better Auth will return 401
+    // Better Auth populates req.user when there's a valid session
+    // Check if session exists
+    if (!request.user || !request.user.id) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
     return true;
   }
 }
