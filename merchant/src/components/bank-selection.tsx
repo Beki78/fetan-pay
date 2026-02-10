@@ -11,6 +11,8 @@ import { useGetActiveReceiverAccountsQuery, type TransactionProvider } from "@/l
 interface BankSelectionProps {
   selectedBank: string | null;
   onSelectBank: (bankId: string) => void;
+  excludeBank?: string; // For inter-bank: don't show sender bank in receiver options
+  title?: string; // Custom title
 }
 
 // Map provider to bank ID
@@ -22,7 +24,7 @@ const providerToBankId: Record<TransactionProvider, string> = {
   DASHEN: "dashen",
 };
 
-export function BankSelection({ selectedBank, onSelectBank }: BankSelectionProps) {
+export function BankSelection({ selectedBank, onSelectBank, excludeBank, title }: BankSelectionProps) {
   const { data: receiverAccountsData, isLoading } = useGetActiveReceiverAccountsQuery();
 
   // Get active receiver accounts
@@ -31,7 +33,7 @@ export function BankSelection({ selectedBank, onSelectBank }: BankSelectionProps
   );
 
   // Get unique banks from active accounts
-  const activeBanks = activeAccounts
+  let activeBanks = activeAccounts
     .map((account) => {
       const bankId = providerToBankId[account.provider];
       const bank = BANKS.find((b) => b.id === bankId);
@@ -40,6 +42,11 @@ export function BankSelection({ selectedBank, onSelectBank }: BankSelectionProps
     .filter((bank): bank is NonNullable<typeof bank> => bank !== null)
     // Remove duplicates
     .filter((bank, index, self) => self.findIndex((b) => b.id === bank.id) === index);
+  
+  // Exclude specified bank if provided
+  if (excludeBank) {
+    activeBanks = activeBanks.filter((bank) => bank.id !== excludeBank);
+  }
 
   if (isLoading) {
     return (
@@ -52,7 +59,7 @@ export function BankSelection({ selectedBank, onSelectBank }: BankSelectionProps
   return (
     <div className="w-full">
       <h2 className="text-center text-xl font-semibold mb-6 text-foreground">
-        Select Bank Account
+        {title || "Select Bank Account"}
       </h2>
       
       {activeBanks.length > 0 ? (

@@ -18,8 +18,12 @@ export type MerchantVerifyMismatchReason =
   | string
   | null;
 
+export type TransferType = "SAME_BANK" | "INTER_BANK";
+
 export interface VerifyMerchantPaymentRequest {
-  provider: TransactionProvider;
+  transferType: TransferType;
+  receiverBank: TransactionProvider; // Bank where merchant receives payment
+  senderBank?: TransactionProvider; // Bank where customer sent from (required for INTER_BANK)
   reference: string;
   claimedAmount?: number; // Optional - if not provided, uses amount from bank response
   qrData?: string;
@@ -43,6 +47,9 @@ export interface VerifyMerchantPaymentResponse {
   };
   payment: unknown;
   mismatchReason?: MerchantVerifyMismatchReason;
+  transferType?: TransferType;
+  senderBank?: TransactionProvider;
+  receiverBank?: TransactionProvider;
 }
 
 export type VerificationHistoryStatus = "PENDING" | "VERIFIED" | "UNVERIFIED";

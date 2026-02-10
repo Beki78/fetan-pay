@@ -1,16 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState, useRef } from "react";
-import {
-  CheckCircle2,
-  FileDigit,
-  Scan,
-  RefreshCcw,
-  Building,
-  User,
-  // ClipboardClock, // Commented out - history button removed
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, RefreshCcw } from "lucide-react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,14 +10,11 @@ import { BankSelection } from "@/components/bank-selection";
 import { UnifiedScanner } from "@/components/UnifiedScanner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import VConsoleCDN from "@/components/vconsole-cdn";
-// import { VerificationHistorySidebar } from "@/components/verification-history-sidebar"; // Commented out - history sidebar removed
-// import { ProfileDropdown } from "@/components/profile-dropdown"; // Commented out - profile dropdown removed
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { APP_CONFIG, BANKS } from "@/lib/config";
+import { APP_CONFIG } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   formatNumberWithCommas,
@@ -35,10 +23,19 @@ import {
   type BankId,
 } from "@/lib/validation";
 import { createScanSchema } from "@/lib/schemas";
-import { useVerifyMerchantPaymentMutation } from "@/lib/services/paymentsServiceApi";
+import { useVerifyMerchantPaymentMutation, type TransferType } from "@/lib/services/paymentsServiceApi";
 import { useSession } from "@/hooks/useSession";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  TransferTypeSelector,
+  BankSelectionDisplay,
+  InterBankSelector,
+  VerificationMethodSelector,
+  TipInput,
+  VerificationResult,
+  VerifyingOverlay,
+} from "@/components/scan";
 
 type FormData = {
   transactionId?: string;
@@ -51,11 +48,16 @@ function ScanPageContent() {
   const searchParams = useSearchParams();
   const { isAuthenticated, isLoading: isSessionLoading } = useSession();
   const { canAccessFeature, plan } = useSubscription();
+  
+  // Transfer type and bank selection states
+  const [transferType, setTransferType] = useState<TransferType | null>(null);
+  const [senderBank, setSenderBank] = useState<string | null>(null);
+  const [receiverBank, setReceiverBank] = useState<string | null>(null);
+  
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [showTip, setShowTip] = useState<boolean>(false);
   const [showCamera, setShowCamera] = useState(false);
   const quickScanTriggered = useRef(false);
-  // const [showHistorySidebar, setShowHistorySidebar] = useState(false);
   const [verificationMethod, setVerificationMethod] = useState<
     "transaction" | "camera" | null
   >(null);
@@ -77,13 +79,18 @@ function ScanPageContent() {
     null,
   );
   const resultsRef = useRef<HTMLDivElement>(null);
-  const isVerifyingRef = useRef(false); // Prevent duplicate verification calls
+  const isVerifyingRef = useRef(false);
+
+  const validationBank = transferType === "INTER_BANK" && senderBank 
+    ? senderBank 
+    : selectedBank;
 
   const schema = createScanSchema(
-    selectedBank as BankId | null,
+    validationBank as BankId | null,
     verificationMethod,
     showTip,
   );
+  
   const {
     register,
     handleSubmit,
@@ -102,9 +109,11 @@ function ScanPageContent() {
 
   const tipAmount = watch("tipAmount");
 
-  const handleBankSelect = (bankId: string) => {
-    setSelectedBank(bankId);
-    // Do not auto-select verification method; let the user choose.
+  const handleTransferTypeSelect = (type: TransferType) => {
+    setTransferType(type);
+    setSenderBank(null);
+    setReceiverBank(null);
+    setSelectedBank(null);
     setVerificationMethod(null);
     setValue("verificationMethod", null);
     setValue("transactionId", "");
@@ -114,38 +123,44 @@ function ScanPageContent() {
       verificationMethod: null,
     });
   };
+  
+  const handleSenderBankSelect = (bankId: string) => {
+    setSenderBank(bankId);
+  };
+  
+  const handleReceiverBankSelect = (bankId: string) => {
+    setReceiverBank(bankId);
+    setSelectedBank(bankId);
+  };
+
+  const handleResetBanks = () => {
+    setTransferType(null);
+    setSenderBank(null);
+    setReceiverBank(null);
+    setSelectedBank(null);
+    setValue("verificationMethod", null);
+    setValue("transactionId", "");
+    reset();
+  };
 
   const handleCameraScan = async (scannedUrl: string) => {
-    console.log("🔍 [SCAN] handleCameraScan called with:", scannedUrl);
+    if (isVerifyingRef.current) return;
 
-    // Prevent duplicate verification calls
-    if (isVerifyingRef.current) {
-      console.log(
-        "⚠️ [SCAN] Verification already in progress, ignoring duplicate scan",
-      );
-      return;
-    }
-
-    // Close camera immediately
     setShowCamera(false);
 
-    // Detect bank from URL
     const urlDetectedBank = detectBankFromUrl(scannedUrl);
     const detectedBank = urlDetectedBank || (selectedBank as BankId | null);
 
-    // Auto-select bank if detected
     if (urlDetectedBank && selectedBank !== urlDetectedBank) {
       setSelectedBank(urlDetectedBank);
     }
 
-    // Extract transaction reference
     const extractedReference = extractTransactionId(detectedBank, scannedUrl);
     const finalReference =
       extractedReference && extractedReference !== scannedUrl
         ? extractedReference
         : scannedUrl;
 
-    // Set form values (but don't trigger form submission)
     setVerificationMethod("camera");
     setValue("verificationMethod", "camera", {
       shouldValidate: false,
@@ -165,34 +180,28 @@ function ScanPageContent() {
       return;
     }
 
-    // Set verifying flag to prevent duplicate calls
     isVerifyingRef.current = true;
-
-    // Show loading spinner with bank logo - verify immediately (no amount needed)
     setIsVerifyingWithBank(finalBank);
 
     try {
-      // Call verification directly without amount - backend will use bank response amount
-      const provider = finalBank.toUpperCase() as
-        | "CBE"
-        | "TELEBIRR"
-        | "AWASH"
-        | "BOA"
-        | "DASHEN";
+      const providerMap: Record<BankId, "CBE" | "BOA" | "AWASH" | "TELEBIRR"> = {
+        cbe: "CBE",
+        boa: "BOA",
+        awash: "AWASH",
+        telebirr: "TELEBIRR",
+      };
+      
       const response = await verifyMerchantPayment({
-        provider,
+        transferType: "SAME_BANK",
+        receiverBank: providerMap[finalBank],
         reference: finalReference,
-        // No claimedAmount - backend uses amount from bank response
         tipAmount: tipAmount
           ? parseFloat(tipAmount.replace(/,/g, ""))
           : undefined,
       }).unwrap();
 
-      console.log("✅ [SCAN] Verification response:", response);
-
       const success = response.status === "VERIFIED";
 
-      // Show result
       setVerificationResult({
         success,
         status: response.status,
@@ -211,7 +220,6 @@ function ScanPageContent() {
           : response.mismatchReason || "Payment could not be verified",
       });
 
-      // Show toast for result
       toast[success ? "success" : "warning"](
         success ? "Payment verified" : "Not verified",
         {
@@ -222,7 +230,6 @@ function ScanPageContent() {
         },
       );
 
-      // Scroll to results
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -230,9 +237,6 @@ function ScanPageContent() {
         });
       }, 100);
     } catch (error) {
-      console.error("❌ [SCAN] Verification failed:", error);
-
-      // Extract error message
       const errorMessage =
         error &&
         typeof error === "object" &&
@@ -251,7 +255,7 @@ function ScanPageContent() {
       });
     } finally {
       setIsVerifyingWithBank(null);
-      isVerifyingRef.current = false; // Reset verification flag
+      isVerifyingRef.current = false;
     }
   };
 
@@ -261,29 +265,28 @@ function ScanPageContent() {
   };
 
   const onSubmit = async (data: FormData) => {
-    console.log("📤 [VERIFY] onSubmit called with:", data);
+    if (!transferType) {
+      toast.error("Please select transfer type", { duration: 5000 });
+      return;
+    }
 
-    if (!selectedBank) {
-      console.error("❌ [VERIFY] No bank selected");
-      toast.error("Please select a bank account", {
-        duration: 5000,
-      });
+    if (!receiverBank) {
+      toast.error("Please select receiver bank", { duration: 5000 });
+      return;
+    }
+
+    if (transferType === "INTER_BANK" && !senderBank) {
+      toast.error("Please select sender bank", { duration: 5000 });
       return;
     }
 
     if (!data.verificationMethod) {
-      console.error("❌ [VERIFY] No verification method selected");
-      toast.error("Please select a verification method", {
-        duration: 5000,
-      });
+      toast.error("Please select a verification method", { duration: 5000 });
       return;
     }
 
     if (data.verificationMethod === "camera" && !data.transactionId) {
-      console.error("❌ [VERIFY] No transaction ID for camera method");
-      toast.error("Please scan a QR code", {
-        duration: 5000,
-      });
+      toast.error("Please scan a QR code", { duration: 5000 });
       return;
     }
 
@@ -294,74 +297,53 @@ function ScanPageContent() {
       telebirr: "TELEBIRR",
     };
 
-    // Set verifying state with bank logo
-    setIsVerifyingWithBank(selectedBank as BankId);
-    console.log("🔄 [VERIFY] Starting verification for:", selectedBank);
+    setIsVerifyingWithBank(receiverBank as BankId);
 
     try {
       setVerificationResult(null);
 
-      const provider = providerMap[selectedBank as BankId];
       let reference = (data.transactionId || "").trim();
-      console.log("📝 [VERIFY] Initial reference:", reference);
 
-      // Extract reference from URL if it's a full URL
       if (
         reference &&
         (reference.startsWith("http") || reference.includes("://"))
       ) {
-        console.log("🔍 [VERIFY] Extracting reference from URL:", reference);
         const extracted = extractTransactionId(
-          selectedBank as BankId,
+          receiverBank as BankId,
           reference,
         );
         if (extracted && extracted !== reference) {
           reference = extracted;
-          console.log("✅ [VERIFY] Extracted reference:", reference);
-          // Update the form value with extracted reference
           setValue("transactionId", reference);
         }
       }
 
       if (!reference) {
-        console.error("❌ [VERIFY] No reference found");
         setIsVerifyingWithBank(null);
-        toast.error("Transaction reference is required", {
-          duration: 5000,
-        });
+        toast.error("Transaction reference is required", { duration: 5000 });
         throw new Error("Transaction reference is required");
       }
 
-      // Parse tip amount if provided (optional - does not affect verification)
       const tipAmount =
         showTip && data.tipAmount
           ? parseFloat((data.tipAmount || "0").replace(/,/g, ""))
           : undefined;
 
-      console.log("📤 [VERIFY] Sending verification request:", {
-        provider,
-        reference,
-        tipAmount,
-      });
-
-      // Show loading toast
       toast.loading("Verifying payment...", {
-        description: `Checking ${provider} transaction ${reference}`,
+        description: `Checking ${transferType === "INTER_BANK" ? `${senderBank} → ${receiverBank}` : receiverBank} transaction`,
         duration: 10000,
       });
 
-      // No claimedAmount - backend extracts amount from bank verification result
       const response = await verifyMerchantPayment({
-        provider,
+        transferType,
+        senderBank: senderBank ? providerMap[senderBank as BankId] : undefined,
+        receiverBank: providerMap[receiverBank as BankId],
         reference,
         tipAmount: tipAmount && tipAmount > 0 ? tipAmount : undefined,
       }).unwrap();
 
-      console.log("✅ [VERIFY] Verification response received:", response);
-
       const success = response.status === "VERIFIED";
 
-      // Determine failure reason from checks
       const failureMessage = (() => {
         if (!response.checks?.referenceFound) {
           return "Transaction not found";
@@ -376,7 +358,7 @@ function ScanPageContent() {
         success,
         status: response.status,
         reference: response.transaction?.reference ?? reference,
-        provider,
+        provider: receiverBank,
         senderName: response.transaction?.senderName,
         receiverAccount: response.transaction?.receiverAccount,
         receiverName: response.transaction?.receiverName,
@@ -388,19 +370,9 @@ function ScanPageContent() {
         message: success ? undefined : failureMessage,
       });
 
-      // Clear verifying state
       setIsVerifyingWithBank(null);
 
-      console.log("📊 [VERIFY] Verification result:", {
-        success,
-        status: response.status,
-        reference: response.transaction?.reference ?? reference,
-        failureMessage: success ? undefined : failureMessage,
-      });
-
-      // UNVERIFIED is an expected outcome (it means we fetched the receipt but checks didn't pass).
-      // Only use an error toast for network/server errors (caught in catch below).
-      toast.dismiss(); // Dismiss loading toast
+      toast.dismiss();
       toast[success ? "success" : "warning"](
         success ? "Payment verified" : "Not verified",
         {
@@ -413,7 +385,6 @@ function ScanPageContent() {
         },
       );
 
-      // Scroll to results to ensure they're visible
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -421,11 +392,8 @@ function ScanPageContent() {
         });
       }, 300);
     } catch (error: unknown) {
-      // Clear verifying state
       setIsVerifyingWithBank(null);
-      isVerifyingRef.current = false; // Reset verification flag
-
-      console.error("❌ [VERIFY] Verification error:", error);
+      isVerifyingRef.current = false;
 
       const message =
         error &&
@@ -440,27 +408,22 @@ function ScanPageContent() {
             ? error.message
             : "Verification failed";
 
-      console.error("❌ [VERIFY] Error message:", message);
-
-      toast.dismiss(); // Dismiss loading toast
+      toast.dismiss();
       toast.error("Verification failed", {
         description: message,
         duration: 8000,
       });
 
-      // Also set error result for UI display
       const errorResult = {
         success: false,
         status: "ERROR",
         reference: (data.transactionId || "").trim(),
-        provider: providerMap[selectedBank as BankId],
+        provider: receiverBank,
         message: message,
       };
 
-      console.log("📊 [VERIFY] Setting error result:", errorResult);
       setVerificationResult(errorResult);
 
-      // Scroll to results after a short delay
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -468,19 +431,16 @@ function ScanPageContent() {
         });
       }, 300);
     } finally {
-      // Always reset verification flag when done
       isVerifyingRef.current = false;
     }
   };
 
-  // Route protection: unauthenticated users must sign in.
   useEffect(() => {
     if (!isSessionLoading && !isAuthenticated) {
       router.replace("/login");
     }
   }, [isAuthenticated, isSessionLoading, router]);
 
-  // Handle quick scan from URL parameter
   useEffect(() => {
     if (
       searchParams.get("quickscan") === "true" &&
@@ -489,7 +449,6 @@ function ScanPageContent() {
     ) {
       quickScanTriggered.current = true;
       setShowCamera(true);
-      // Clear the URL parameter
       router.replace("/scan", { scroll: false });
     }
   }, [searchParams, router, isAuthenticated]);
@@ -503,7 +462,6 @@ function ScanPageContent() {
   }
 
   if (!isAuthenticated) {
-    // Redirect will happen in the effect; show loading to avoid 404
     return (
       <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background flex items-center justify-center pb-20">
         <div className="text-sm text-muted-foreground">Redirecting...</div>
@@ -511,43 +469,19 @@ function ScanPageContent() {
     );
   }
 
-  const selectedBankData = selectedBank
-    ? BANKS.find((bank) => bank.id === selectedBank)
-    : null;
-  const verifyingBankData = isVerifyingWithBank
-    ? BANKS.find((bank) => bank.id === isVerifyingWithBank)
-    : null;
-
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background pb-20">
-      {/* Bank Logo Loading Spinner Overlay */}
-      {isVerifyingWithBank && verifyingBankData && (
-        <div className="fixed inset-0 z-9998 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-4 p-8 bg-background rounded-2xl shadow-2xl border border-border">
-            <div className="relative w-24 h-24">
-              <Image
-                src={verifyingBankData.icon}
-                alt={verifyingBankData.name}
-                fill
-                sizes="96px"
-                className="object-contain animate-spin"
-                style={{ animationDuration: "2s" }}
-              />
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-semibold text-foreground">
-                Verifying {verifyingBankData.fullName} Payment
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Please wait while we verify your transaction...
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Verifying Overlay */}
+      {isVerifyingWithBank && (
+        <VerifyingOverlay
+          bankId={isVerifyingWithBank}
+          transferType={transferType}
+          senderBank={senderBank}
+        />
       )}
 
       <div className="container mx-auto px-3 py-8 max-w-2xl">
-        {/* Header with Theme Toggle and History */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-8 gap-4">
           <div className="flex items-center gap-3">
             <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl border border-blue-100 bg-white shadow-sm dark:border-slate-800 dark:bg-background">
@@ -570,121 +504,93 @@ function ScanPageContent() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-5">
-            {/* History button - commented out */}
-            {/* <Button
-              variant="outline"
-              size="icon-lg"
-              onClick={() => setShowHistorySidebar(true)}
-              className=""
-              aria-label="View verification history"
-            >
-              <ClipboardClock />
-            </Button> */}
             <ThemeToggle />
-            {/* Profile dropdown - commented out */}
-            {/* <ProfileDropdown /> */}
           </div>
         </div>
 
-        <Card className="shadow-xl border-border/50 ">
+        <Card className="shadow-xl border-border/50">
           <CardContent className="space-y-4 px-4">
             <form
               onSubmit={(e) => {
-                // Prevent form submission if verification is already in progress
                 if (isVerifyingRef.current) {
                   e.preventDefault();
-                  console.log(
-                    "⚠️ [FORM] Preventing form submission - verification in progress",
-                  );
                   return false;
                 }
                 return handleSubmit(onSubmit)(e);
               }}
               className="space-y-6"
             >
-              {/* Bank Selection */}
-              {!selectedBank ? (
-                <BankSelection
-                  selectedBank={selectedBank}
-                  onSelectBank={handleBankSelect}
+              {/* Transfer Type Selection */}
+              {!transferType ? (
+                <TransferTypeSelector onSelectType={handleTransferTypeSelect} />
+              ) : transferType === "SAME_BANK" && !receiverBank ? (
+                /* Same Bank Selection */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground">
+                      Select Bank (Sender & Receiver)
+                    </label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setTransferType(null);
+                        setSenderBank(null);
+                        setReceiverBank(null);
+                        setSelectedBank(null);
+                        setValue("verificationMethod", null);
+                        setValue("transactionId", "");
+                        reset();
+                      }}
+                    >
+                      <RefreshCcw className="h-3 w-3 mr-1" />
+                      Change Type
+                    </Button>
+                  </div>
+                  <BankSelection
+                    selectedBank={receiverBank}
+                    onSelectBank={(bankId) => {
+                      handleReceiverBankSelect(bankId);
+                      setSenderBank(bankId);
+                    }}
+                    title="Select Bank"
+                  />
+                </div>
+              ) : transferType === "INTER_BANK" && (!senderBank || !receiverBank) ? (
+                /* Inter-Bank Selection */
+                <InterBankSelector
+                  senderBank={senderBank}
+                  receiverBank={receiverBank}
+                  onSelectSenderBank={handleSenderBankSelect}
+                  onSelectReceiverBank={handleReceiverBankSelect}
+                  onReset={handleResetBanks}
                 />
-              ) : (
+              ) : receiverBank ? (
+                /* Show selected bank(s) and continue to verification method */
                 <>
-                  {/* Selected Bank Display */}
-                  {selectedBankData && (
-                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-12 h-12">
-                          <Image
-                            src={selectedBankData.icon}
-                            alt={selectedBankData.name}
-                            fill
-                            className="object-contain"
-                            sizes="48px"
-                          />
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedBank(null);
-                          setValue("verificationMethod", null);
-                          setValue("transactionId", "");
-                          reset();
-                        }}
-                      >
-                        <RefreshCcw className="h-3 w-3 mr-1" />
-                        Change Bank
-                      </Button>
-                    </div>
-                  )}
+                  <div className="space-y-3">
+                    <BankSelectionDisplay
+                      senderBank={senderBank}
+                      receiverBank={receiverBank}
+                      isInterBank={transferType === "INTER_BANK"}
+                      onChangeBanks={handleResetBanks}
+                    />
+                  </div>
 
                   {/* Verification Method Selection */}
                   {!verificationMethod && (
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium text-foreground block">
-                        Verification Method
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVerificationMethod("transaction");
-                            setValue("verificationMethod", "transaction");
-                          }}
-                          className={cn(
-                            "flex items-center justify-center gap-3 p-5 border-2 rounded-lg transition-all",
-                            "hover:border-primary hover:bg-primary/5 hover:shadow-md",
-                            verificationMethod === "transaction"
-                              ? "border-primary bg-primary/10 shadow-md"
-                              : "border-border bg-card",
-                          )}
-                        >
-                          <FileDigit className="h-5 w-5 text-primary" />
-                          <span className="font-medium text-base">
-                            Transaction Reference
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowCamera(true)}
-                          className={cn(
-                            "flex items-center justify-center gap-3 p-5 border-2 rounded-lg transition-all",
-                            "hover:border-primary hover:bg-primary/5 hover:shadow-md",
-                            verificationMethod === "camera"
-                              ? "border-primary bg-primary/10 shadow-md"
-                              : "border-border bg-card",
-                          )}
-                        >
-                          <Scan className="h-5 w-5 text-primary" />
-                          <span className="font-medium text-base">
-                            Scan QR Code
-                          </span>
-                        </button>
-                      </div>
-                    </div>
+                    <VerificationMethodSelector
+                      onSelectMethod={(method) => {
+                        if (method === "camera") {
+                          setShowCamera(true);
+                        } else {
+                          setVerificationMethod(method);
+                          setValue("verificationMethod", method);
+                        }
+                      }}
+                      selectedMethod={verificationMethod}
+                    />
                   )}
 
                   {/* Transaction ID Input */}
@@ -692,7 +598,7 @@ function ScanPageContent() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <label className="text-sm font-medium text-foreground">
-                          Transaction Reference / URL
+                          Transaction Reference
                         </label>
                         <Button
                           type="button"
@@ -765,77 +671,21 @@ function ScanPageContent() {
                     </div>
                   )}
 
-                  {/* Account suffix for CBE */}
-
-                  {/* Tip Input with Switch */}
-                  <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <label className="text-sm font-medium text-foreground">
-                          Include Tip
-                        </label>
-                        <p className="text-xs text-muted-foreground">
-                          Add tip amount for this transaction
-                        </p>
-                      </div>
-                      <Switch
-                        checked={showTip}
-                        onCheckedChange={(checked) => {
-                          console.log("🔍 [Scan] Tips toggle clicked:", {
-                            checked,
-                            canAccessTips: canAccessFeature("tips"),
-                            plan: plan,
-                            planName: plan?.name,
-                          });
-
-                          // Check if user has access to tips feature
-                          if (checked && !canAccessFeature("tips")) {
-                            toast.error("Tips feature not available", {
-                              description: `Tips collection is not available in your ${plan?.name || "current"} plan. Please upgrade your plan to enable tips collection.`,
-                              duration: 5000,
-                            });
-                            return;
-                          }
-
-                          setShowTip(checked);
-                          if (!checked) {
-                            setValue("tipAmount", "", {
-                              shouldValidate: false,
-                            });
-                          }
-                        }}
-                      />
-                    </div>
-                    {showTip && (
-                      <div className="space-y-3 pt-2">
-                        <label className="text-sm font-medium text-foreground">
-                          Tip Amount (ETB)
-                        </label>
-                        <Input
-                          type="text"
-                          placeholder="Enter tip amount"
-                          {...register("tipAmount")}
-                          value={tipAmount || ""}
-                          onChange={(e) => {
-                            handleTipChange(e.target.value);
-                            setValue("tipAmount", e.target.value, {
-                              shouldValidate: true,
-                            });
-                          }}
-                          className={cn(
-                            "h-12 focus-visible:ring-1",
-                            errors.tipAmount && "border-destructive",
-                          )}
-                          inputMode="numeric"
-                        />
-                        {errors.tipAmount && (
-                          <p className="text-sm text-destructive">
-                            {errors.tipAmount.message}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  {/* Tip Input */}
+                  <TipInput
+                    showTip={showTip}
+                    tipAmount={tipAmount || ""}
+                    canAccessTips={canAccessFeature("tips")}
+                    planName={plan?.name}
+                    error={errors.tipAmount?.message}
+                    onToggleTip={(checked) => {
+                      setShowTip(checked);
+                      if (!checked) {
+                        setValue("tipAmount", "", { shouldValidate: false });
+                      }
+                    }}
+                    onTipChange={handleTipChange}
+                  />
 
                   {/* Verify Button */}
                   <Button
@@ -857,129 +707,17 @@ function ScanPageContent() {
                     )}
                   </Button>
 
-                  {/* Verification Results - Minimalist Design */}
+                  {/* Verification Results */}
                   {verificationResult && (
-                    <div
+                    <VerificationResult
                       ref={resultsRef}
-                      className="mt-6 animate-in fade-in slide-in-from-bottom-4"
-                    >
-                      {/* Status Header */}
-                      <div
-                        className={cn(
-                          "flex items-center justify-between p-4 rounded-t-xl",
-                          verificationResult.success
-                            ? "bg-green-500 dark:bg-green-600"
-                            : "bg-red-500 dark:bg-red-600",
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          {verificationResult.success ? (
-                            <CheckCircle2 className="h-6 w-6 text-white" />
-                          ) : (
-                            <XCircle className="h-6 w-6 text-white" />
-                          )}
-                          <span className="text-white font-semibold text-lg">
-                            {verificationResult.success ? "Verified" : "Failed"}
-                          </span>
-                        </div>
-                        <span className="text-white/90 text-2xl font-bold">
-                          {formatNumberWithCommas(
-                            (verificationResult.amount ?? 0).toString(),
-                          )}{" "}
-                          ETB
-                        </span>
-                      </div>
-
-                      {/* Main Content - Single Row Layout */}
-                      <div className="bg-card border border-t-0 border-border rounded-b-xl">
-                        <div className="flex items-stretch">
-                          {/* Bank Logo Column - Compact on mobile */}
-                          <div className="flex items-center justify-center p-3 sm:p-5 border-r border-border bg-muted/30 shrink-0">
-                            {(() => {
-                              const bankData = BANKS.find(
-                                (b) =>
-                                  b.id ===
-                                  verificationResult.provider.toLowerCase(),
-                              );
-                              return bankData ? (
-                                <div className="relative w-10 h-10 sm:w-14 sm:h-14">
-                                  <Image
-                                    src={bankData.icon}
-                                    alt={bankData.name}
-                                    fill
-                                    className="object-contain"
-                                    sizes="(max-width: 640px) 40px, 56px"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="w-10 h-10 sm:w-14 sm:h-14 bg-muted rounded-lg flex items-center justify-center">
-                                  <Building className="h-5 w-5 sm:h-7 sm:w-7 text-muted-foreground" />
-                                </div>
-                              );
-                            })()}
-                          </div>
-
-                          {/* Transaction Details Column - More space on mobile */}
-                          <div className="flex-1 p-3 sm:p-4 space-y-2 sm:space-y-3 min-w-0">
-                            {/* Reference */}
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">
-                                Ref
-                              </span>
-                              <span className="font-mono text-xs sm:text-sm font-medium text-foreground truncate">
-                                {verificationResult.reference}
-                              </span>
-                            </div>
-
-                            {/* Divider */}
-                            <div className="border-t border-border/50" />
-
-                            {/* Sender */}
-                            {verificationResult.senderName && (
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">
-                                  From
-                                </span>
-                                <span className="text-xs sm:text-sm font-medium text-foreground capitalize truncate">
-                                  {verificationResult.senderName}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Receiver */}
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide shrink-0">
-                                To
-                              </span>
-                              <div className="text-right min-w-0 flex-1">
-                                <p className="text-xs sm:text-sm font-medium text-foreground truncate">
-                                  {verificationResult.receiverName ||
-                                    "Merchant"}
-                                </p>
-                                {verificationResult.receiverAccount && (
-                                  <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">
-                                    {verificationResult.receiverAccount}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Error Message (only for failed) */}
-                        {!verificationResult.success &&
-                          verificationResult.message && (
-                            <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-                              <p className="text-sm sm:text-base font-medium text-red-600 dark:text-red-400 text-center">
-                                {verificationResult.message}
-                              </p>
-                            </div>
-                          )}
-                      </div>
-                    </div>
+                      result={verificationResult}
+                      transferType={transferType}
+                      senderBank={senderBank}
+                    />
                   )}
                 </>
-              )}
+              ) : null}
             </form>
           </CardContent>
         </Card>
@@ -994,12 +732,6 @@ function ScanPageContent() {
           description="Position the payment QR code within the frame"
         />
       )}
-
-      {/* Verification History Sidebar - commented out */}
-      {/* <VerificationHistorySidebar
-        open={showHistorySidebar}
-        onOpenChange={setShowHistorySidebar}
-      /> */}
 
       {/* VConsole for Mobile Debugging */}
       <VConsoleCDN />
