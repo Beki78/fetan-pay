@@ -9,10 +9,10 @@ import {
   UploadedFile,
   ParseFilePipe,
   MaxFileSizeValidator,
-  FileTypeValidator,
   UsePipes,
   ValidationPipe,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -160,14 +160,26 @@ export class BrandingController {
         fileIsRequired: false,
         validators: [
           new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 }), // 2MB
-          new FileTypeValidator({
-            fileType: /(image\/png|image\/jpeg|image\/jpg|image\/svg\+xml)/,
-          }),
         ],
       }),
     )
     logoFile?: Express.Multer.File,
   ): Promise<BrandingData> {
+    // Validate file type manually
+    if (logoFile) {
+      const allowedMimeTypes = [
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'image/svg+xml',
+      ];
+      if (!allowedMimeTypes.includes(logoFile.mimetype)) {
+        throw new BadRequestException(
+          `Invalid file type. Allowed types: PNG, JPG, JPEG, SVG`,
+        );
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.brandingService.updateBranding(merchantId, updateDto, logoFile);
   }

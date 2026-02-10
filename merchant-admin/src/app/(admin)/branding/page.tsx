@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Checkbox from "@/components/form/input/Checkbox";
@@ -13,7 +12,7 @@ import {
   useUpdateBrandingMutation,
   useDeleteBrandingMutation,
 } from "@/lib/services/brandingServiceApi";
-import { useToast } from "@/components/ui/toast/useToast";
+import { toast } from "sonner";
 import { Modal } from "@/components/ui/modal";
 import { Trash2, Plus, Edit2, Lock } from "lucide-react";
 import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
@@ -22,14 +21,12 @@ export default function BrandingPage() {
   // All hooks must be called at the top level, before any early returns
   const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const { user } = useSession();
-  const { showToast, ToastComponent } = useToast();
-  const { canAccessFeature, plan, subscription } = useSubscription();
+  const { canAccessFeature, plan } = useSubscription();
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState("#5CFFCE");
   const [secondaryColor, setSecondaryColor] = useState("#4F46E5");
   const [displayName, setDisplayName] = useState("");
-  const [tagline, setTagline] = useState("");
   const [showPoweredBy, setShowPoweredBy] = useState(true);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -73,7 +70,6 @@ export default function BrandingPage() {
       setPrimaryColor(brandingData.primaryColor || "#5CFFCE");
       setSecondaryColor(brandingData.secondaryColor || "#4F46E5");
       setDisplayName(brandingData.displayName || "");
-      setTagline(brandingData.tagline || "");
       setShowPoweredBy(brandingData.showPoweredBy ?? true);
 
       // Load logo preview if exists
@@ -91,7 +87,6 @@ export default function BrandingPage() {
       setPrimaryColor("#5CFFCE");
       setSecondaryColor("#4F46E5");
       setDisplayName("");
-      setTagline("");
       setShowPoweredBy(true);
       setLogoPreview(null);
       setLogoFile(null);
@@ -119,7 +114,7 @@ export default function BrandingPage() {
       
       // Validate file size (2MB max)
       if (file.size > 2 * 1024 * 1024) {
-        showToast("File size must be less than 2MB", "error");
+        toast.error("File size must be less than 2MB");
         setIsUploadingLogo(false);
         return;
       }
@@ -132,7 +127,7 @@ export default function BrandingPage() {
         "image/svg+xml",
       ];
       if (!validTypes.includes(file.type)) {
-        showToast("Please upload a PNG, JPG, or SVG file", "error");
+        toast.error("Please upload a PNG, JPG, or SVG file");
         setIsUploadingLogo(false);
         return;
       }
@@ -142,10 +137,10 @@ export default function BrandingPage() {
       reader.onloadend = () => {
         setLogoPreview(reader.result as string);
         setIsUploadingLogo(false);
-        showToast("Logo loaded successfully", "success");
+        toast.success("Logo loaded successfully");
       };
       reader.onerror = () => {
-        showToast("Error reading file. Please try again.", "error");
+        toast.error("Error reading file. Please try again.");
         setIsUploadingLogo(false);
       };
       reader.readAsDataURL(file);
@@ -166,36 +161,42 @@ export default function BrandingPage() {
 
   const handleSave = async () => {
     if (!merchantId) {
-      showToast("Merchant ID not found. Please refresh the page.", "error");
+      toast.error("Merchant ID not found. Please refresh the page.");
       return;
     }
 
+    console.log('=== BRANDING SAVE DEBUG ===');
+    console.log('showPoweredBy state value:', showPoweredBy);
+    console.log('showPoweredBy type:', typeof showPoweredBy);
+
     try {
       setIsUploadingLogo(true);
-      await updateBranding({
+      const payload = {
         merchantId,
         primaryColor,
         secondaryColor,
         displayName: displayName || undefined,
-        tagline: tagline || undefined,
-        showPoweredBy,
+        showPoweredBy, // Always send this value
         logo: logoFile || undefined,
-      }).unwrap();
+      };
+      
+      console.log('Payload being sent:', payload);
+      
+      await updateBranding(payload).unwrap();
 
-      showToast(
+      toast.success(
         hasBranding
           ? "Branding settings updated successfully!"
-          : "Branding settings created successfully!",
-        "success",
+          : "Branding settings created successfully!"
       );
       setLogoFile(null); // Clear file after successful save
       await refetchBranding(); // Refresh to get the new branding data
     } catch (error: any) {
-      showToast(
+      console.error('Branding save error:', error);
+      toast.error(
         error?.data?.message ||
           error?.message ||
-          "Failed to save branding settings",
-        "error",
+          "Failed to save branding settings"
       );
     } finally {
       setIsUploadingLogo(false);
@@ -208,29 +209,27 @@ export default function BrandingPage() {
 
   const handleConfirmDelete = async () => {
     if (!merchantId) {
-      showToast("Merchant ID not found. Please refresh the page.", "error");
+      toast.error("Merchant ID not found. Please refresh the page.");
       return;
     }
 
     try {
       await deleteBranding(merchantId).unwrap();
-      showToast("Branding deleted successfully!", "success");
+      toast.success("Branding deleted successfully!");
       setIsDeleteModalOpen(false);
       // Reset form to defaults
       setPrimaryColor("#5CFFCE");
       setSecondaryColor("#4F46E5");
       setDisplayName("");
-      setTagline("");
       setShowPoweredBy(true);
       setLogoPreview(null);
       setLogoFile(null);
       await refetchBranding();
     } catch (error: any) {
-      showToast(
+      toast.error(
         error?.data?.message ||
           error?.message ||
-          "Failed to delete branding settings",
-        "error",
+          "Failed to delete branding settings"
       );
     }
   };
@@ -247,8 +246,6 @@ export default function BrandingPage() {
 
   return (
     <div className="space-y-6">
-      <ToastComponent />
-      
       {/* Subscription Protection Banner */}
       {!hasCustomBrandingAccess && (
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-6">
@@ -313,11 +310,7 @@ export default function BrandingPage() {
           )}
           <Button
             size="sm"
-            onClick={hasCustomBrandingAccess ? handleSave : () => showToast({
-              type: 'warning',
-              message: 'Please upgrade your plan to access custom branding',
-              duration: 4000,
-            })}
+            onClick={hasCustomBrandingAccess ? handleSave : () => toast.warning('Please upgrade your plan to access custom branding')}
             disabled={isSaving || !hasCustomBrandingAccess}
             className="bg-purple-500 hover:bg-purple-600 text-white border-0 disabled:opacity-50"
           >
@@ -337,7 +330,7 @@ export default function BrandingPage() {
       </div>
 
       {/* Show existing branding info if it exists */}
-      {hasBranding && brandingData && (
+      {/* {hasBranding && brandingData && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 p-4">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
@@ -356,7 +349,7 @@ export default function BrandingPage() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Show empty state if no branding */}
       {!hasBranding && !isLoadingBranding && (
@@ -434,11 +427,7 @@ export default function BrandingPage() {
                           if (hasCustomBrandingAccess) {
                             document.getElementById("logo-upload")?.click();
                           } else {
-                            showToast({
-                              type: 'warning',
-                              message: 'Please upgrade your plan to access custom branding',
-                              duration: 4000,
-                            });
+                            toast.warning('Please upgrade your plan to access custom branding');
                           }
                         }}
                       >
@@ -562,21 +551,6 @@ export default function BrandingPage() {
                     Leave empty to use your business name.
                   </p>
                 </div>
-
-                {/* Tagline */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Tagline <span className="text-gray-400">(Optional)</span>
-                  </label>
-                  <Input
-                    type="text"
-                    value={tagline}
-                    onChange={(e) => setTagline(e.target.value)}
-                    placeholder="Your tagline here"
-                    disabled={!hasCustomBrandingAccess}
-                    className="w-full"
-                  />
-                </div>
               </div>
             </div>
 
@@ -587,7 +561,10 @@ export default function BrandingPage() {
               </label>
               <Checkbox
                 checked={showPoweredBy}
-                onChange={setShowPoweredBy}
+                onChange={(value) => {
+                  console.log('Checkbox changed to:', value);
+                  setShowPoweredBy(value);
+                }}
                 disabled={!hasCustomBrandingAccess}
                 label="Show 'Powered by FetanPay' badge"
               />
