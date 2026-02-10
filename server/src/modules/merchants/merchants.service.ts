@@ -272,16 +272,7 @@ export class MerchantsService {
       throw new NotFoundException('Merchant not found');
     }
 
-    // Map users to include banned status and userId from Better Auth user
-    const usersWithBanned = merchant.users.map((mu: any) => {
-      const { user, ...rest } = mu;
-      return {
-        ...rest,
-        userId: user?.id ?? mu.userId, // Include Better Auth user ID
-        banned: user?.banned ?? false,
-        emailVerified: user?.emailVerified ?? false,
-      };
-    });
+    const usersWithBanned = await this.hydrateMerchantUsers(merchant.users);
 
     return {
       ...merchant,
@@ -347,6 +338,67 @@ export class MerchantsService {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
+  private async hydrateMerchantUsers(users: any[]) {
+    const missingAuthUsers = users.filter(
+      (mu: any) => !mu.user && mu.email,
+    );
+
+    const emailList = Array.from(
+      new Set(
+        missingAuthUsers
+          .map((mu: any) => mu.email as string)
+          .filter(Boolean)
+          .map((email) => email.toLowerCase()),
+      ),
+    );
+
+    const authUsers = emailList.length
+      ? await this.prisma.user.findMany({
+          where: { email: { in: emailList } },
+          select: { id: true, email: true, emailVerified: true, banned: true },
+        })
+      : [];
+
+    const authUserByEmail = new Map(
+      authUsers.map((user) => [user.email.toLowerCase(), user]),
+    );
+
+    await Promise.all(
+      missingAuthUsers.map(async (mu: any) => {
+        const email = (mu.email as string)?.toLowerCase?.();
+        const authUser = email ? authUserByEmail.get(email) : null;
+        if (authUser?.id && mu.userId !== authUser.id) {
+          try {
+            await (this.prisma as any).merchantUser.update({
+              where: { id: mu.id },
+              data: { userId: authUser.id },
+            });
+          } catch (error) {
+            console.warn('Failed to link merchant user to auth user', {
+              merchantUserId: mu.id,
+              authUserId: authUser.id,
+            });
+          }
+        }
+      }),
+    );
+
+    return users.map((mu: any) => {
+      const authUser =
+        mu.user ||
+        (mu.email
+          ? authUserByEmail.get((mu.email as string).toLowerCase())
+          : null);
+      const { user, ...rest } = mu;
+      return {
+        ...rest,
+        userId: authUser?.id ?? mu.userId,
+        banned: authUser?.banned ?? false,
+        emailVerified: authUser?.emailVerified ?? false,
+      };
+    });
+  }
+
   async findAll(query: MerchantQueryDto, adminId?: string) {
     const page = query.page ? Number(query.page) : 1;
     const pageSize = query.pageSize ? Number(query.pageSize) : 20;
@@ -409,25 +461,18 @@ export class MerchantsService {
     ]);
 
     // Map merchants to include banned status for users
-    const data = rawData.map((merchant: any) => {
-      const usersWithBanned = merchant.users.map((mu: any) => {
-        const { user, ...rest } = mu;
+    const data = await Promise.all(
+      rawData.map(async (merchant: any) => {
+        const usersWithBanned = await this.hydrateMerchantUsers(merchant.users);
+        const viewedAt = merchant?.merchantViews?.[0]?.viewedAt ?? null;
+
         return {
-          ...rest,
-          userId: user?.id ?? mu.userId, // Include Better Auth user ID
-          banned: user?.banned ?? false,
-          emailVerified: user?.emailVerified ?? false,
+          ...merchant,
+          users: usersWithBanned,
+          viewedAt,
         };
-      });
-
-      const viewedAt = merchant?.merchantViews?.[0]?.viewedAt ?? null;
-
-      return {
-        ...merchant,
-        users: usersWithBanned,
-        viewedAt,
-      };
-    });
+      }),
+    );
 
     return {
       data,
@@ -881,7 +926,7 @@ export class MerchantsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return users;
+    return this.hydrateMerchantUsers(users);
   }
 
   /**
