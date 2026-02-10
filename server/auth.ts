@@ -111,11 +111,16 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: false,
-    // Email verification is disabled - users can sign in immediately after signup
-    requireEmailVerification: false,
+    // Require email verification before first sign-in
+    requireEmailVerification: true,
     minPasswordLength: 8,
     maxPasswordLength: 20,
     autoSignIn: true,
+  },
+  emailVerification: {
+    // Send verification OTP on sign-up and when unverified users attempt sign-in
+    sendOnSignIn: true,
+    autoSignInAfterVerification: true,
   },
   plugins: [
     admin({

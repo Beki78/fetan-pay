@@ -42,11 +42,13 @@ interface UseAuthReturn {
   signOut: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
+  errorCode: string | null;
 }
 
 export const useAuth = (): UseAuthReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const { refreshSession, signOut: sessionSignOut } = useSession();
   // Better Auth client augments aren't in our types, so cast with runtime guard
   const emailOtpClient = (authClient as any)?.emailOtp;
@@ -57,6 +59,7 @@ export const useAuth = (): UseAuthReturn => {
   const signInWithGoogle = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
+    setErrorCode(null);
 
     try {
       const result = await authClient.signIn.social({
@@ -98,6 +101,7 @@ export const useAuth = (): UseAuthReturn => {
   const signInWithFacebook = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
+    setErrorCode(null);
 
     try {
       const result = await authClient.signIn.social({
@@ -134,6 +138,7 @@ export const useAuth = (): UseAuthReturn => {
   const signInWithTikTok = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
+    setErrorCode(null);
 
     try {
       const result = await authClient.signIn.social({
@@ -172,6 +177,7 @@ export const useAuth = (): UseAuthReturn => {
   const sendOtp = useCallback(async (phoneNumber: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
+    setErrorCode(null);
 
     try {
       await authClient.phoneNumber.sendOtp({ phoneNumber });
@@ -193,6 +199,7 @@ export const useAuth = (): UseAuthReturn => {
     async (phoneNumber: string, code: string): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
 
       try {
         const { data, error } = await authClient.phoneNumber.verify({
@@ -248,6 +255,7 @@ export const useAuth = (): UseAuthReturn => {
     ): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
       try {
         if (!emailOtpClient) throw new Error("Email OTP client not available");
         const { error } = await emailOtpClient.sendVerificationOtp({
@@ -275,6 +283,7 @@ export const useAuth = (): UseAuthReturn => {
     ): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
       try {
         if (!emailOtpClient) throw new Error("Email OTP client not available");
         const { error } = await emailOtpClient.checkVerificationOtp({
@@ -303,6 +312,7 @@ export const useAuth = (): UseAuthReturn => {
     ): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
       try {
         if (!signInEmailOtpClient) throw new Error("Sign-in OTP client not available");
         const { data, error } = await signInEmailOtpClient({
@@ -334,6 +344,7 @@ export const useAuth = (): UseAuthReturn => {
     async (email: string, otp: string): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
       try {
         if (!emailOtpClient) throw new Error("Email OTP client not available");
         const { error } = await emailOtpClient.verifyEmail({ email, otp });
@@ -355,6 +366,7 @@ export const useAuth = (): UseAuthReturn => {
     async (email: string): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
       try {
         if (!forgetPasswordClient) throw new Error("Password reset OTP client not available");
         const { error } = await forgetPasswordClient.emailOtp({ email });
@@ -375,6 +387,7 @@ export const useAuth = (): UseAuthReturn => {
     async (email: string, otp: string, password: string): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
       try {
         if (!emailOtpClient) throw new Error("Email OTP client not available");
         const { error } = await emailOtpClient.resetPassword({
@@ -405,6 +418,7 @@ export const useAuth = (): UseAuthReturn => {
     ): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
 
       try {
         const result = await authClient.signIn.email({
@@ -421,9 +435,12 @@ export const useAuth = (): UseAuthReturn => {
             "❌ Email/Password authentication error:",
             result.error
           );
+          const authError = result.error as { message?: string; code?: string };
+          if (authError?.code) {
+            setErrorCode(authError.code);
+          }
           setError(
-            (result.error as { message?: string }).message ||
-              "Authentication failed. Please try again."
+            authError?.message || "Authentication failed. Please try again."
           );
           
           return false;
@@ -449,6 +466,7 @@ export const useAuth = (): UseAuthReturn => {
     async (email: string, password: string, name?: string): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
 
       try {
         // Extract name from email (part before @) or use provided name
@@ -467,6 +485,9 @@ export const useAuth = (): UseAuthReturn => {
           console.error("❌ Email/Password registration error:", result.error);
           const errorMessage = (result.error as { message?: string; code?: string })?.message;
           const errorCode = (result.error as { message?: string; code?: string })?.code;
+          if (errorCode) {
+            setErrorCode(errorCode);
+          }
           
           // Check if signup is disabled
           if (errorCode === "SIGNUP_DISABLED" || errorMessage?.toLowerCase().includes("signup disabled") || errorMessage?.toLowerCase().includes("signup is disabled")) {
@@ -501,6 +522,7 @@ export const useAuth = (): UseAuthReturn => {
     async (email: string): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
       try {
         // Reuse OTP-based reset flow
         return await requestPasswordResetOtp(email);
@@ -520,6 +542,7 @@ export const useAuth = (): UseAuthReturn => {
     async (email: string, otp: string, password: string): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
+      setErrorCode(null);
       try {
         return await resetPasswordWithOtp(email, otp, password);
       } catch (error: unknown) {
@@ -552,5 +575,6 @@ export const useAuth = (): UseAuthReturn => {
     signOut,
     isLoading,
     error,
+    errorCode,
   };
 };
