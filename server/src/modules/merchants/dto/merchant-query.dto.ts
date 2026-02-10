@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { MerchantStatusDto } from './admin-create-merchant.dto';
 
@@ -32,4 +32,16 @@ export class MerchantQueryDto {
   @IsNumber()
   @Min(1)
   pageSize?: number = 20;
+
+  @ApiPropertyOptional({
+    description: 'Filter by merchant owner email verification status',
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  ownerEmailVerified?: boolean;
 }

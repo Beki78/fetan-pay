@@ -12,6 +12,7 @@ export interface MerchantUser {
   createdAt?: string;
   userId?: string; // Better Auth user ID
   banned?: boolean; // Better Auth banned status
+  emailVerified?: boolean; // Better Auth email verification status
 }
 
 export interface Merchant {
@@ -25,6 +26,7 @@ export interface Merchant {
   approvedAt?: string | null;
   approvedBy?: string | null;
   createdAt: string;
+  viewedAt?: string | null;
   users: MerchantUser[];
 }
 
@@ -42,6 +44,7 @@ export const merchantsApi = baseApi.injectEndpoints({
       search?: string;
       page?: number;
       pageSize?: number;
+      ownerEmailVerified?: boolean;
     } | void>({
       query: (params) => {
         const searchParams = new URLSearchParams();
@@ -49,6 +52,9 @@ export const merchantsApi = baseApi.injectEndpoints({
         if (params?.search) searchParams.set("search", params.search);
         if (params?.page) searchParams.set("page", String(params.page));
         if (params?.pageSize) searchParams.set("pageSize", String(params.pageSize));
+        if (params?.ownerEmailVerified !== undefined) {
+          searchParams.set("ownerEmailVerified", String(params.ownerEmailVerified));
+        }
         const qs = searchParams.toString();
         return `/merchant-accounts${qs ? `?${qs}` : ""}`;
       },
@@ -125,6 +131,33 @@ export const merchantsApi = baseApi.injectEndpoints({
         method: "POST",
       }),
     }),
+    sendMerchantVerificationEmail: build.mutation<{ success: boolean }, { id: string }>(
+      {
+        query: ({ id }) => ({
+          url: `/merchant-accounts/${id}/send-verification-email`,
+          method: "POST",
+        }),
+        invalidatesTags: (_result, _error, arg) => [
+          { type: "Merchant" as const, id: arg.id },
+          { type: "Merchant" as const, id: "LIST" },
+        ],
+      }
+    ),
+    markMerchantViewed: build.mutation<{ success: boolean }, { id: string }>(
+      {
+        query: ({ id }) => ({
+          url: `/merchant-accounts/${id}/viewed`,
+          method: "POST",
+        }),
+        invalidatesTags: (_result, _error, arg) => [
+          { type: "Merchant" as const, id: arg.id },
+          { type: "Merchant" as const, id: "LIST" },
+        ],
+      }
+    ),
+    getUnviewedMerchantCount: build.query<{ count: number }, void>({
+      query: () => `/merchant-accounts/unviewed-count`,
+    }),
   }),
 });
 
@@ -137,4 +170,7 @@ export const {
   useActivateUserMutation,
   useNotifyMerchantBanMutation,
   useNotifyMerchantUnbanMutation,
+  useSendMerchantVerificationEmailMutation,
+  useMarkMerchantViewedMutation,
+  useGetUnviewedMerchantCountQuery,
 } = merchantsApi;

@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "../ui/button/Button";
@@ -8,6 +8,7 @@ import { Modal } from "../ui/modal";
 import {
   useApproveMerchantMutation,
   useGetMerchantQuery,
+  useMarkMerchantViewedMutation,
   useRejectMerchantMutation,
   useDeactivateUserMutation,
   useActivateUserMutation,
@@ -58,6 +59,7 @@ export default function UserDetail({ userId }: UserDetailProps) {
   const { data: brandingData } = useGetMerchantBrandingQuery(userId, { skip: shouldSkip || !merchant });
   const [approve, { isLoading: approving }] = useApproveMerchantMutation();
   const [reject, { isLoading: rejecting }] = useRejectMerchantMutation();
+  const [markViewed] = useMarkMerchantViewedMutation();
   const [deactivateUser, { isLoading: deactivating }] = useDeactivateUserMutation();
   const [activateUser, { isLoading: activating }] = useActivateUserMutation();
   const [notifyBan] = useNotifyMerchantBanMutation();
@@ -66,6 +68,11 @@ export default function UserDetail({ userId }: UserDetailProps) {
   const [confirmAction, setConfirmAction] = useState<null | "approve" | "reject" | "ban" | "unban">(null);
   const [isBanning, setIsBanning] = useState(false);
   const [isUnbanning, setIsUnbanning] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    markViewed({ id: userId }).catch(() => null);
+  }, [markViewed, userId]);
 
   const owner = useMemo(
     () => merchant?.users?.find((u) => u.role === "MERCHANT_OWNER") || null,
@@ -433,6 +440,16 @@ export default function UserDetail({ userId }: UserDetailProps) {
           <InfoItem label="Phone" value={owner?.phone} />
           <InfoItem label="Role" value={owner?.role} />
           <InfoItem label="Status" value={owner?.status} />
+          <InfoItem
+            label="Email verified"
+            value={
+              owner?.userId
+                ? owner?.emailVerified
+                  ? "Verified"
+                  : "Not verified"
+                : "Not linked"
+            }
+          />
         </div>
       </div>
 

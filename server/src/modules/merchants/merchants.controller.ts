@@ -114,8 +114,18 @@ export class MerchantsController {
     status: 403,
     description: 'Forbidden - Admin access required',
   })
-  async list(@Query() query: MerchantQueryDto) {
-    return this.merchantsService.findAll(query);
+  async list(@Query() query: MerchantQueryDto, @Req() req: Request) {
+    const adminId = (req as any)?.user?.id as string | undefined;
+    return this.merchantsService.findAll(query, adminId);
+  }
+
+  @Get('unviewed-count')
+  @ApiOperation({
+    summary: 'Get count of unviewed merchants for current admin',
+  })
+  async getUnviewedCount(@Req() req: Request) {
+    const adminId = (req as any)?.user?.id as string | undefined;
+    return this.merchantsService.getUnviewedCount(adminId || '');
   }
 
   @Post()
@@ -137,6 +147,27 @@ export class MerchantsController {
   })
   async adminCreate(@Body() body: AdminCreateMerchantDto) {
     return this.merchantsService.adminCreate(body);
+  }
+
+  @Post(':id/send-verification-email')
+  @ApiOperation({
+    summary: 'Send verification email to merchant owner',
+    description:
+      'Triggers a verification email for the merchant owner if the email is not verified.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Merchant ID',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification email sent successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request' })
+  @ApiResponse({ status: 404, description: 'Merchant not found' })
+  async sendVerificationEmail(@Param('id') id: string, @Req() req: Request) {
+    return this.merchantsService.sendOwnerVerificationEmail(id, req.headers);
   }
 
   @Patch(':id/approve')
@@ -189,6 +220,15 @@ export class MerchantsController {
   })
   async reject(@Param('id') id: string, @Body() body: RejectMerchantDto) {
     return this.merchantsService.reject(id, body);
+  }
+
+  @Post(':id/viewed')
+  @ApiOperation({
+    summary: 'Mark merchant as viewed by current admin',
+  })
+  async markViewed(@Param('id') id: string, @Req() req: Request) {
+    const adminId = (req as any)?.user?.id as string | undefined;
+    return this.merchantsService.markMerchantViewed(adminId || '', id);
   }
 
   @Get(':id')

@@ -27,6 +27,7 @@ interface UsersSearchFilterProps {
   onStatusChange: (status: MerchantStatus | "") => void;
   searchValue: string;
   statusValue: MerchantStatus | "";
+  showStatusFilter?: boolean;
 }
 
 export default function UsersSearchFilter({
@@ -34,6 +35,7 @@ export default function UsersSearchFilter({
   onStatusChange,
   searchValue,
   statusValue,
+  showStatusFilter = true,
 }: UsersSearchFilterProps) {
   const [localSearch, setLocalSearch] = useState(searchValue);
   const [showFilters, setShowFilters] = useState(false);
@@ -55,10 +57,14 @@ export default function UsersSearchFilter({
   const handleClearFilters = () => {
     setLocalSearch("");
     onSearchChange("");
-    onStatusChange("");
+    if (showStatusFilter) {
+      onStatusChange("");
+    }
   };
 
-  const hasActiveFilters = searchValue || statusValue;
+  const hasActiveFilters = showStatusFilter
+    ? searchValue || statusValue
+    : searchValue;
 
   return (
     <div className="bg-white dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 p-4">

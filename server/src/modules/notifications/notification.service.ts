@@ -482,6 +482,41 @@ export class NotificationService {
     }
   }
 
+  /**
+   * Send a profile completion reminder email to merchant owner
+   */
+  async notifyMerchantCompleteProfileByEmail(
+    merchantName: string,
+    ownerEmail: string,
+  ) {
+    try {
+      const subject = 'Complete your profile';
+      const content = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+          <h2 style="margin-bottom: 12px;">Complete your profile</h2>
+          <p style="margin: 0 0 12px 0;">Hello ${merchantName || 'Merchant'},</p>
+          <p style="margin: 0 0 12px 0;">Please complete your profile to continue setting up your account and access all features.</p>
+          <p style="margin: 0; color: #475569;">If you didn’t request this, you can safely ignore this email.</p>
+        </div>
+      `;
+
+      await this.emailService.sendNotificationEmail(
+        ownerEmail,
+        subject,
+        content,
+      );
+
+      this.logger.log(
+        `Complete profile email sent directly to ${ownerEmail}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send complete profile email to ${ownerEmail}: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
   async notifyMerchantRejection(
     merchantId: string,
     merchantName: string,
