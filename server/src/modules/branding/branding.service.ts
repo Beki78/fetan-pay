@@ -129,14 +129,15 @@ export class BrandingService {
       updateData.tagline = updateDto.tagline.trim() || null;
     }
     if (updateDto.showPoweredBy !== undefined) {
-      // Ensure boolean conversion (handle string "true"/"false" from form data)
-      const showPoweredByValue = updateDto.showPoweredBy;
-      if (typeof showPoweredByValue === 'string') {
-        updateData.showPoweredBy =
-          showPoweredByValue === 'true' || showPoweredByValue === '1';
-      } else {
-        updateData.showPoweredBy = Boolean(showPoweredByValue);
-      }
+      // The Transform decorator already converted it to boolean
+      updateData.showPoweredBy = updateDto.showPoweredBy;
+      console.log(
+        'showPoweredBy received:',
+        updateDto.showPoweredBy,
+        'type:',
+        typeof updateDto.showPoweredBy,
+      );
+      console.log('showPoweredBy to save:', updateData.showPoweredBy);
     }
     if (logoUrl) {
       updateData.logoUrl = logoUrl;
@@ -149,48 +150,18 @@ export class BrandingService {
       secondaryColor: updateData.secondaryColor || '#4F46E5',
       displayName: updateData.displayName ?? null,
       tagline: updateData.tagline ?? null,
-      showPoweredBy:
-        updateData.showPoweredBy !== undefined
-          ? Boolean(updateData.showPoweredBy)
-          : true,
+      showPoweredBy: updateData.showPoweredBy ?? true,
       logoUrl: updateData.logoUrl ?? null,
     };
 
-    // Prepare update data (only include fields that were provided)
-    const updateDataClean: {
-      primaryColor?: string;
-      secondaryColor?: string;
-      displayName?: string | null;
-      tagline?: string | null;
-      showPoweredBy?: boolean;
-      logoUrl?: string;
-    } = {};
-
-    if (updateData.primaryColor !== undefined) {
-      updateDataClean.primaryColor = updateData.primaryColor;
-    }
-    if (updateData.secondaryColor !== undefined) {
-      updateDataClean.secondaryColor = updateData.secondaryColor;
-    }
-    if (updateData.displayName !== undefined) {
-      updateDataClean.displayName = updateData.displayName;
-    }
-    if (updateData.tagline !== undefined) {
-      updateDataClean.tagline = updateData.tagline;
-    }
-    if (updateData.showPoweredBy !== undefined) {
-      updateDataClean.showPoweredBy = Boolean(updateData.showPoweredBy);
-    }
-    if (updateData.logoUrl !== undefined) {
-      updateDataClean.logoUrl = updateData.logoUrl;
-    }
+    console.log('Final data to upsert:', { createData, updateData });
 
     // Upsert branding
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     const branding = await (this.prisma as any).merchantBranding.upsert({
       where: { merchantId },
       create: createData,
-      update: updateDataClean,
+      update: updateData,
     });
 
     // Send notification about branding update

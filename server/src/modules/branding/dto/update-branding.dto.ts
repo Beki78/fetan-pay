@@ -1,5 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsBoolean, IsOptional, IsHexColor, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsHexColor,
+  MaxLength,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class UpdateBrandingDto {
@@ -47,11 +53,26 @@ export class UpdateBrandingDto {
   })
   @IsOptional()
   @Transform(({ value }) => {
+    // Handle undefined/null - don't update this field
     if (value === undefined || value === null) return undefined;
-    if (value === 'true' || value === true || value === '1') return true;
-    if (value === 'false' || value === false || value === '0' || value === '') return false;
+
+    // Handle string values from FormData
+    if (typeof value === 'string') {
+      const lowerValue = value.toLowerCase().trim();
+      if (lowerValue === 'true' || lowerValue === '1') return true;
+      if (lowerValue === 'false' || lowerValue === '0' || lowerValue === '')
+        return false;
+    }
+
+    // Handle boolean values
+    if (typeof value === 'boolean') return value;
+
+    // Handle numeric values
+    if (typeof value === 'number') return value !== 0;
+
+    // Default: convert to boolean
     return Boolean(value);
   })
+  @IsBoolean()
   showPoweredBy?: boolean;
 }
-

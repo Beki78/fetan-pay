@@ -664,22 +664,45 @@ export class MerchantsService {
       this.encryptionKey,
     ).toString();
 
-    const membership = await (this.prisma as any).merchantUser.create({
-      data: {
-        merchantId,
-        userId: authUserId,
-        role: (dto.role as MerchantUserRole) || 'EMPLOYEE',
-        status: 'ACTIVE' as MerchantUserStatus,
-        email: dto.email,
-        phone: dto.phone,
-        name: dto.name,
-        qrCodeToken,
-        qrCodeGeneratedAt: new Date(),
-        encryptedPassword, // Store encrypted password for QR login
-      },
-    });
+    try {
+      const membership = await (this.prisma as any).merchantUser.create({
+        data: {
+          merchantId,
+          userId: authUserId,
+          role: (dto.role as MerchantUserRole) || 'EMPLOYEE',
+          status: 'ACTIVE' as MerchantUserStatus,
+          email: dto.email,
+          phone: dto.phone,
+          name: dto.name,
+          qrCodeToken,
+          qrCodeGeneratedAt: new Date(),
+          encryptedPassword, // Store encrypted password for QR login
+        },
+      });
 
-    return membership;
+      return membership;
+    } catch (error: any) {
+      // Handle Prisma unique constraint errors
+      if (error.code === 'P2002') {
+        const field =
+          error.meta?.constraint?.fields?.[0] || error.meta?.target?.[0];
+        if (field === 'phone') {
+          throw new ConflictException(
+            'This phone number is already registered. Please use a different phone number.',
+          );
+        } else if (field === 'email') {
+          throw new ConflictException(
+            'This email is already registered. Please use a different email.',
+          );
+        } else {
+          throw new ConflictException(
+            'A user with these details already exists.',
+          );
+        }
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   async listUsers(merchantId: string) {

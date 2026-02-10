@@ -19,7 +19,6 @@ export interface UpdateBrandingInput {
   primaryColor?: string;
   secondaryColor?: string;
   displayName?: string;
-  tagline?: string;
   showPoweredBy?: boolean;
   logo?: File;
 }
@@ -58,13 +57,8 @@ export const brandingServiceApi = createApi({
         if (body.displayName !== undefined) {
           formData.append('displayName', body.displayName || '');
         }
-        if (body.tagline !== undefined) {
-          // Allow empty string to clear tagline
-          formData.append('tagline', body.tagline);
-        }
-        if (body.showPoweredBy !== undefined) {
-          formData.append('showPoweredBy', String(body.showPoweredBy));
-        }
+        // Always send showPoweredBy value, convert boolean to string properly
+        formData.append('showPoweredBy', body.showPoweredBy === true ? 'true' : 'false');
 
         return {
           url: `/merchants/${merchantId}/branding`,

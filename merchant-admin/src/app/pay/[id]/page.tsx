@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useGetPublicPaymentDetailsQuery, usePublicVerifyMutation } from "@/lib/services/transactionsServiceApi";
 import { CheckCircleIcon, ChevronDownIcon, LockIcon } from "@/icons";
+import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
 
 export default function PublicPaymentPage() {
   const params = useParams();
@@ -189,8 +190,24 @@ export default function PublicPaymentPage() {
 
   // Get branding colors with fallback
   const primaryColor = paymentDetails.branding?.primaryColor || "#7C3AED";
+  const secondaryColor = paymentDetails.branding?.secondaryColor || "#6366F1";
   const brandName = paymentDetails.branding?.displayName || paymentDetails.merchantName || "PAYAUTH";
   const showPoweredBy = paymentDetails.branding?.showPoweredBy ?? true;
+  
+  // Construct full logo URL
+  const logoUrl = paymentDetails.branding?.logoUrl 
+    ? `${STATIC_ASSETS_BASE_URL}${paymentDetails.branding.logoUrl}`
+    : null;
+  
+  // Debug logging
+  console.log('Branding data:', {
+    fullBranding: paymentDetails.branding,
+    logoUrl: paymentDetails.branding?.logoUrl,
+    constructedUrl: logoUrl,
+    showPoweredBy: paymentDetails.branding?.showPoweredBy,
+    showPoweredByComputed: showPoweredBy,
+    STATIC_ASSETS_BASE_URL,
+  });
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-100 dark:bg-gray-900">
@@ -198,23 +215,30 @@ export default function PublicPaymentPage() {
         {/* Header Section with branding color */}
         <div 
           className="px-6 pt-6 pb-5 text-white"
-          style={{ backgroundColor: primaryColor }}
+          style={{ 
+            background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)` 
+          }}
         >
           {/* Logo and Brand Name - Centered */}
           <div className="flex items-center justify-center gap-3 mb-5">
             <span className="text-lg font-bold tracking-wide">{brandName}</span>
             <div className="flex items-center gap-2">
-              {paymentDetails.branding?.logoUrl ? (
+              {logoUrl && (
                 <div className="w-8 h-8 rounded-lg bg-white overflow-hidden flex items-center justify-center">
                   <Image
-                    src={paymentDetails.branding.logoUrl}
+                    src={logoUrl}
                     alt={brandName}
                     width={32}
                     height={32}
-                    className="object-contain"
+                    className="object-contain p-1"
+                    unoptimized
+                    onError={(e) => {
+                      console.error('Logo failed to load:', logoUrl);
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 </div>
-              ) : null}
+              )}
               <div className="w-8 h-8 rounded-lg bg-white overflow-hidden flex items-center justify-center">
                 <Image
                   src={getBankLogo(paymentDetails.receiverProvider)}
