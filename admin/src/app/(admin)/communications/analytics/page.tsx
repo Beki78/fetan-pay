@@ -1,15 +1,31 @@
 "use client";
-import React, { useState } from "react";
-import Link from "next/link";
+import React, { useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeftIcon, PieChartIcon, UserIcon, EnvelopeIcon, EyeIcon } from "@/icons";
 import { 
   useGetAnalyticsOverviewQuery,
   useGetEngagementTrendsQuery,
   useGetTopCampaignsQuery 
 } from "@/lib/services/communicationsApi";
+import { Tabs } from "@/components/common/Tabs";
 
 export default function CommunicationsAnalyticsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [timeRange, setTimeRange] = useState(30);
+
+  const navTabs = useMemo(
+    () => [
+      { id: "compose", label: "Compose Message", path: "/communications" },
+      { id: "campaigns", label: "Campaigns", path: "/communications/campaigns" },
+      { id: "analytics", label: "Analytics", path: "/communications/analytics" },
+      { id: "logs", label: "Email Logs", path: "/communications/logs" },
+    ],
+    []
+  );
+
+  const activeTab =
+    navTabs.find((tab) => tab.path === pathname)?.id ?? "analytics";
 
   const { data: overview, isLoading: overviewLoading } = useGetAnalyticsOverviewQuery({ days: timeRange });
   const { data: trends, isLoading: trendsLoading } = useGetEngagementTrendsQuery({ days: timeRange });
@@ -20,14 +36,17 @@ export default function CommunicationsAnalyticsPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <Link
-          href="/communications"
-          className="inline-flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 mb-4"
-        >
-          <ChevronLeftIcon className="w-4 h-4" />
-          Back to Communications
-        </Link>
-        
+        <div className="mb-4">
+          <Tabs
+            tabs={navTabs.map(({ id, label }) => ({ id, label }))}
+            activeTab={activeTab}
+            onTabChange={(tabId) => {
+              const target = navTabs.find((tab) => tab.id === tabId);
+              if (target) router.push(target.path);
+            }}
+          />
+        </div>
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">

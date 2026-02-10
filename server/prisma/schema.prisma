@@ -223,9 +223,28 @@ model Merchant {
   billingTransactions  BillingTransaction[]
   subscriptionUsage    SubscriptionUsage[]
 
+  merchantViews        AdminMerchantView[]
+
   // Provider catalog is global (admin-managed), so no relation here.
 
   @@map("merchant")
+}
+
+model AdminMerchantView {
+  id         String   @id @default(uuid())
+  adminId    String
+  merchantId String
+  viewedAt   DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  admin    User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, merchantId])
+  @@index([adminId])
+  @@index([merchantId])
+  @@map("admin_merchant_view")
 }
 
 model PaymentProvider {
@@ -401,6 +420,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   merchantUsers MerchantUser[]
+  merchantViews AdminMerchantView[]
 
   role       String?
   banned     Boolean?  @default(false)

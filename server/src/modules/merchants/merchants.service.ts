@@ -260,6 +260,7 @@ export class MerchantsService {
               select: {
                 id: true,
                 banned: true,
+                emailVerified: true,
               },
             },
           },
@@ -278,6 +279,7 @@ export class MerchantsService {
         ...rest,
         userId: user?.id ?? mu.userId, // Include Better Auth user ID
         banned: user?.banned ?? false,
+        emailVerified: user?.emailVerified ?? false,
       };
     });
 
@@ -345,9 +347,13 @@ export class MerchantsService {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async findAll(query: MerchantQueryDto) {
+  async findAll(query: MerchantQueryDto, adminId?: string) {
     const page = query.page ? Number(query.page) : 1;
     const pageSize = query.pageSize ? Number(query.pageSize) : 20;
+    const ownerEmailVerified =
+      typeof (query as any).ownerEmailVerified === 'string'
+        ? (query as any).ownerEmailVerified === 'true'
+        : query.ownerEmailVerified;
     const where: any = {
       status: query.status as MerchantStatus | undefined,
       OR: query.search
@@ -358,6 +364,20 @@ export class MerchantsService {
           ]
         : undefined,
     };
+
+    if (ownerEmailVerified !== undefined) {
+      where.users = {
+        some: {
+          role: 'MERCHANT_OWNER',
+          userId: { not: null },
+          user: {
+            is: {
+              emailVerified: ownerEmailVerified,
+            },
+          },
+        },
+      };
+    }
 
     const [rawData, total] = await this.prisma.$transaction([
       (this.prisma as any).merchant.findMany({
@@ -370,10 +390,17 @@ export class MerchantsService {
                 select: {
                   id: true,
                   banned: true,
+                  emailVerified: true,
                 },
               },
             },
           },
+          merchantViews: adminId
+            ? {
+                where: { adminId },
+                select: { viewedAt: true },
+              }
+            : undefined,
         },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -389,12 +416,16 @@ export class MerchantsService {
           ...rest,
           userId: user?.id ?? mu.userId, // Include Better Auth user ID
           banned: user?.banned ?? false,
+          emailVerified: user?.emailVerified ?? false,
         };
       });
+
+      const viewedAt = merchant?.merchantViews?.[0]?.viewedAt ?? null;
 
       return {
         ...merchant,
         users: usersWithBanned,
+        viewedAt,
       };
     });
 
@@ -404,6 +435,55 @@ export class MerchantsService {
       page,
       pageSize,
     };
+  }
+
+  async markMerchantViewed(adminId: string, merchantId: string) {
+    if (!adminId) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+
+    const merchant = await (this.prisma as any).merchant.findUnique({
+      where: { id: merchantId },
+      select: { id: true },
+    });
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    await (this.prisma as any).adminMerchantView.upsert({
+      where: {
+        adminId_merchantId: {
+          adminId,
+          merchantId,
+        },
+      },
+      update: { viewedAt: new Date() },
+      create: {
+        adminId,
+        merchantId,
+        viewedAt: new Date(),
+      },
+    });
+
+    return { success: true };
+  }
+
+  async getUnviewedCount(adminId: string) {
+    if (!adminId) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+
+    const unviewedCount = await (this.prisma as any).merchant.count({
+      where: {
+        merchantViews: {
+          none: {
+            adminId,
+          },
+        },
+      },
+    });
+
+    return { count: unviewedCount };
   }
 
   async approve(id: string, dto: ApproveMerchantDto) {
@@ -496,6 +576,72 @@ export class MerchantsService {
     // The frontend will call authClient.admin.unbanUser() for all team members
 
     return updated;
+  }
+
+  async sendOwnerVerificationEmail(
+    merchantId: string,
+    requestHeaders?: Record<string, any>,
+  ) {
+    const merchant = await (this.prisma as any).merchant.findUnique({
+      where: { id: merchantId },
+      include: {
+        users: {
+          where: { role: 'MERCHANT_OWNER' },
+          select: { email: true },
+        },
+      },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    const ownerEmail = merchant.users?.[0]?.email;
+    if (!ownerEmail) {
+      throw new BadRequestException('Merchant owner email not found');
+    }
+
+    const authUser = await this.findAuthUserByEmail(ownerEmail);
+    if (!authUser) {
+      throw new NotFoundException('Auth user not found for owner email');
+    }
+
+    if (authUser.emailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    const api = (auth as any)?.api;
+    if (!api?.sendVerificationEmail) {
+      throw new Error('Verification email endpoint not available');
+    }
+
+    const baseCallbackUrl =
+      process.env.MERCHANT_ADMIN_URL ||
+      process.env.FRONTEND_URL ||
+      'http://localhost:3001';
+    const callbackURL = baseCallbackUrl.endsWith('/')
+      ? `${baseCallbackUrl}signin`
+      : `${baseCallbackUrl}/signin`;
+
+    await api.sendVerificationEmail({
+      body: {
+        email: ownerEmail,
+        callbackURL,
+      },
+      headers: {
+        'x-forwarded-for':
+          (requestHeaders as any)?.['x-forwarded-for'] ||
+          (requestHeaders as any)?.['X-Forwarded-For'] ||
+          '127.0.0.1',
+      },
+    });
+
+    await this.notificationService.notifyMerchantCompleteProfileByEmail(
+      merchant.name,
+      ownerEmail,
+    );
+
+    return { success: true };
   }
 
   async reject(id: string, dto: RejectMerchantDto) {
@@ -699,6 +845,7 @@ export class MerchantsService {
             banned: true,
             banReason: true,
             banExpires: true,
+            emailVerified: true,
           },
         },
       },

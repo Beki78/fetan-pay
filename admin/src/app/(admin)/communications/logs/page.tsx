@@ -1,7 +1,6 @@
 "use client";
-import React, { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import React, { useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useListEmailLogsQuery, useListSmsLogsQuery } from "@/lib/services/communicationsApi";
 import { 
   Table,
@@ -10,14 +9,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs } from "@/components/common/Tabs";
 
 type LogType = 'email' | 'sms';
 
 export default function CommunicationLogsPage() {
   const pathname = usePathname();
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [logType, setLogType] = useState<LogType>('email');
+
+  const navTabs = useMemo(
+    () => [
+      { id: "compose", label: "Compose Message", path: "/communications" },
+      { id: "campaigns", label: "Campaigns", path: "/communications/campaigns" },
+      { id: "analytics", label: "Analytics", path: "/communications/analytics" },
+      { id: "logs", label: "Email Logs", path: "/communications/logs" },
+    ],
+    []
+  );
+
+  const activeTab =
+    navTabs.find((tab) => tab.path === pathname)?.id ?? "logs";
   
   const { data: emailData, isLoading: emailLoading, error: emailError } = useListEmailLogsQuery({
     page,
@@ -99,54 +113,28 @@ export default function CommunicationLogsPage() {
         </p>
         
         {/* Navigation Tabs */}
-        <div className="flex gap-4 mt-4 border-b border-gray-200 dark:border-gray-700">
-          <Link
-            href="/communications"
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              pathname === '/communications'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            Compose Message
-          </Link>
-          <Link
-            href="/communications/logs"
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              pathname === '/communications/logs'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            Message Logs
-          </Link>
+        <div className="mt-4">
+          <Tabs
+            tabs={navTabs.map(({ id, label }) => ({ id, label }))}
+            activeTab={activeTab}
+            onTabChange={(tabId) => {
+              const target = navTabs.find((tab) => tab.id === tabId);
+              if (target) router.push(target.path);
+            }}
+          />
         </div>
       </div>
 
       {/* Log Type Tabs */}
       <div className="mb-6">
-        <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-fit">
-          <button
-            onClick={() => handleLogTypeChange('email')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              logType === 'email'
-                ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            📧 Email Logs
-          </button>
-          <button
-            onClick={() => handleLogTypeChange('sms')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              logType === 'sms'
-                ? 'bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            📱 SMS Logs
-          </button>
-        </div>
+        <Tabs
+          tabs={[
+            { id: "email", label: "Email Logs" },
+            { id: "sms", label: "SMS Logs" },
+          ]}
+          activeTab={logType}
+          onTabChange={(tabId) => handleLogTypeChange(tabId as LogType)}
+        />
       </div>
 
       <div className="bg-white dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">

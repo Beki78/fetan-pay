@@ -1,11 +1,12 @@
 "use client";
-import React, { useEffect, useRef, useState,useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import { PendingApprovalBanner } from "@/components/common/AccountStatus";
 import { useGetUnreadCountQuery } from "@/lib/services/notificationsApi";
+import { useGetUnviewedMerchantCountQuery } from "@/lib/redux/features/merchantsApi";
 import {
   BoltIcon,
   ChevronDownIcon,
@@ -294,6 +295,14 @@ const resourcesItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
+  const { data: unviewedCountData } = useGetUnviewedMerchantCountQuery(undefined, {
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMountOrArgChange: true,
+    pollingInterval: 5000,
+  });
+
+  const unseenMerchantCount = unviewedCountData?.count || 0;
 
   // TODO: Replace this with real account status from API / context
   const accountStatus: "pending" | "active" = "pending";
@@ -354,7 +363,11 @@ const AppSidebar: React.FC = () => {
               />
             ) : (
               <Link
-                href={nav.path}
+                href={
+                  nav.name === "Merchants" && unseenMerchantCount > 0
+                    ? "/users?newFirst=1"
+                    : nav.path
+                }
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -369,7 +382,14 @@ const AppSidebar: React.FC = () => {
                   {nav.icon}
                 </span>
                 {(isExpanded || isHovered || isMobileOpen) && (
-                  <span className={`menu-item-text`}>{nav.name}</span>
+                  <span className={`menu-item-text flex items-center justify-between w-full`}>
+                    {nav.name}
+                    {nav.name === "Merchants" && unseenMerchantCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-5 text-[10px] font-medium ml-auto">
+                        {unseenMerchantCount > 99 ? "99+" : unseenMerchantCount}
+                      </span>
+                    )}
+                  </span>
                 )}
               </Link>
             )
