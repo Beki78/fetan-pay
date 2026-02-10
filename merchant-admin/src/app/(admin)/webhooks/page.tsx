@@ -80,7 +80,7 @@ export default function WebhooksPage() {
   const currentWebhook = webhooks.length > 0 ? webhooks[0] : null;
 
   // Get delivery stats - must be called before early returns
-  const { data: deliveries = [] } = useGetDeliveryLogsQuery(
+  const { data: deliveries = [], refetch: refetchDeliveries } = useGetDeliveryLogsQuery(
     { webhookId: currentWebhook?.id || "", limit: 100 },
     { skip: !currentWebhook?.id }
   );
@@ -199,12 +199,20 @@ export default function WebhooksPage() {
     try {
       await testWebhook(currentWebhook.id).unwrap();
       toast.success(
-        "Test webhook sent successfully! Check your endpoint to verify it was received.",
+        "Test webhook sent successfully! Check your endpoint to verify it was received or check the history on the deliveries section",
         {
           duration: 5000,
         }
       );
+      
+      // Refetch both webhooks and deliveries to update the UI immediately
       refetch();
+      
+      // Add a small delay to ensure the delivery is processed, then refetch deliveries
+      setTimeout(() => {
+        refetchDeliveries();
+      }, 500);
+      
     } catch (error: any) {
       toast.error(
         error?.data?.message || "Failed to send test webhook. Check your endpoint URL and try again.",
@@ -234,9 +242,9 @@ export default function WebhooksPage() {
       {/* Header */}
       <div>
         <PageBreadcrumb pageTitle="Webhooks" />
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+        {/* <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
           Webhooks
-        </h1>
+        </h1> */}
         <p className="text-sm text-gray-600 dark:text-gray-300">
           Configure webhook notifications for payment events
         </p>
@@ -559,7 +567,7 @@ export default function WebhooksPage() {
       </div>
 
       {/* Payload Example Section */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
+      {/* <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
             Payload Example
@@ -590,10 +598,10 @@ export default function WebhooksPage() {
 }`}
           language="json"
         />
-      </div>
+      </div> */}
 
       {/* Headers Sent Section */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
+      {/* <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
             Headers Sent
@@ -605,10 +613,10 @@ X-FetanPay-Event: payment.verified
 X-FetanPay-Delivery-Id: <delivery-id>
 Content-Type: application/json`}
         />
-      </div>
+      </div> */}
 
       {/* Signature Verification Section */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
+      {/* <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
             Signature Verification
@@ -632,10 +640,10 @@ $data = json_decode($payload, true);
 // Process the webhook...`}
           language="php"
         />
-      </div>
+      </div> */}
 
       {/* Best Practices Section */}
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
+      {/* <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
             Best Practices
@@ -667,7 +675,7 @@ $data = json_decode($payload, true);
             </p>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Regenerate Secret Modal */}
       <RegenerateSecretModal

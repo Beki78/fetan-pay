@@ -42,7 +42,7 @@ export default function UsersPage() {
   })();
 
   // Fetch users - must be called before early returns
-  const { data: users = [], isFetching: isUsersLoading, refetch } = useGetMerchantUsersQuery(merchantId ?? "", {
+  const { data: users = [], isFetching: isUsersLoading } = useGetMerchantUsersQuery(merchantId ?? "", {
     skip: !merchantId,
   });
 
@@ -94,8 +94,9 @@ export default function UsersPage() {
     router.push(`/users/${user.id}`);
   };
 
-  const handleSave = (_user?: User) => {
-    refetch();
+  const handleSave = () => {
+    // RTK Query will automatically refetch due to cache invalidation
+    toast.success("User saved successfully");
   };
 
   const handleShowQRCode = (user: User) => {

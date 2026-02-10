@@ -79,9 +79,10 @@ export default function NotificationsPage() {
 
   const getPriorityColor = (priority: NotificationPriority) => {
     switch (priority) {
-      case 'HIGH':
       case 'CRITICAL':
-        return "border-l-red-500 bg-red-50 dark:bg-red-900/20 dark:border-l-red-400";
+        return "border-l-red-600 bg-red-50 dark:bg-red-900/20 dark:border-l-red-500";
+      case 'HIGH':
+        return "border-l-orange-500 bg-orange-50 dark:bg-orange-900/20 dark:border-l-orange-400";
       case 'MEDIUM':
         return "border-l-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 dark:border-l-yellow-400";
       case 'LOW':
@@ -188,8 +189,10 @@ export default function NotificationsPage() {
                       <span>{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</span>
                       <span className="capitalize">{notification.type.replace('_', ' ').toLowerCase()}</span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        notification.priority === 'HIGH' || notification.priority === 'CRITICAL'
+                        notification.priority === 'CRITICAL'
                           ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400"
+                          : notification.priority === 'HIGH'
+                          ? "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400"
                           : notification.priority === 'MEDIUM'
                           ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400"
                           : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400"

@@ -131,6 +131,7 @@ export const webhooksServiceApi = createApi({
       invalidatesTags: (result, error, id) => [
         { type: 'Webhook', id },
         { type: 'WebhookDelivery', id: 'LIST' },
+        { type: 'WebhookDelivery', id },
       ],
     }),
 
@@ -141,7 +142,9 @@ export const webhooksServiceApi = createApi({
         params: limit ? { limit } : {},
       }),
       providesTags: (result, error, { webhookId }) => [
+        { type: 'WebhookDelivery', id: 'LIST' },
         { type: 'WebhookDelivery', id: webhookId },
+        ...(result || []).map((delivery) => ({ type: 'WebhookDelivery' as const, id: delivery.id })),
       ],
     }),
 

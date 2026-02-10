@@ -70,7 +70,7 @@ export async function findMerchantByEmail(email: string): Promise<MerchantProfil
 
 export interface UpdateMerchantProfileInput {
   name?: string;
-  contactEmail?: string;
+  // contactEmail is intentionally excluded - email cannot be changed via profile update for security
   contactPhone?: string;
   tin?: string;
 }

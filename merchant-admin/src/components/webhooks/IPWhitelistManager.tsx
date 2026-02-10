@@ -187,9 +187,14 @@ export default function IPWhitelistManager() {
           </Button>
         </div>
         {!ipStatus?.enabled && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-7">
-            When disabled, API requests can be made from any IP 
-          </p>
+          <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+            <div className="flex items-start gap-2">
+              <AlertIcon className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+              <p className="text-sm text-orange-800 dark:text-orange-300">
+                <strong>Caution:</strong> When disabled, API requests can be made from any IP address.
+              </p>
+            </div>
+          </div>
         )}
       </div>
 

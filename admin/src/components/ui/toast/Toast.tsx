@@ -54,7 +54,7 @@ export default function Toast({
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full">  
       <div
         className={`rounded-lg border px-4 py-3 flex items-center gap-3 ${getToastStyles()}`}
       >

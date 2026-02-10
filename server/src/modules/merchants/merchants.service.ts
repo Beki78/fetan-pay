@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   UnauthorizedException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { NotificationService } from '../notifications/notification.service';
@@ -109,6 +110,36 @@ export class MerchantsService {
   async selfRegister(dto: SelfRegisterMerchantDto) {
     const existingUser = await this.findAuthUserByEmail(dto.ownerEmail);
 
+    // Check if merchant with this phone already exists
+    if (dto.contactPhone) {
+      const existingMerchant = await (this.prisma as any).merchant.findUnique({
+        where: { contactPhone: dto.contactPhone },
+        select: { id: true, name: true, contactEmail: true },
+      });
+
+      if (existingMerchant) {
+        throw new BadRequestException(
+          `A merchant with phone number ${dto.contactPhone} already exists. Please use a different phone number or contact support if this is your business.`,
+        );
+      }
+    }
+
+    // Check if merchant with this email already exists
+    if (dto.contactEmail) {
+      const existingMerchantByEmail = await (
+        this.prisma as any
+      ).merchant.findFirst({
+        where: { contactEmail: dto.contactEmail },
+        select: { id: true, name: true, contactPhone: true },
+      });
+
+      if (existingMerchantByEmail) {
+        throw new BadRequestException(
+          `A merchant with email ${dto.contactEmail} already exists. Please use a different email or contact support if this is your business.`,
+        );
+      }
+    }
+
     const merchant = await (this.prisma as any).merchant.create({
       data: {
         name: dto.name,
@@ -146,6 +177,36 @@ export class MerchantsService {
     }
 
     return merchant;
+  }
+
+  /**
+   * Link Better Auth user to MerchantUser after signup
+   * This is called after the user completes Better Auth signup
+   */
+  async linkUserToMerchant(email: string, userId: string) {
+    // Find MerchantUser by email where userId is null or doesn't match
+    const merchantUser = await (this.prisma as any).merchantUser.findFirst({
+      where: {
+        email,
+        OR: [{ userId: null }, { userId: { not: userId } }],
+      },
+    });
+
+    if (!merchantUser) {
+      console.log(`No merchant user found for email ${email} to link`);
+      return null;
+    }
+
+    // Update the MerchantUser with the Better Auth userId
+    const updated = await (this.prisma as any).merchantUser.update({
+      where: { id: merchantUser.id },
+      data: { userId },
+    });
+
+    console.log(
+      `Linked Better Auth user ${userId} to MerchantUser ${merchantUser.id}`,
+    );
+    return updated;
   }
 
   async adminCreate(dto: AdminCreateMerchantDto) {
@@ -232,30 +293,34 @@ export class MerchantsService {
       throw new UnauthorizedException('Not authenticated');
     }
 
-    // Verify user is a member of this merchant
+    // Verify user is a member of this merchant (regardless of approval status)
+    // This allows unapproved merchants to update their profile before approval
     const membership = await (this.prisma as any).merchantUser.findFirst({
       where: {
         merchantId,
         userId: authUserId,
-        status: 'ACTIVE',
+        // Removed status: 'ACTIVE' check to allow unapproved merchants to update
       },
     });
 
     if (!membership) {
       throw new UnauthorizedException(
-        'You do not have permission to update this merchant profile',
+        'You do not have permission to update this merchant profile. You must be a member of this merchant.',
       );
     }
+
+    // Prepare update data - explicitly exclude contactEmail for security
+    const updateData: any = {};
+    if (dto.name !== undefined) updateData.name = dto.name;
+    if (dto.contactPhone !== undefined)
+      updateData.contactPhone = dto.contactPhone;
+    if (dto.tin !== undefined) updateData.tin = dto.tin;
+    // contactEmail is intentionally not included - users cannot change email via this endpoint
 
     // Update merchant profile
     const updated = await (this.prisma as any).merchant.update({
       where: { id: merchantId },
-      data: {
-        name: dto.name,
-        contactEmail: dto.contactEmail,
-        contactPhone: dto.contactPhone,
-        tin: dto.tin,
-      },
+      data: updateData,
       include: { users: true },
     });
 
@@ -564,7 +629,19 @@ export class MerchantsService {
         e?.body?.message ||
         e?.message ||
         'Failed to create auth user for merchant employee';
-      throw new Error(details);
+
+      // Check if it's a duplicate user error
+      if (
+        details.toLowerCase().includes('already exists') ||
+        details.toLowerCase().includes('duplicate') ||
+        e?.status === 409 ||
+        e?.statusCode === 409
+      ) {
+        throw new ConflictException(details);
+      }
+
+      // For other errors, throw BadRequestException with the error message
+      throw new BadRequestException(details);
     }
 
     // Generate QR code token

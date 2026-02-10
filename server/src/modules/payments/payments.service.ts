@@ -704,10 +704,81 @@ export class PaymentsService {
   }
 
   /**
+   * Wrapper method that checks if subscription guard should be applied
+   * ONBOARDING EXCEPTION: PENDING merchants can add ONE bank account without subscription limits
+   */
+  async setActiveReceiverAccountWithGuard(
+    body: SetActiveReceiverDto,
+    req: Request,
+  ) {
+    const membership = await this.requireMembership(req);
+
+    // Check merchant status and existing accounts
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: membership.merchantId },
+      select: { status: true },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    // Count existing ACTIVE receiver accounts across all providers
+    const activeAccountsCount = await this.prisma.merchantReceiverAccount.count(
+      {
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+      },
+    );
+
+    const isPendingMerchant = merchant.status === 'PENDING';
+    const isFirstBankAccount = activeAccountsCount === 0;
+    const allowOnboardingException = isPendingMerchant && isFirstBankAccount;
+
+    // If this is NOT an onboarding exception, enforce subscription limits
+    if (!allowOnboardingException) {
+      // Manually check subscription limits since we removed the guard from controller
+      const subscription = await this.prisma.subscription.findFirst({
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+        include: {
+          plan: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Check if merchant has reached payment provider limit
+      const planLimits = (subscription?.plan as any)?.limits || {};
+      const paymentProviderLimit = planLimits.payment_providers || 2; // Default to 2 for free plan
+
+      if (activeAccountsCount >= paymentProviderLimit) {
+        const planName = subscription?.plan?.name || 'Free';
+        throw new ForbiddenException({
+          message: `You have reached the maximum number of payment providers for your ${planName} plan (${activeAccountsCount}/${paymentProviderLimit}). Please upgrade your plan to add more payment providers.`,
+          feature: 'payment_providers',
+          currentPlan: planName,
+          currentUsage: activeAccountsCount,
+          limit: paymentProviderLimit,
+          upgradeRequired: true,
+        });
+      }
+    }
+
+    // Proceed with setting the receiver account
+    return this.setActiveReceiverAccount(body, req);
+  }
+
+  /**
    * Contract:
    * - Uses the current authenticated user to resolve MerchantUser + merchantId.
    * - Only one ACTIVE receiver per (merchant, provider) is enforced by marking previous ACTIVE as INACTIVE.
    * - Handles account number updates by deleting old records with different account numbers.
+   * - ONBOARDING EXCEPTION: PENDING merchants can add ONE bank account without subscription limits.
+   *   After merchant approval, subscription limits are enforced.
    */
   async setActiveReceiverAccount(body: SetActiveReceiverDto, req: Request) {
     const membership = await this.requireMembership(req);
@@ -715,6 +786,34 @@ export class PaymentsService {
     const desiredStatus = body.enabled === false ? 'INACTIVE' : 'ACTIVE';
 
     return this.prisma.$transaction(async (tx) => {
+      // Check merchant status for onboarding exception
+      const merchant = await tx.merchant.findUnique({
+        where: { id: membership.merchantId },
+        select: { status: true },
+      });
+
+      if (!merchant) {
+        throw new NotFoundException('Merchant not found');
+      }
+
+      // Count existing ACTIVE receiver accounts across all providers
+      const activeAccountsCount = await tx.merchantReceiverAccount.count({
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+      });
+
+      // ONBOARDING EXCEPTION: Allow PENDING merchants to add ONE bank account
+      // This allows them to complete onboarding without subscription limits
+      const isPendingMerchant = merchant.status === 'PENDING';
+      const isFirstBankAccount = activeAccountsCount === 0;
+      const allowOnboardingException = isPendingMerchant && isFirstBankAccount;
+
+      // If merchant is ACTIVE (approved) and trying to add a new account,
+      // subscription limits will be enforced by the SubscriptionGuard at the controller level
+      // We only bypass the guard for PENDING merchants adding their first account
+
       // Step 1: Find existing record for this merchant + provider (regardless of account number)
       // We only allow one receiver account per merchant + provider combination
       const existingRecord = await tx.merchantReceiverAccount.findFirst({
@@ -827,6 +926,75 @@ export class PaymentsService {
     });
 
     return { disabledCount: updated.count };
+  }
+
+  /**
+   * Wrapper method for enabling receiver accounts with subscription guard check
+   * ONBOARDING EXCEPTION: PENDING merchants can enable ONE bank account without subscription limits
+   */
+  async enableLastReceiverAccountWithGuard(
+    body: DisableReceiverDto,
+    req: Request,
+  ) {
+    const membership = await this.requireMembership(req);
+
+    // Check merchant status and existing accounts
+    const merchant = await this.prisma.merchant.findUnique({
+      where: { id: membership.merchantId },
+      select: { status: true },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    // Count existing ACTIVE receiver accounts across all providers
+    const activeAccountsCount = await this.prisma.merchantReceiverAccount.count(
+      {
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+      },
+    );
+
+    const isPendingMerchant = merchant.status === 'PENDING';
+    const isFirstBankAccount = activeAccountsCount === 0;
+    const allowOnboardingException = isPendingMerchant && isFirstBankAccount;
+
+    // If this is NOT an onboarding exception, enforce subscription limits
+    if (!allowOnboardingException) {
+      // Manually check subscription limits
+      const subscription = await this.prisma.subscription.findFirst({
+        where: {
+          merchantId: membership.merchantId,
+          status: 'ACTIVE',
+        },
+        include: {
+          plan: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Check if merchant has reached payment provider limit
+      const planLimits = (subscription?.plan as any)?.limits || {};
+      const paymentProviderLimit = planLimits.payment_providers || 2; // Default to 2 for free plan
+
+      if (activeAccountsCount >= paymentProviderLimit) {
+        const planName = subscription?.plan?.name || 'Free';
+        throw new ForbiddenException({
+          message: `You have reached the maximum number of payment providers for your ${planName} plan (${activeAccountsCount}/${paymentProviderLimit}). Please upgrade your plan to add more payment providers.`,
+          feature: 'payment_providers',
+          currentPlan: planName,
+          currentUsage: activeAccountsCount,
+          limit: paymentProviderLimit,
+          upgradeRequired: true,
+        });
+      }
+    }
+
+    // Proceed with enabling the receiver account
+    return this.enableLastReceiverAccount(body, req);
   }
 
   /**
@@ -1266,6 +1434,229 @@ export class PaymentsService {
     };
   }
 
+  // Admin methods for tips management
+  async getAdminTipsSummary(range: { from?: string; to?: string }) {
+    const from = range.from ? new Date(range.from) : undefined;
+    const to = range.to ? new Date(range.to) : undefined;
+    if (range.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (range.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    const where: Prisma.PaymentWhereInput = {
+      tipAmount: { not: null },
+      // Add date range filter if provided
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [count, sum] = await Promise.all([
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.aggregate({
+        where,
+        _sum: { tipAmount: true },
+      }),
+    ]);
+
+    return {
+      count,
+      totalTipAmount: sum._sum.tipAmount,
+    };
+  }
+
+  async listAllTips(query: {
+    merchantId?: string;
+    provider?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const page = Math.max(1, Number(query.page ?? 1) || 1);
+    const pageSize = Math.min(
+      100,
+      Math.max(1, Number(query.pageSize ?? 20) || 20),
+    );
+    const skip = (page - 1) * pageSize;
+
+    const from = query.from ? new Date(query.from) : undefined;
+    const to = query.to ? new Date(query.to) : undefined;
+    if (query.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (query.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    const where: Prisma.PaymentWhereInput = {
+      tipAmount: { not: null },
+      ...(query.merchantId ? { merchantId: query.merchantId } : {}),
+      ...(query.provider
+        ? { provider: query.provider as PrismaClient.TransactionProvider }
+        : {}),
+      ...(query.status
+        ? { status: query.status as PrismaClient.PaymentVerificationStatus }
+        : {}),
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [total, data] = await this.prisma.$transaction([
+      this.prisma.payment.count({ where }),
+      this.prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          tipAmount: true,
+          claimedAmount: true,
+          reference: true,
+          provider: true,
+          status: true,
+          createdAt: true,
+          verifiedAt: true,
+          verifiedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+          merchant: {
+            select: {
+              id: true,
+              name: true,
+              contactEmail: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+      data,
+    };
+  }
+
+  async getTipsAnalytics(range: { from?: string; to?: string }) {
+    const from = range.from ? new Date(range.from) : undefined;
+    const to = range.to ? new Date(range.to) : undefined;
+    if (range.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (range.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    const where: Prisma.PaymentWhereInput = {
+      tipAmount: { not: null },
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [summary, byProvider] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where,
+        _sum: { tipAmount: true },
+        _count: { id: true },
+        _avg: { tipAmount: true },
+      }),
+      this.prisma.payment.groupBy({
+        by: ['provider'],
+        where,
+        _sum: { tipAmount: true },
+        _count: { id: true },
+      }),
+    ]);
+
+    return {
+      totalTips: summary._sum.tipAmount || 0,
+      totalCount: summary._count.id,
+      averageTip: summary._avg.tipAmount || 0,
+      byProvider: byProvider.map((p) => ({
+        provider: p.provider,
+        totalTips: p._sum.tipAmount || 0,
+        count: p._count.id,
+      })),
+    };
+  }
+
+  async getTipsByMerchant(range: { from?: string; to?: string }) {
+    const from = range.from ? new Date(range.from) : undefined;
+    const to = range.to ? new Date(range.to) : undefined;
+    if (range.from && Number.isNaN(from?.getTime())) {
+      throw new BadRequestException('Invalid from date');
+    }
+    if (range.to && Number.isNaN(to?.getTime())) {
+      throw new BadRequestException('Invalid to date');
+    }
+
+    const where: Prisma.PaymentWhereInput = {
+      tipAmount: { not: null },
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const byMerchant = await this.prisma.payment.groupBy({
+      by: ['merchantId'],
+      where,
+      _sum: { tipAmount: true },
+      _count: { id: true },
+      _avg: { tipAmount: true },
+    });
+
+    // Get merchant details
+    const merchantIds = byMerchant.map((m) => m.merchantId);
+    const merchants = await this.prisma.merchant.findMany({
+      where: { id: { in: merchantIds } },
+      select: { id: true, name: true },
+    });
+
+    const merchantMap = new Map(merchants.map((m) => [m.id, m.name]));
+
+    return byMerchant.map((m) => ({
+      merchantId: m.merchantId,
+      merchantName: merchantMap.get(m.merchantId) || 'Unknown',
+      totalTips: m._sum.tipAmount || 0,
+      tipCount: m._count.id,
+      averageTip: m._avg.tipAmount || 0,
+    }));
+  }
+
   /**
    * Log a transaction (cash or bank payment)
    * Creates an order and payment record for manual transaction logging
@@ -1458,26 +1849,62 @@ export class PaymentsService {
       throw new ForbiddenException('Not authenticated');
     }
 
-    const membership = await this.merchantUsersService.me(req);
-    interface MembershipResponse {
-      membership?: {
-        id: string;
-        role: string;
-        merchant?: {
-          id: string;
-        };
-      };
+    // Try to get ACTIVE membership first
+    let membershipData: any = null;
+    try {
+      const membership = await this.merchantUsersService.me(req);
+      membershipData = membership;
+    } catch (error) {
+      // If me() throws (e.g., INVITED status or PENDING merchant),
+      // try to find the membership directly for onboarding
+      console.log(
+        'me() threw error, checking for INVITED membership:',
+        (error as Error).message,
+      );
     }
-    const membershipData = membership as MembershipResponse;
-    const merchantId = membershipData.membership?.merchant?.id;
-    const merchantUserId = membershipData.membership?.id;
-    const role = membershipData.membership?.role;
+
+    // If no ACTIVE membership found, check for INVITED membership (for onboarding)
+    if (!membershipData?.membership) {
+      const invitedMembership = await this.prisma.merchantUser.findFirst({
+        where: {
+          userId,
+          status: 'INVITED', // Allow INVITED status for onboarding
+        },
+        include: {
+          merchant: {
+            select: {
+              id: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      if (invitedMembership) {
+        membershipData = {
+          membership: {
+            id: invitedMembership.id,
+            role: invitedMembership.role,
+            status: invitedMembership.status,
+            merchant: {
+              id: invitedMembership.merchant.id,
+              status: invitedMembership.merchant.status,
+            },
+          },
+        };
+      }
+    }
+
+    const merchantId = membershipData?.membership?.merchant?.id;
+    const merchantUserId = membershipData?.membership?.id;
+    const role = membershipData?.membership?.role;
+    const membershipStatus = membershipData?.membership?.status;
 
     if (!merchantId || !merchantUserId || !role) {
       throw new ForbiddenException('Merchant membership required');
     }
 
-    return { merchantId, merchantUserId, userId, role };
+    return { merchantId, merchantUserId, userId, role, membershipStatus };
   }
 
   private toDecimal(value: number, field: string) {

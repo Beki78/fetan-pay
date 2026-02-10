@@ -174,7 +174,7 @@ model Merchant {
   name         String
   tin          String?
   contactEmail String?
-  contactPhone String?
+  contactPhone String?        @unique
   status       MerchantStatus @default(PENDING)
   source       String?
   approvedAt   DateTime?
@@ -352,7 +352,7 @@ model MerchantUser {
   status               MerchantUserStatus @default(INVITED)
   name                 String?
   email                String?
-  phone                String?
+  phone                String?            @unique
   invitedBy            String?
   qrCodeToken          String?            @unique
   qrCodeGeneratedAt    DateTime?

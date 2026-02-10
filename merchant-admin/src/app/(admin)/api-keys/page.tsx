@@ -212,9 +212,7 @@ export default function ApiKeysPage() {
       {/* Header */}
     <div>
         <PageBreadcrumb pageTitle="API Keys" />
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-          API Keys
-        </h1>
+      
         <p className="text-sm text-gray-600 dark:text-gray-300">
           Manage your API credentials for integration
         </p>
@@ -356,38 +354,29 @@ Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(
         </div>
       </div>
 
-      {/* Security Notice */}
-      <div className="rounded-xl border border-warning-200 bg-warning-50 dark:border-warning-800 dark:bg-warning-900/20 p-6">
+      {/* Security & Usage Information */}
+      <div className="rounded-xl border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20 p-6">
         <div className="flex items-start gap-3">
-          <AlertIcon className="w-5 h-5 text-warning-600 dark:text-warning-400 shrink-0 mt-0.5" />
+          <AlertIcon className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
           <div>
-            <h3 className="text-sm font-semibold text-warning-800 dark:text-warning-300 mb-1">
-              Security Notice
+            <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-2">
+              Security & Usage Guidelines
             </h3>
-            <p className="text-sm text-warning-800 dark:text-warning-300">
-              Keep your API key secure and never share it publicly. If you believe your key has been
-              compromised, regenerate it immediately.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Rate Limiting Information */}
-      <div className="rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 p-6">
-        <div className="flex items-start gap-3">
-          <InfoIcon className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-          <div>
-            <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
-              Rate Limiting
-            </h3>
-            <p className="text-sm text-blue-800 dark:text-blue-300 mb-2">
-              API requests are rate-limited to prevent abuse:
-            </p>
-            <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-              <li>• <strong>10 requests per minute</strong> per API key</li>
-              <li>• Rate limit resets every 60 seconds</li>
-              <li>• HTTP 429 status code returned when limit exceeded</li>
+            <ul className="text-sm text-orange-800 dark:text-orange-300 space-y-1">
+              <li>• <strong>Keep your API key secure</strong> - never share it publicly</li>
+              <li>• <strong>Rate limit:</strong> 10 requests per minute, resets every 60 seconds</li>
+              <li>• <strong>Caution:</strong> When IP whitelisting is disabled, requests can be made from any IP</li>
             </ul>
+            <div className="mt-3 flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.location.href = '/webhooks'}
+                className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/20"
+              >
+                Configure IP Whitelisting
+              </Button>
+            </div>
           </div>
         </div>
       </div>
