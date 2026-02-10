@@ -222,6 +222,28 @@ export class PaymentsService {
         ? null
         : this.toDecimal(body.tipAmount as number, 'tipAmount');
 
+    // Validate that senderBank is provided for INTER_BANK transfers
+    if (body.transferType === 'INTER_BANK' && !body.senderBank) {
+      throw new BadRequestException(
+        'Sender bank is required for inter-bank transfers',
+      );
+    }
+
+    // Determine which bank to query based on transfer type
+    // For INTER_BANK: Always query sender bank (where transaction was created)
+    // For SAME_BANK: Query the single bank (sender and receiver are the same)
+    const queryBank = body.transferType === 'INTER_BANK' 
+      ? body.senderBank! // For inter-bank, senderBank is required and validated
+      : body.receiverBank; // For same-bank, use receiverBank (which equals senderBank)
+
+    console.log('[VERIFY] Transfer details:', {
+      transferType: body.transferType,
+      senderBank: body.senderBank,
+      receiverBank: body.receiverBank,
+      queryBank,
+      reference: body.reference,
+    });
+
     // Payment model currently requires an Order relation.
     // For merchant direct-verification (no order flow), we'll create a lightweight OPEN order
     // only if we need to create a new Payment record.
@@ -229,7 +251,7 @@ export class PaymentsService {
       where: {
         payment_merchant_provider_reference_unique: {
           merchantId: membership.merchantId,
-          provider: body.provider,
+          provider: queryBank,
           reference: body.reference,
         },
       },
@@ -243,7 +265,7 @@ export class PaymentsService {
           payment: {
             id: existingPayment.id,
             reference: body.reference,
-            provider: body.provider,
+            provider: queryBank,
             status: 'VERIFIED',
             verifiedAt: existingPayment.verifiedAt?.toISOString(),
           },
@@ -263,11 +285,11 @@ export class PaymentsService {
       );
     }
 
-    // Require ACTIVE receiver to verify (disabled means merchant intentionally paused).
+    // Require ACTIVE receiver account for the RECEIVER bank (not sender bank)
     const activeReceiver = await this.prisma.merchantReceiverAccount.findFirst({
       where: {
         merchantId: membership.merchantId,
-        provider: body.provider,
+        provider: body.receiverBank,
         status: 'ACTIVE',
       },
       orderBy: { updatedAt: 'desc' },
@@ -275,7 +297,7 @@ export class PaymentsService {
 
     if (!activeReceiver) {
       throw new BadRequestException(
-        `No active receiver account configured for provider ${body.provider}`,
+        `No active receiver account configured for provider ${body.receiverBank}`,
       );
     }
 
@@ -301,7 +323,7 @@ export class PaymentsService {
     }
 
     const verifierResult = await this.runCoreVerifier(
-      body.provider,
+      queryBank,
       body.reference,
     );
     const normalizedPayload = JSON.parse(
@@ -331,7 +353,7 @@ export class PaymentsService {
         where: {
           payment_merchant_provider_reference_unique: {
             merchantId: membership.merchantId,
-            provider: body.provider,
+            provider: queryBank,
             reference: effectiveReference,
           },
         },
@@ -389,6 +411,8 @@ export class PaymentsService {
       }
     }
 
+    // For inter-bank transfers, validate receiver against merchant's receiver bank account
+    // The transaction data comes from sender bank but receiver must match merchant's account
     const receiverMatches = this.receiverAccountMatches(
       txReceiverAccount,
       activeReceiver.receiverAccount,
@@ -429,7 +453,7 @@ export class PaymentsService {
         where: {
           payment_merchant_provider_reference_unique: {
             merchantId: membership.merchantId,
-            provider: body.provider,
+            provider: queryBank,
             reference: effectiveReference,
           },
         },
@@ -461,7 +485,7 @@ export class PaymentsService {
                 '',
             },
           },
-          provider: body.provider,
+          provider: queryBank,
           reference: body.reference, // Store the original user-entered reference
           claimedAmount,
           tipAmount,
@@ -541,7 +565,7 @@ export class PaymentsService {
           payment: {
             id: payment.id,
             reference: effectiveReference,
-            provider: body.provider,
+            provider: queryBank,
             amount: claimedAmount.toNumber(),
             status: 'VERIFIED',
             verifiedAt: payment.verifiedAt?.toISOString(),
@@ -563,7 +587,7 @@ export class PaymentsService {
         .triggerWebhook('payment.unverified', membership.merchantId, {
           payment: {
             reference: body.reference,
-            provider: body.provider,
+            provider: queryBank,
             amount: claimedAmount.toNumber(),
             status: 'UNVERIFIED',
             checks: {

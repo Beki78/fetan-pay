@@ -19,19 +19,72 @@ function normalizeLabel(text: string): string {
 
 function extractField($: CheerioAPI, labels: string[]): string | null {
   const normalizedTargets = labels.map((label) => normalizeLabel(label));
-  const rows = $('table.info-table tr').toArray();
 
-  for (const row of rows) {
-    const cells = $(row).find('td').toArray();
-    if (cells.length < 3) continue;
+  // Try multiple table selectors
+  const tableSelectors = ['table.info-table', 'table', '.info-table'];
 
-    const labelText = normalizeLabel($(cells[0]).text());
-    if (!labelText) continue;
+  for (const selector of tableSelectors) {
+    const rows = $(selector + ' tr').toArray();
 
-    for (const target of normalizedTargets) {
-      if (labelText.includes(target)) {
-        return $(cells[2]).text().trim();
+    for (const row of rows) {
+      const cells = $(row).find('td').toArray();
+
+      // Handle different table structures
+      // Structure 1: label | separator | value (3 cells)
+      if (cells.length >= 3) {
+        const labelText = normalizeLabel($(cells[0]).text());
+        if (!labelText) continue;
+
+        for (const target of normalizedTargets) {
+          if (labelText.includes(target)) {
+            return $(cells[2]).text().trim();
+          }
+        }
       }
+
+      // Structure 2: label | value (2 cells)
+      if (cells.length === 2) {
+        const labelText = normalizeLabel($(cells[0]).text());
+        if (!labelText) continue;
+
+        for (const target of normalizedTargets) {
+          if (labelText.includes(target)) {
+            return $(cells[1]).text().trim();
+          }
+        }
+      }
+
+      // Structure 3: single cell with label and value (1 cell)
+      if (cells.length === 1) {
+        const cellText = $(cells[0]).text();
+        const normalizedText = normalizeLabel(cellText);
+
+        for (const target of normalizedTargets) {
+          if (normalizedText.includes(target)) {
+            // Try to extract value after colon or equals
+            const colonMatch = cellText.match(/:\s*(.+)/);
+            if (colonMatch) return colonMatch[1].trim();
+
+            const equalsMatch = cellText.match(/=\s*(.+)/);
+            if (equalsMatch) return equalsMatch[1].trim();
+
+            // Return the whole text if no separator found
+            return cellText.trim();
+          }
+        }
+      }
+    }
+
+    // If we found rows with this selector, don't try other selectors
+    if (rows.length > 0) break;
+  }
+
+  // Try alternative: look for divs or spans with class/id containing field names
+  for (const target of normalizedTargets) {
+    const divSelector = `div[class*="${target}"], span[class*="${target}"]`;
+    const element = $(divSelector).first();
+    if (element.length > 0) {
+      return element.text().trim();
     }
   }
 
@@ -94,22 +147,104 @@ export async function verifyAwashSmart(
       const html = await fetchReceiptHtml(receiptId);
       const $ = cheerio.load(html);
 
-      const payer = extractField($, ['sender name', 'customer name']);
-      const receiver = extractField($, ['receiver name']);
-      const payerAccount = extractField($, ['sender account']);
-      const receiverAccount = extractField($, ['receiver account']);
-      const amountText = extractField($, ['amount']);
-      const dateText = extractField($, ['transaction date']);
+      // Debug: Log the HTML structure
+      const tables = $('table').length;
+      const infoTables = $('table.info-table').length;
+      logger.info(
+        `📊 Awash receipt structure: ${tables} tables, ${infoTables} info-tables`,
+      );
+
+      // Debug: Log first 2000 chars of HTML to see structure
+      logger.info(`📄 HTML preview: ${html.substring(0, 2000)}`);
+
+      // Debug: Log all table rows with ALL cell counts
+      $('table tr').each((i, row) => {
+        const cells = $(row).find('td').toArray();
+        if (cells.length > 0) {
+          const cellTexts = cells.map((cell) => $(cell).text().trim());
+          logger.info(
+            `  Row ${i} (${cells.length} cells): ${JSON.stringify(cellTexts)}`,
+          );
+        }
+      });
+
+      const payer = extractField($, [
+        'sender name',
+        'customer name',
+        'payer name',
+        'from',
+        'sender',
+        'payer',
+      ]);
+      const receiver = extractField($, [
+        'receiver name',
+        'beneficiary name',
+        'recipient name',
+        'to',
+        'receiver',
+        'beneficiary',
+        'recipient',
+      ]);
+      const payerAccount = extractField($, [
+        'sender account',
+        'payer account',
+        'from account',
+        'sender account number',
+        'account number from',
+      ]);
+      const receiverAccount = extractField($, [
+        'receiver account',
+        'beneficiary account',
+        'to account',
+        'receiver account number',
+        'account number to',
+      ]);
+      const amountText = extractField($, [
+        'amount',
+        'transaction amount',
+        'total amount',
+        'transfer amount',
+      ]);
+      const dateText = extractField($, [
+        'transaction date',
+        'date',
+        'transfer date',
+        'payment date',
+      ]);
       const referenceText =
-        extractField($, ['transaction id', 'transaction reference']) ?? receiptId;
-      const narrative = extractField($, ['reason']);
+        extractField($, [
+          'transaction id',
+          'transaction reference',
+          'reference',
+          'reference number',
+          'transaction number',
+        ]) ?? receiptId;
+      const narrative = extractField($, [
+        'reason',
+        'narration',
+        'description',
+        'remark',
+        'note',
+      ]);
 
       const amount = parseAmount(amountText);
       const date = parseDate(dateText);
 
+      logger.info(`📦 Extracted fields:`, {
+        payer,
+        receiver,
+        payerAccount,
+        receiverAccount,
+        amount,
+        amountText,
+        date,
+        reference: referenceText,
+      });
+
       if (!receiver || amount === undefined) {
         logger.warn(
           '⚠️ Unable to extract sender/receiver details from Awash receipt',
+          { receiver, amount, amountText }
         );
         throw new Error('Failed to parse Awash receipt details');
       }
