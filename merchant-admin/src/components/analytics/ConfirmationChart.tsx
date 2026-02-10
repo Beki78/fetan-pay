@@ -2,6 +2,7 @@
 import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import { useGetStatusDistributionQuery } from "@/lib/services/dashboardServiceApi";
+import { useSubscription } from "@/hooks/useSubscription";
 
 // Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
@@ -13,8 +14,14 @@ interface ConfirmationChartProps {
 }
 
 export default function ConfirmationChart({ period }: ConfirmationChartProps) {
+  const { canAccessFeature } = useSubscription();
+  const hasAdvancedAnalytics = canAccessFeature('advancedAnalytics');
+  
   const { data: statusData, isLoading, isError } =
-    useGetStatusDistributionQuery(period ? { period } : undefined);
+    useGetStatusDistributionQuery(
+      period ? { period } : undefined,
+      { skip: !hasAdvancedAnalytics } // Don't fetch if user doesn't have access
+    );
 
   // Compute labels and colors based on available data
   const labels = statusData

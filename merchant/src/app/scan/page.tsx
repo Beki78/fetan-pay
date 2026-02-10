@@ -23,7 +23,10 @@ import {
   type BankId,
 } from "@/lib/validation";
 import { createScanSchema } from "@/lib/schemas";
-import { useVerifyMerchantPaymentMutation, type TransferType } from "@/lib/services/paymentsServiceApi";
+import {
+  useVerifyMerchantPaymentMutation,
+  type TransferType,
+} from "@/lib/services/paymentsServiceApi";
 import { useSession } from "@/hooks/useSession";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -46,14 +49,23 @@ type FormData = {
 function ScanPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading: isSessionLoading } = useSession();
+  const {
+    isAuthenticated,
+    isLoading: isSessionLoading,
+    membership,
+  } = useSession();
   const { canAccessFeature, plan } = useSubscription();
-  
+
+  // Get branding from membership
+  const branding = (membership as any)?.membership?.merchant?.branding;
+  const showBadge = branding?.showPoweredBy !== false; // Default to true if not set
+  const tagline = branding?.tagline || "Scan & verify payments";
+
   // Transfer type and bank selection states
   const [transferType, setTransferType] = useState<TransferType | null>(null);
   const [senderBank, setSenderBank] = useState<string | null>(null);
   const [receiverBank, setReceiverBank] = useState<string | null>(null);
-  
+
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [showTip, setShowTip] = useState<boolean>(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -81,16 +93,15 @@ function ScanPageContent() {
   const resultsRef = useRef<HTMLDivElement>(null);
   const isVerifyingRef = useRef(false);
 
-  const validationBank = transferType === "INTER_BANK" && senderBank 
-    ? senderBank 
-    : selectedBank;
+  const validationBank =
+    transferType === "INTER_BANK" && senderBank ? senderBank : selectedBank;
 
   const schema = createScanSchema(
     validationBank as BankId | null,
     verificationMethod,
     showTip,
   );
-  
+
   const {
     register,
     handleSubmit,
@@ -123,11 +134,11 @@ function ScanPageContent() {
       verificationMethod: null,
     });
   };
-  
+
   const handleSenderBankSelect = (bankId: string) => {
     setSenderBank(bankId);
   };
-  
+
   const handleReceiverBankSelect = (bankId: string) => {
     setReceiverBank(bankId);
     setSelectedBank(bankId);
@@ -184,13 +195,14 @@ function ScanPageContent() {
     setIsVerifyingWithBank(finalBank);
 
     try {
-      const providerMap: Record<BankId, "CBE" | "BOA" | "AWASH" | "TELEBIRR"> = {
-        cbe: "CBE",
-        boa: "BOA",
-        awash: "AWASH",
-        telebirr: "TELEBIRR",
-      };
-      
+      const providerMap: Record<BankId, "CBE" | "BOA" | "AWASH" | "TELEBIRR"> =
+        {
+          cbe: "CBE",
+          boa: "BOA",
+          awash: "AWASH",
+          telebirr: "TELEBIRR",
+        };
+
       const response = await verifyMerchantPayment({
         transferType: "SAME_BANK",
         receiverBank: providerMap[finalBank],
@@ -557,7 +569,8 @@ function ScanPageContent() {
                     title="Select Bank"
                   />
                 </div>
-              ) : transferType === "INTER_BANK" && (!senderBank || !receiverBank) ? (
+              ) : transferType === "INTER_BANK" &&
+                (!senderBank || !receiverBank) ? (
                 /* Inter-Bank Selection */
                 <InterBankSelector
                   senderBank={senderBank}

@@ -1,13 +1,18 @@
 "use client";
 import { useGetAnalyticsMetricsQuery } from "@/lib/services/dashboardServiceApi";
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface TransactionMetricsProps {
   period?: string;
 }
 
 export default function TransactionMetrics({ period }: TransactionMetricsProps) {
+  const { canAccessFeature } = useSubscription();
+  const hasAdvancedAnalytics = canAccessFeature('advancedAnalytics');
+  
   const { data: metrics, isLoading, isError } = useGetAnalyticsMetricsQuery(
-    period ? { period } : undefined
+    period ? { period } : undefined,
+    { skip: !hasAdvancedAnalytics } // Don't fetch if user doesn't have access
   );
 
   if (isLoading) {

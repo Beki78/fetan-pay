@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadcrumb";
@@ -8,7 +8,6 @@ import Badge from "@/components/ui/badge/Badge";
 import { Modal } from "@/components/ui/modal";
 import UserModal from "@/components/users/UserModal";
 import UserTransactionHistory from "@/components/users/UserTransactionHistory";
-import Image from "next/image";
 import {
   ChevronLeftIcon,
   PencilIcon,
@@ -17,15 +16,11 @@ import {
   CloseIcon,
 } from "@/icons";
 import { useSession } from "@/hooks/useSession";
+import { authClient } from "@/lib/auth-client";
 import {
   type MerchantUser,
-  useActivateMerchantUserMutation,
-  useDeactivateMerchantUserMutation,
   useGetMerchantUserQuery,
-  useUpdateMerchantUserMutation,
 } from "@/lib/services/merchantUsersServiceApi";
-
-type User = MerchantUser;
 
 export default function UserDetailPage() {
   const router = useRouter();
@@ -34,8 +29,10 @@ export default function UserDetailPage() {
   const { user: sessionUser } = useSession();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
-  const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
+  const [isBanModalOpen, setIsBanModalOpen] = useState(false);
+  const [isUnbanModalOpen, setIsUnbanModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const merchantId = (() => {
     const meta = (sessionUser as any)?.metadata;
@@ -60,10 +57,6 @@ export default function UserDetailPage() {
     { skip: !merchantId || !userId },
   );
 
-  const [updateUser, { isLoading: isUpdating }] = useUpdateMerchantUserMutation();
-  const [deactivateUser] = useDeactivateMerchantUserMutation();
-  const [activateUser] = useActivateMerchantUserMutation();
-
   const handleEdit = () => {
     setIsEditModalOpen(true);
   };
@@ -73,26 +66,57 @@ export default function UserDetailPage() {
     refetch();
   };
 
-  const handleDeactivate = async () => {
-    if (!user || !merchantId) return;
-    await deactivateUser({
-      merchantId,
-      id: user.id,
-      actionBy: sessionUser?.email ?? "unknown",
-    }).unwrap();
-    setIsDeactivateModalOpen(false);
-    refetch();
+  const handleBan = async () => {
+    if (!user) return;
+    
+    setError(null);
+    setIsProcessing(true);
+    
+    try {
+      // Check if user has a Better Auth userId
+      if (!(user as any).userId) {
+        setError("User not found or missing Better Auth ID");
+        return;
+      }
+
+      // Ban user using Better Auth admin API
+      await authClient.admin.banUser({
+        userId: (user as any).userId,
+        banReason: `User banned by merchant admin`,
+      });
+
+      setIsBanModalOpen(false);
+      await refetch();
+    } catch (e: any) {
+      setError(e?.data?.message ?? e?.message ?? "Could not ban user");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleActivate = async () => {
-    if (!user || !merchantId) return;
-    await activateUser({
-      merchantId,
-      id: user.id,
-      actionBy: sessionUser?.email ?? "unknown",
-    }).unwrap();
-    setIsActivateModalOpen(false);
-    refetch();
+  const handleUnban = async () => {
+    if (!user) return;
+    
+    setError(null);
+    setIsProcessing(true);
+    
+    try {
+      // Check if user has a Better Auth userId
+      if (!(user as any).userId) {
+        setError("User not found or missing Better Auth ID");
+        return;
+      }
+
+      // Unban user using Better Auth admin API
+      await authClient.admin.unbanUser({ userId: (user as any).userId });
+
+      setIsUnbanModalOpen(false);
+      await refetch();
+    } catch (e: any) {
+      setError(e?.data?.message ?? e?.message ?? "Could not unban user");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -106,18 +130,17 @@ export default function UserDetailPage() {
     });
   };
 
-  const formatLastActive = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 60) return `${diffMins} minutes ago`;
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    return `${diffDays} days ago`;
+  // Get user ban status from Better Auth User model
+  const isBanned = (user as any)?.user?.banned ?? false;
+  const banReason = (user as any)?.user?.banReason;
+  
+  // Determine effective status: banned takes precedence over MerchantUser status
+  const getEffectiveStatus = () => {
+    if (isBanned) return "BANNED";
+    return user?.status || "UNKNOWN";
   };
+
+  const effectiveStatus = getEffectiveStatus();
 
   if (isLoading) {
     return (
@@ -152,23 +175,25 @@ export default function UserDetailPage() {
             Back
           </Button>
           <div className="flex items-center gap-3">
-            {user.status === "ACTIVE" ? (
+            {isBanned ? (
               <Button
                 variant="outline"
-                onClick={() => setIsDeactivateModalOpen(true)}
-                className="border-error-300 text-error-600 hover:bg-error-50 dark:border-error-800 dark:text-error-400 dark:hover:bg-error-900/20"
+                onClick={() => setIsUnbanModalOpen(true)}
+                disabled={isProcessing}
+                className="border-success-300 text-success-600 hover:bg-success-50 dark:border-success-800 dark:text-success-400 dark:hover:bg-success-900/20"
               >
-                <CloseIcon className="w-4 h-4 mr-2" />
-                Deactivate
+                <CheckCircleIcon className="w-4 h-4 mr-2" />
+                Unban User
               </Button>
             ) : (
               <Button
                 variant="outline"
-                onClick={() => setIsActivateModalOpen(true)}
-                className="border-success-300 text-success-600 hover:bg-success-50 dark:border-success-800 dark:text-success-400 dark:hover:bg-success-900/20"
+                onClick={() => setIsBanModalOpen(true)}
+                disabled={isProcessing || user.status === "INVITED"}
+                className="border-error-300 text-error-600 hover:bg-error-50 dark:border-error-800 dark:text-error-400 dark:hover:bg-error-900/20"
               >
-                <CheckCircleIcon className="w-4 h-4 mr-2" />
-                Activate
+                <CloseIcon className="w-4 h-4 mr-2" />
+                Ban User
               </Button>
             )}
             <Button onClick={handleEdit} startIcon={<PencilIcon className="w-4 h-4" />}>
@@ -176,6 +201,13 @@ export default function UserDetailPage() {
             </Button>
           </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="p-4 rounded-lg bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800">
+            <p className="text-sm text-error-600 dark:text-error-400">{error}</p>
+          </div>
+        )}
 
         {/* User Profile Card */}
         <ComponentCard title="User Information">
@@ -193,14 +225,16 @@ export default function UserDetailPage() {
                   <Badge
                     size="sm"
                     color={
-                      user.status === "ACTIVE"
+                      effectiveStatus === "BANNED"
+                        ? "error"
+                        : effectiveStatus === "ACTIVE"
                         ? "success"
-                        : user.status === "INVITED"
+                        : effectiveStatus === "INVITED"
                         ? "warning"
                         : "error"
                     }
                   >
-                    {user.status}
+                    {effectiveStatus}
                   </Badge>
                 </div>
                 <p className="text-gray-500 dark:text-gray-400">{user.email}</p>
@@ -226,12 +260,21 @@ export default function UserDetailPage() {
                 <p className="text-gray-800 dark:text-white/90">{user.role}</p>
               </div>
 
-              {/* <div>
+              <div>
                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Status
+                  Account Status
                 </label>
-                <p className="text-gray-800 dark:text-white/90">{user.status}</p>
-              </div> */}
+                <p className="text-gray-800 dark:text-white/90">{effectiveStatus}</p>
+              </div>
+
+              {isBanned && banReason && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    Ban Reason
+                  </label>
+                  <p className="text-error-600 dark:text-error-400">{banReason}</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
@@ -307,10 +350,10 @@ export default function UserDetailPage() {
         mode="edit"
       />
 
-      {/* Deactivate Confirmation Modal */}
+      {/* Ban Confirmation Modal */}
       <Modal
-        isOpen={isDeactivateModalOpen}
-        onClose={() => setIsDeactivateModalOpen(false)}
+        isOpen={isBanModalOpen}
+        onClose={() => !isProcessing && setIsBanModalOpen(false)}
         className="max-w-[400px] m-4"
       >
         <div className="p-6">
@@ -320,37 +363,39 @@ export default function UserDetailPage() {
             </div>
             <div>
               <h4 className="text-xl font-semibold text-gray-800 dark:text-white/90">
-                Deactivate User
+                Ban User
               </h4>
             </div>
           </div>
           <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-            Are you sure you want to deactivate <strong>{user.name}</strong>? This will
-            prevent them from accessing the system. You can reactivate them later.
+            Are you sure you want to ban <strong>{user.name}</strong>? This will
+            immediately prevent them from accessing the system. You can unban them later.
           </p>
           <div className="flex items-center gap-3 justify-end">
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setIsDeactivateModalOpen(false)}
+              onClick={() => setIsBanModalOpen(false)}
+              disabled={isProcessing}
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              onClick={handleDeactivate}
+              onClick={handleBan}
+              disabled={isProcessing}
               className="bg-error-500 hover:bg-error-600"
             >
-              Deactivate
+              {isProcessing ? "Banning..." : "Ban User"}
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Activate Confirmation Modal */}
+      {/* Unban Confirmation Modal */}
       <Modal
-        isOpen={isActivateModalOpen}
-        onClose={() => setIsActivateModalOpen(false)}
+        isOpen={isUnbanModalOpen}
+        onClose={() => !isProcessing && setIsUnbanModalOpen(false)}
         className="max-w-[400px] m-4"
       >
         <div className="p-6">
@@ -360,28 +405,30 @@ export default function UserDetailPage() {
             </div>
             <div>
               <h4 className="text-xl font-semibold text-gray-800 dark:text-white/90">
-                Activate User
+                Unban User
               </h4>
             </div>
           </div>
           <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-            Are you sure you want to activate <strong>{user.name}</strong>? This will
+            Are you sure you want to unban <strong>{user.name}</strong>? This will
             restore their access to the system.
           </p>
           <div className="flex items-center gap-3 justify-end">
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setIsActivateModalOpen(false)}
+              onClick={() => setIsUnbanModalOpen(false)}
+              disabled={isProcessing}
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              onClick={handleActivate}
+              onClick={handleUnban}
+              disabled={isProcessing}
               className="bg-success-500 hover:bg-success-600"
             >
-              Activate
+              {isProcessing ? "Unbanning..." : "Unban User"}
             </Button>
           </div>
         </div>
