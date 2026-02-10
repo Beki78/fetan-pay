@@ -52,6 +52,16 @@ export class MerchantsService {
   async getUser(merchantId: string, merchantUserId: string) {
     const membership = await (this.prisma as any).merchantUser.findFirst({
       where: { id: merchantUserId, merchantId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            banned: true,
+            banReason: true,
+            banExpires: true,
+          },
+        },
+      },
     });
 
     if (!membership) {
@@ -682,6 +692,16 @@ export class MerchantsService {
 
     const users = await (this.prisma as any).merchantUser.findMany({
       where: { merchantId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            banned: true,
+            banReason: true,
+            banExpires: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 

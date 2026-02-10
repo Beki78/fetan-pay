@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import { useGetStatisticsTrendQuery } from "@/lib/services/dashboardServiceApi";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
@@ -13,8 +14,12 @@ interface StatisticsChartProps {
 }
 
 export default function StatisticsChart({ period }: StatisticsChartProps) {
+  const { canAccessFeature } = useSubscription();
+  const hasAdvancedAnalytics = canAccessFeature('advancedAnalytics');
+  
   const { data: trendData, isLoading, isError } = useGetStatisticsTrendQuery(
-    period ? { period } : undefined
+    period ? { period } : undefined,
+    { skip: !hasAdvancedAnalytics } // Don't fetch if user doesn't have access
   );
 
   // Deep clone the data to avoid "object is not extensible" error from ApexCharts

@@ -8,13 +8,11 @@ import Button from "@/components/ui/button/Button";
 import { BoltIcon, LockIcon } from "@/icons";
 import { useAccountStatus } from "@/hooks/useAccountStatus";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useToast } from "@/components/ui/toast/useToast";
 
 export default function AnalyticsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState("Last 7 Days");
   const { status: accountStatus, isLoading: isStatusLoading } = useAccountStatus();
   const { canAccessFeature, plan } = useSubscription();
-  const { showToast, ToastComponent } = useToast();
 
   // Check if user has access to advanced analytics
   const hasAdvancedAnalytics = canAccessFeature('advancedAnalytics');
@@ -35,8 +33,6 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <ToastComponent />
-      
       {/* Subscription Protection Banner */}
       {!hasAdvancedAnalytics && (
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-6">
@@ -127,8 +123,29 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Transaction Metrics - Always available */}
-      <TransactionMetrics period={selectedPeriod} />
+      {/* Transaction Metrics - Protected */}
+      {hasAdvancedAnalytics ? (
+        <TransactionMetrics period={selectedPeriod} />
+      ) : (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800/50">
+          <div className="text-center py-12">
+            <LockIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              Metrics Locked
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Upgrade to access detailed transaction metrics including revenue, users, and tips
+            </p>
+            <Button
+              size="sm"
+              onClick={() => window.location.href = '/billing'}
+              className="bg-purple-500 hover:bg-purple-600 text-white"
+            >
+              Upgrade Plan
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Advanced Analytics - Protected */}
       {hasAdvancedAnalytics ? (
@@ -142,60 +159,42 @@ export default function AnalyticsPage() {
       ) : (
         <div className="space-y-6">
           {/* Locked Statistics Chart */}
-          <div className="relative">
-            <div className="opacity-30 pointer-events-none">
-              <StatisticsChart period={selectedPeriod} />
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80 rounded-lg">
-              <div className="text-center">
-                <LockIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Advanced Charts Locked
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Upgrade to access detailed trend analysis
-                </p>
-                <Button
-                  size="sm"
-                  onClick={() => showToast({
-                    type: 'warning',
-                    message: 'Please upgrade your plan to access advanced analytics',
-                    duration: 4000,
-                  })}
-                  className="bg-purple-500 hover:bg-purple-600 text-white"
-                >
-                  Upgrade Plan
-                </Button>
-              </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800/50">
+            <div className="text-center py-12">
+              <LockIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Advanced Charts Locked
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                Upgrade to access detailed trend analysis and forecasting
+              </p>
+              <Button
+                size="sm"
+                onClick={() => window.location.href = '/billing'}
+                className="bg-purple-500 hover:bg-purple-600 text-white"
+              >
+                Upgrade Plan
+              </Button>
             </div>
           </div>
 
           {/* Locked Status Distribution Chart */}
-          <div className="relative">
-            <div className="opacity-30 pointer-events-none">
-              <ConfirmationChart period={selectedPeriod} />
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80 rounded-lg">
-              <div className="text-center">
-                <LockIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Status Distribution Locked
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Upgrade to access detailed status breakdowns
-                </p>
-                <Button
-                  size="sm"
-                  onClick={() => showToast({
-                    type: 'warning',
-                    message: 'Please upgrade your plan to access advanced analytics',
-                    duration: 4000,
-                  })}
-                  className="bg-purple-500 hover:bg-purple-600 text-white"
-                >
-                  Upgrade Plan
-                </Button>
-              </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800/50">
+            <div className="text-center py-12">
+              <LockIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Status Distribution Locked
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                Upgrade to access detailed status breakdowns and insights
+              </p>
+              <Button
+                size="sm"
+                onClick={() => window.location.href = '/billing'}
+                className="bg-purple-500 hover:bg-purple-600 text-white"
+              >
+                Upgrade Plan
+              </Button>
             </div>
           </div>
         </div>

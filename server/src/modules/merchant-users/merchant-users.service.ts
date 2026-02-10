@@ -19,6 +19,14 @@ export interface MerchantMembership {
     id: string;
     name: string;
     status: string;
+    branding?: {
+      logoUrl: string | null;
+      primaryColor: string;
+      secondaryColor: string;
+      displayName: string | null;
+      tagline: string | null;
+      showPoweredBy: boolean;
+    } | null;
   } | null;
 }
 

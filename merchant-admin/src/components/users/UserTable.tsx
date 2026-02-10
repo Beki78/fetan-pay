@@ -47,7 +47,7 @@ export default function UserTable({
   onShowQRCode,
 }: UserTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | "ACTIVE" | "INVITED" | "SUSPENDED">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | "ACTIVE" | "INVITED" | "SUSPENDED" | "BANNED">("All");
   const [roleFilter, setRoleFilter] = useState<string>("All");
 
   // Get unique roles for filter (exclude MERCHANT_OWNER)
@@ -62,8 +62,15 @@ export default function UserTable({
     return ["All", ...uniqueRoles];
   }, [users]);
 
-  const mapStatus = (status?: string | null) => {
-    switch (status) {
+  const mapStatus = (user: User) => {
+    // Check if user is banned in Better Auth
+    const isBanned = (user as any)?.user?.banned ?? false;
+    
+    if (isBanned) {
+      return { label: "Banned", color: "error" as const };
+    }
+    
+    switch (user.status) {
       case "ACTIVE":
         return { label: "Active", color: "success" as const };
       case "INVITED":
@@ -71,7 +78,7 @@ export default function UserTable({
       case "SUSPENDED":
         return { label: "Inactive", color: "error" as const };
       default:
-        return { label: status || "Unknown", color: "warning" as const };
+        return { label: user.status || "Unknown", color: "warning" as const };
     }
   };
 
@@ -89,8 +96,16 @@ export default function UserTable({
           (user.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
           (user.phone || "").includes(searchQuery);
 
-        const matchesStatus =
-          statusFilter === "All" || user.status === statusFilter;
+        // Check if user is banned
+        const isBanned = (user as any)?.user?.banned ?? false;
+        
+        // Match status filter
+        const matchesStatus = (() => {
+          if (statusFilter === "All") return true;
+          if (statusFilter === "BANNED") return isBanned;
+          // If filtering by other status, exclude banned users
+          return !isBanned && user.status === statusFilter;
+        })();
 
         const matchesRole =
           roleFilter === "All" || user.role === roleFilter;
@@ -116,12 +131,14 @@ export default function UserTable({
           <select
             value={statusFilter}
             onChange={(e) =>
-              setStatusFilter(e.target.value as "All" | "ACTIVE" | "INVITED" | "SUSPENDED")
+              setStatusFilter(e.target.value as "All" | "ACTIVE" | "INVITED" | "SUSPENDED" | "BANNED")
             }
             className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
           >
             <option value="All">All Status</option>
             <option value="ACTIVE">Active</option>
+            <option value="INVITED">Pending</option>
+            <option value="BANNED">Banned</option>
             <option value="SUSPENDED">Inactive</option>
           </select>
           <select
@@ -237,9 +254,9 @@ export default function UserTable({
                       <TableCell className="px-4 py-3 text-start">
                         <Badge
                           size="sm"
-                          color={mapStatus(user.status).color}
+                          color={mapStatus(user).color}
                         >
-                          {mapStatus(user.status).label}
+                          {mapStatus(user).label}
                         </Badge>
                       </TableCell>
                       <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">

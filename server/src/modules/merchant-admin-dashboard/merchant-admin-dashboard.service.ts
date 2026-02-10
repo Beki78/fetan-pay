@@ -245,9 +245,12 @@ export class MerchantAdminDashboardService {
           tipAmount: true,
         },
       }),
-      // Total users for this merchant
+      // Total users for this merchant (excluding merchant owner)
       (this.prisma as any).merchantUser.count({
-        where: { merchantId: membership.merchantId },
+        where: {
+          merchantId: membership.merchantId,
+          role: { not: 'MERCHANT_OWNER' },
+        },
       }),
     ]);
 
@@ -283,7 +286,7 @@ export class MerchantAdminDashboardService {
     const membership = await this.requireMembership(req);
     const { from, to } = this.getDateRange(period);
 
-    // Get payments with amounts for revenue trend
+    // Get payments with amounts and tips for revenue and tips trend
     const payments = await (this.prisma as any).payment.findMany({
       where: {
         merchantId: membership.merchantId,
@@ -296,23 +299,6 @@ export class MerchantAdminDashboardService {
       select: {
         createdAt: true,
         claimedAmount: true,
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
-
-    // Get transactions with tips
-    const transactions = await (this.prisma as any).transaction.findMany({
-      where: {
-        merchantId: membership.merchantId,
-        createdAt: {
-          gte: from,
-          lte: to,
-        },
-      },
-      select: {
-        createdAt: true,
         tipAmount: true,
       },
       orderBy: {
@@ -320,10 +306,11 @@ export class MerchantAdminDashboardService {
       },
     });
 
-    // Get user creation dates
+    // Get user creation dates (exclude MERCHANT_OWNER)
     const users = await (this.prisma as any).merchantUser.findMany({
       where: {
         merchantId: membership.merchantId,
+        role: { not: 'MERCHANT_OWNER' },
         createdAt: {
           gte: from,
           lte: to,
@@ -343,37 +330,24 @@ export class MerchantAdminDashboardService {
       { revenue: number; users: number; tips: number }
     >();
 
-    // Process payments for revenue
-    payments.forEach((p: { createdAt: Date; claimedAmount: unknown }) => {
-      const dateKey = p.createdAt.toISOString().split('T')[0];
-      const date = new Date(dateKey);
-      const formattedDate = date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
+    // Process payments for revenue and tips
+    payments.forEach(
+      (p: { createdAt: Date; claimedAmount: unknown; tipAmount: unknown }) => {
+        const dateKey = p.createdAt.toISOString().split('T')[0];
+        const date = new Date(dateKey);
+        const formattedDate = date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        });
 
-      if (!dateMap.has(formattedDate)) {
-        dateMap.set(formattedDate, { revenue: 0, users: 0, tips: 0 });
-      }
-      const data = dateMap.get(formattedDate)!;
-      data.revenue += p.claimedAmount ? Number(p.claimedAmount) : 0;
-    });
-
-    // Process transactions for tips
-    transactions.forEach((t: { createdAt: Date; tipAmount: unknown }) => {
-      const dateKey = t.createdAt.toISOString().split('T')[0];
-      const date = new Date(dateKey);
-      const formattedDate = date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-
-      if (!dateMap.has(formattedDate)) {
-        dateMap.set(formattedDate, { revenue: 0, users: 0, tips: 0 });
-      }
-      const data = dateMap.get(formattedDate)!;
-      data.tips += t.tipAmount ? Number(t.tipAmount) : 0;
-    });
+        if (!dateMap.has(formattedDate)) {
+          dateMap.set(formattedDate, { revenue: 0, users: 0, tips: 0 });
+        }
+        const data = dateMap.get(formattedDate)!;
+        data.revenue += p.claimedAmount ? Number(p.claimedAmount) : 0;
+        data.tips += p.tipAmount ? Number(p.tipAmount) : 0;
+      },
+    );
 
     // Process users
     users.forEach((u: { createdAt: Date }) => {
