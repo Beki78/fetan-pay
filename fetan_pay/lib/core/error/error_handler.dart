@@ -7,7 +7,10 @@ import 'failures.dart';
 class ErrorHandler {
   /// Convert various error types to appropriate Failure objects
   static Failure handleError(dynamic error, {String? context}) {
-    SecureLogger.error('Error occurred${context != null ? ' in $context' : ''}', error: error);
+    SecureLogger.error(
+      'Error occurred${context != null ? ' in $context' : ''}',
+      error: error,
+    );
 
     if (error is DioException) {
       return _handleDioError(error);
@@ -52,7 +55,8 @@ class ErrorHandler {
 
       case DioExceptionType.connectionError:
         return NetworkFailure(
-          message: 'No internet connection. Please check your network settings.',
+          message:
+              'No internet connection. Please check your network settings.',
           code: 'NO_CONNECTION',
           originalError: error,
         );
@@ -84,10 +88,11 @@ class ErrorHandler {
 
     // Try to extract error message from response
     if (responseData is Map<String, dynamic>) {
-      message = responseData['message'] ?? 
-                responseData['error'] ?? 
-                responseData['detail'] ?? 
-                message;
+      message =
+          responseData['message'] ??
+          responseData['error'] ??
+          responseData['detail'] ??
+          message;
       code = responseData['code']?.toString();
     } else if (responseData is String) {
       message = responseData;
@@ -102,36 +107,64 @@ class ErrorHandler {
         );
 
       case 401:
+        // Enhanced 401 error handling for authentication
+        String authMessage = message.isEmpty
+            ? 'Authentication failed. Please login again.'
+            : message;
+
+        // Provide more specific messages for common authentication scenarios
+        if (message.toLowerCase().contains('password') ||
+            message.toLowerCase().contains('credential') ||
+            message.toLowerCase().contains('invalid')) {
+          authMessage =
+              'Incorrect email or password. Please check your credentials and try again.';
+        } else if (message.toLowerCase().contains('email')) {
+          authMessage =
+              'Email address not found. Please check your email and try again.';
+        } else if (message.toLowerCase().contains('expired')) {
+          authMessage = 'Your session has expired. Please login again.';
+        } else if (message.toLowerCase().contains('token')) {
+          authMessage = 'Authentication token is invalid. Please login again.';
+        }
+
         return AuthFailure(
-          message: message.isEmpty ? 'Authentication failed. Please login again.' : message,
+          message: authMessage,
           code: code ?? 'UNAUTHORIZED',
           originalError: error,
         );
 
       case 403:
         return AuthFailure(
-          message: message.isEmpty ? 'Access denied. You don\'t have permission to perform this action.' : message,
+          message: message.isEmpty
+              ? 'Access denied. You don\'t have permission to perform this action.'
+              : message,
           code: code ?? 'FORBIDDEN',
           originalError: error,
         );
 
       case 404:
         return ServerFailure(
-          message: message.isEmpty ? 'The requested resource was not found.' : message,
+          message: message.isEmpty
+              ? 'The requested resource was not found.'
+              : message,
           code: code ?? 'NOT_FOUND',
           originalError: error,
         );
 
       case 422:
         return ValidationFailure(
-          message: message.isEmpty ? 'Validation failed. Please check your input.' : message,
+          message: message.isEmpty
+              ? 'Validation failed. Please check your input.'
+              : message,
           code: code ?? 'VALIDATION_ERROR',
           originalError: error,
         );
 
       case 429:
         return NetworkFailure(
-          message: message.isEmpty ? 'Too many requests. Please try again later.' : message,
+          message: message.isEmpty
+              ? 'Too many requests. Please try again later.'
+              : message,
           code: code ?? 'RATE_LIMITED',
           originalError: error,
         );
@@ -141,14 +174,18 @@ class ErrorHandler {
       case 503:
       case 504:
         return ServerFailure(
-          message: message.isEmpty ? 'Server error. Please try again later.' : message,
+          message: message.isEmpty
+              ? 'Server error. Please try again later.'
+              : message,
           code: code ?? 'SERVER_ERROR',
           originalError: error,
         );
 
       default:
         return ServerFailure(
-          message: message.isEmpty ? 'An unexpected server error occurred.' : message,
+          message: message.isEmpty
+              ? 'An unexpected server error occurred.'
+              : message,
           code: code ?? 'HTTP_$statusCode',
           originalError: error,
         );
@@ -160,10 +197,11 @@ class ErrorHandler {
     final errorMessage = error.toString();
 
     // Check for specific exception types
-    if (errorMessage.contains('SocketException') || 
+    if (errorMessage.contains('SocketException') ||
         errorMessage.contains('HandshakeException')) {
       return NetworkFailure(
-        message: 'Network connection failed. Please check your internet connection.',
+        message:
+            'Network connection failed. Please check your internet connection.',
         code: 'NETWORK_ERROR',
         originalError: error,
       );
@@ -214,7 +252,7 @@ class ErrorHandler {
 
   /// Check if error requires user re-authentication
   static bool requiresReauth(Failure failure) {
-    return failure is AuthFailure && 
-           (failure.code == 'UNAUTHORIZED' || failure.code == 'TOKEN_EXPIRED');
+    return failure is AuthFailure &&
+        (failure.code == 'UNAUTHORIZED' || failure.code == 'TOKEN_EXPIRED');
   }
 }

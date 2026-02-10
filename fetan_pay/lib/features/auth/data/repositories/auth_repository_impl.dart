@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'dart:async';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/error/error_handler.dart';
@@ -55,8 +56,20 @@ class AuthRepositoryImpl implements AuthRepository {
         User? user;
         if (loginResponse.user != null) {
           try {
+            print('=== AUTH REPOSITORY DEBUG ===');
+            print('Login response contains user data');
+            print('Login response user data: ${loginResponse.user}');
+
+            // Parse user from login response
             user = User.fromJson(loginResponse.user!);
+            print('Successfully parsed user from login response');
+            print('User role: ${user.role}');
+            print('=== END AUTH REPOSITORY DEBUG ===');
           } catch (e) {
+            print('=== AUTH REPOSITORY ERROR ===');
+            print('Failed to parse user from login response: $e');
+            print('Will try to fetch from membership API');
+            print('=== END AUTH REPOSITORY ERROR ===');
             // If parsing fails, we'll try to get user data from API
             user = null;
           }
@@ -91,6 +104,11 @@ class AuthRepositoryImpl implements AuthRepository {
         await _sessionManager.saveLoginCredentials(email, password);
         await _sessionManager.setLoggedIn(true);
         await _sessionManager.saveLastLoginTime();
+
+        print('=== AUTH REPOSITORY SUCCESS ===');
+        print('User data cached successfully');
+        print('Returning Right(user) with role: ${user.role}');
+        print('=== END AUTH REPOSITORY SUCCESS ===');
 
         return Right(user);
       } else {
@@ -155,35 +173,87 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User?>> getCurrentUser() async {
     try {
-      // Try to get from cache first
+      // First check if we have a cached user and are marked as logged in
       final cachedUser = await getCachedUser();
-      if (cachedUser != null && await _networkInfo.isConnected) {
-        // Verify with API if online
-        final apiUser = await _authApiService.getCurrentUser();
-        if (apiUser != null) {
-          // Update cache with fresh data
-          await _sessionManager.saveUser(apiUser);
-          return Right(apiUser);
-        } else {
-          // API says no user, clear cache
-          await _sessionManager.clearSession();
-          return const Right(null);
-        }
-      } else if (cachedUser != null) {
-        // Offline, return cached user
-        return Right(cachedUser);
-      } else if (await _networkInfo.isConnected) {
-        // No cache, try API
-        final apiUser = await _authApiService.getCurrentUser();
-        if (apiUser != null) {
-          await _sessionManager.saveUser(apiUser);
-          await _sessionManager.setLoggedIn(true);
-        }
-        return Right(apiUser);
+      final isLoggedIn = await _sessionManager.isLoggedIn();
+
+      // If no cached user or not marked as logged in, return null immediately
+      if (cachedUser == null || !isLoggedIn) {
+        SecureLogger.auth('No cached user or not logged in, returning null');
+        return const Right(null);
       }
 
-      return const Right(null);
+      // If we have cached user and network connection, verify with API
+      if (await _networkInfo.isConnected) {
+        try {
+          // Add timeout to prevent infinite loading
+          final apiUserFuture = _authApiService.getCurrentUser();
+          final timeoutFuture = Future.delayed(
+            const Duration(seconds: 10),
+            () => throw TimeoutException(
+              'Get user timeout',
+              const Duration(seconds: 10),
+            ),
+          );
+
+          final apiUser = await Future.any([apiUserFuture, timeoutFuture]);
+
+          if (apiUser != null) {
+            // Update cache with fresh data
+            await _sessionManager.saveUser(apiUser);
+            SecureLogger.auth('User verified with API and cache updated');
+            return Right(apiUser);
+          } else {
+            // API says no user (401/403), clear cache and session
+            SecureLogger.auth('API returned no user, clearing session');
+            await _sessionManager.clearSession();
+            return const Right(null);
+          }
+        } on TimeoutException catch (e) {
+          SecureLogger.auth(
+            'API timeout, returning cached user: ${e.toString()}',
+          );
+          return Right(cachedUser);
+        } catch (e) {
+          // API call failed, but we have cached user
+          SecureLogger.auth(
+            'API call failed, but have cached user: ${e.toString()}',
+          );
+
+          // If it's an auth error (401/403), clear session
+          if (e.toString().contains('401') ||
+              e.toString().contains('403') ||
+              e.toString().contains('Authentication') ||
+              e.toString().contains('Unauthorized')) {
+            SecureLogger.auth(
+              'Authentication error detected, clearing session',
+            );
+            await _sessionManager.clearSession();
+            return const Right(null);
+          }
+
+          // For other errors (network, timeout), return cached user
+          SecureLogger.auth('Network error, returning cached user');
+          return Right(cachedUser);
+        }
+      } else {
+        // Offline, return cached user
+        SecureLogger.auth('Offline, returning cached user');
+        return Right(cachedUser);
+      }
     } catch (e) {
+      SecureLogger.error('Error in getCurrentUser', error: e);
+
+      // On any error, try to clear session to prevent infinite loops
+      try {
+        await _sessionManager.clearSession();
+      } catch (clearError) {
+        SecureLogger.error(
+          'Failed to clear session on error',
+          error: clearError,
+        );
+      }
+
       final failure = ErrorHandler.handleError(e, context: 'getCurrentUser');
       return Left(failure);
     }
@@ -225,9 +295,22 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<bool> isAuthenticated() async {
-    final cachedUser = await getCachedUser();
-    final isLoggedIn = await _sessionManager.isLoggedIn();
-    return cachedUser != null && isLoggedIn;
+    try {
+      final cachedUser = await getCachedUser();
+      final isLoggedIn = await _sessionManager.isLoggedIn();
+
+      // Both conditions must be true for authentication
+      final hasValidSession = cachedUser != null && isLoggedIn;
+
+      SecureLogger.auth(
+        'Authentication check: cachedUser=${cachedUser != null}, isLoggedIn=$isLoggedIn, result=$hasValidSession',
+      );
+
+      return hasValidSession;
+    } catch (e) {
+      SecureLogger.error('Error checking authentication status', error: e);
+      return false;
+    }
   }
 
   @override
@@ -238,5 +321,15 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> clearCache() async {
     await _sessionManager.clearSession();
+  }
+
+  @override
+  Future<bool> testConnection() async {
+    try {
+      return await _authApiService.testConnection();
+    } catch (e) {
+      print('Repository connection test error: $e');
+      return false;
+    }
   }
 }

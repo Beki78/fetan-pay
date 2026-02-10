@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:animate_do/animate_do.dart';
 import '../../../../core/bloc/theme/theme_bloc.dart';
 import '../../../../widgets/app_button.dart';
 import '../../../../widgets/app_card.dart';
@@ -195,431 +196,627 @@ class _ScanScreenState extends State<ScanScreen> {
         }
 
         return Scaffold(
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.surface,
-                  theme.colorScheme.surfaceContainerHighest,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          body: Stack(
+            children: [
+              // Background decorative elements for depth
+              Positioned(
+                top: -100,
+                right: -100,
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                  ),
+                ),
               ),
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  // Header
-                  Padding(
-                    padding: ResponsiveUtils.getResponsivePadding(context),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
+              Positioned(
+                top: 100,
+                left: -50,
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.colorScheme.secondary.withValues(alpha: 0.06),
+                  ),
+                ),
+              ),
+
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.colorScheme.surface,
+                      theme.colorScheme.surfaceContainerHighest,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      // Enhanced Header with animations
+                      FadeInDown(
+                        duration: const Duration(milliseconds: 600),
+                        child: Padding(
+                          padding: ResponsiveUtils.getResponsivePadding(
+                            context,
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.asset(
-                              'assets/images/logo/fetan-logo.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                // Fallback to icon if image fails to load
-                                return Icon(
-                                  Icons.account_balance,
-                                  color: theme.colorScheme.primary,
-                                  size: 24,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
                             children: [
-                              Text(
-                                'Fetan Pay',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800,
-                                  color: theme.colorScheme.primary,
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      theme.colorScheme.primary.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      theme.colorScheme.primary.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: theme.colorScheme.primary
+                                          .withValues(alpha: 0.2),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.asset(
+                                    'assets/images/logo/fetan-logo.png',
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(
+                                        Icons.qr_code_scanner_rounded,
+                                        color: theme.colorScheme.primary,
+                                        size: 28,
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
-                              Text(
-                                'Scan & verify payments',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Fetan Pay',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w800,
+                                        color: theme.colorScheme.primary,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Scan & verify payments',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                              ),
+                              BlocBuilder<ThemeBloc, ThemeState>(
+                                builder: (context, themeState) {
+                                  final isDarkMode =
+                                      themeState.themeMode == ThemeMode.dark;
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: theme
+                                          .colorScheme
+                                          .surfaceContainerHighest
+                                          .withValues(alpha: 0.8),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: IconButton(
+                                      onPressed: () {
+                                        context.read<ThemeBloc>().add(
+                                          ToggleTheme(),
+                                        );
+                                      },
+                                      icon: Icon(
+                                        isDarkMode
+                                            ? Icons.dark_mode_rounded
+                                            : Icons.light_mode_rounded,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                      tooltip: isDarkMode
+                                          ? 'Switch to Light Mode'
+                                          : 'Switch to Dark Mode',
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
                         ),
-                        BlocBuilder<ThemeBloc, ThemeState>(
-                          builder: (context, themeState) {
-                            final isDarkMode =
-                                themeState.themeMode == ThemeMode.dark;
-                            return IconButton(
-                              onPressed: () {
-                                context.read<ThemeBloc>().add(ToggleTheme());
-                              },
-                              icon: Icon(
-                                isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              tooltip: isDarkMode
-                                  ? 'Switch to Light Mode'
-                                  : 'Switch to Dark Mode',
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
 
-                  // Main Content
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: 672,
-                          ), // Similar to max-w-2xl (672px)
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                AppCard(
-                                  padding: const EdgeInsets.all(20),
-                                  children: [
-                                    // Bank Selection
-                                    if (scanState.selectedBankId == null) ...[
-                                      _buildActiveAccountsSelection(
-                                        scanState.activeAccounts,
-                                      ),
-                                    ] else ...[
-                                      // Selected Bank Display
-                                      _buildSelectedBankDisplay(scanState),
-                                      const SizedBox(height: 24),
-                                    ],
-
-                                    // Verification Method Selection
-                                    if (scanState.selectedBankId != null &&
-                                        scanState.verificationMethod ==
-                                            VerificationMethod.none) ...[
-                                      Text(
-                                        'Verification Method',
-                                        style: theme.textTheme.titleMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w600,
+                      // Main Content with animations
+                      Expanded(
+                        child: FadeInUp(
+                          delay: const Duration(milliseconds: 200),
+                          child: SingleChildScrollView(
+                            controller: _scrollController,
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 672,
+                                ), // Similar to max-w-2xl (672px)
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // Enhanced card with glassmorphism effect
+                                      SlideInUp(
+                                        delay: const Duration(
+                                          milliseconds: 400,
+                                        ),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(24),
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.surface
+                                                .withValues(alpha: 0.9),
+                                            borderRadius: BorderRadius.circular(
+                                              24,
                                             ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: GestureDetector(
-                                              onTap: () =>
-                                                  _handleVerificationMethodSelect(
-                                                    VerificationMethod
-                                                        .transaction,
-                                                  ),
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  16,
+                                            border: Border.all(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.2,
+                                              ),
+                                              width: 1,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: theme.shadowColor
+                                                    .withValues(alpha: 0.1),
+                                                blurRadius: 20,
+                                                offset: const Offset(0, 10),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              // Bank Selection
+                                              if (scanState.selectedBankId ==
+                                                  null) ...[
+                                                _buildActiveAccountsSelection(
+                                                  scanState.activeAccounts,
                                                 ),
-                                                decoration: BoxDecoration(
-                                                  border: Border.all(
-                                                    color: theme
-                                                        .colorScheme
-                                                        .outline
-                                                        .withOpacity(0.3),
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
+                                              ] else ...[
+                                                // Selected Bank Display
+                                                _buildSelectedBankDisplay(
+                                                  scanState,
                                                 ),
-                                                child: Column(
+                                                const SizedBox(height: 24),
+                                              ],
+
+                                              // Verification Method Selection
+                                              if (scanState.selectedBankId !=
+                                                      null &&
+                                                  scanState
+                                                          .verificationMethod ==
+                                                      VerificationMethod
+                                                          .none) ...[
+                                                Text(
+                                                  'Verification Method',
+                                                  style: theme
+                                                      .textTheme
+                                                      .titleMedium
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Row(
                                                   children: [
-                                                    Icon(
-                                                      Icons.edit_document,
-                                                      size: 24,
-                                                      color: theme
-                                                          .colorScheme
-                                                          .primary,
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      'Transaction Reference',
-                                                      style: theme
-                                                          .textTheme
-                                                          .bodySmall
-                                                          ?.copyWith(
-                                                            fontWeight:
-                                                                FontWeight.w600,
+                                                    Expanded(
+                                                      child: GestureDetector(
+                                                        onTap: () =>
+                                                            _handleVerificationMethodSelect(
+                                                              VerificationMethod
+                                                                  .transaction,
+                                                            ),
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                16,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            border: Border.all(
+                                                              color: theme
+                                                                  .colorScheme
+                                                                  .outline
+                                                                  .withOpacity(
+                                                                    0.3,
+                                                                  ),
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
                                                           ),
-                                                      textAlign:
-                                                          TextAlign.center,
+                                                          child: Column(
+                                                            children: [
+                                                              Icon(
+                                                                Icons
+                                                                    .edit_document,
+                                                                size: 24,
+                                                                color: theme
+                                                                    .colorScheme
+                                                                    .primary,
+                                                              ),
+                                                              const SizedBox(
+                                                                height: 8,
+                                                              ),
+                                                              Text(
+                                                                'Transaction Reference',
+                                                                style: theme
+                                                                    .textTheme
+                                                                    .bodySmall
+                                                                    ?.copyWith(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w600,
+                                                                    ),
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .center,
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: GestureDetector(
+                                                        onTap: () {
+                                                          _handleVerificationMethodSelect(
+                                                            VerificationMethod
+                                                                .camera,
+                                                          );
+                                                          _handleScanQR();
+                                                        },
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                16,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            border: Border.all(
+                                                              color: theme
+                                                                  .colorScheme
+                                                                  .outline
+                                                                  .withOpacity(
+                                                                    0.3,
+                                                                  ),
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  12,
+                                                                ),
+                                                          ),
+                                                          child: Column(
+                                                            children: [
+                                                              Icon(
+                                                                Icons
+                                                                    .qr_code_scanner,
+                                                                size: 24,
+                                                                color: theme
+                                                                    .colorScheme
+                                                                    .primary,
+                                                              ),
+                                                              const SizedBox(
+                                                                height: 8,
+                                                              ),
+                                                              Text(
+                                                                'Scan QR Code',
+                                                                style: theme
+                                                                    .textTheme
+                                                                    .bodySmall
+                                                                    ?.copyWith(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w600,
+                                                                    ),
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .center,
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                _handleVerificationMethodSelect(
-                                                  VerificationMethod.camera,
-                                                );
-                                                _handleScanQR();
-                                              },
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  16,
+                                              ],
+
+                                              // Transaction Input
+                                              if (scanState
+                                                      .verificationMethod ==
+                                                  VerificationMethod
+                                                      .transaction) ...[
+                                                const SizedBox(height: 24),
+                                                AppTextField(
+                                                  controller:
+                                                      _transactionController,
+                                                  label:
+                                                      'Transaction Reference / URL',
+                                                  hint:
+                                                      'Enter transaction reference or URL',
+                                                  prefixIcon: Icons.receipt,
+                                                  onChanged: (value) => context
+                                                      .read<ScanBloc>()
+                                                      .add(
+                                                        UpdateTransactionReference(
+                                                          value,
+                                                        ),
+                                                      ),
                                                 ),
-                                                decoration: BoxDecoration(
-                                                  border: Border.all(
+                                              ],
+
+                                              // QR Scan Result
+                                              if (scanState
+                                                      .verificationMethod ==
+                                                  VerificationMethod
+                                                      .camera) ...[
+                                                const SizedBox(height: 24),
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    16,
+                                                  ),
+                                                  decoration: BoxDecoration(
                                                     color: theme
                                                         .colorScheme
-                                                        .outline
-                                                        .withOpacity(0.3),
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                child: Column(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.qr_code_scanner,
-                                                      size: 24,
+                                                        .surfaceContainerHighest,
+                                                    border: Border.all(
                                                       color: theme
                                                           .colorScheme
-                                                          .primary,
+                                                          .outline
+                                                          .withOpacity(0.3),
                                                     ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      'Scan QR Code',
-                                                      style: theme
-                                                          .textTheme
-                                                          .bodySmall
-                                                          ?.copyWith(
-                                                            fontWeight:
-                                                                FontWeight.w600,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.check_circle,
+                                                        color: theme
+                                                            .colorScheme
+                                                            .secondary,
+                                                        size: 20,
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'QR code captured. Transaction details extracted.',
+                                                          style: theme
+                                                              .textTheme
+                                                              .bodySmall,
+                                                        ),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed:
+                                                            _handleScanQR,
+                                                        child: Text(
+                                                          'Rescan',
+                                                          style: TextStyle(
+                                                            color: theme
+                                                                .colorScheme
+                                                                .primary,
                                                           ),
-                                                      textAlign:
-                                                          TextAlign.center,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+
+                                              // Tip Input
+                                              if (scanState.selectedBankId !=
+                                                  null) ...[
+                                                const SizedBox(height: 24),
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    16,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .surfaceContainerHighest
+                                                        .withOpacity(0.5),
+                                                    border: Border.all(
+                                                      color: theme
+                                                          .colorScheme
+                                                          .outline
+                                                          .withOpacity(0.3),
                                                     ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-
-                                    // Transaction Input
-                                    if (scanState.verificationMethod ==
-                                        VerificationMethod.transaction) ...[
-                                      const SizedBox(height: 24),
-                                      AppTextField(
-                                        controller: _transactionController,
-                                        label: 'Transaction Reference / URL',
-                                        hint:
-                                            'Enter transaction reference or URL',
-                                        prefixIcon: Icons.receipt,
-                                        onChanged: (value) =>
-                                            context.read<ScanBloc>().add(
-                                              UpdateTransactionReference(value),
-                                            ),
-                                      ),
-                                    ],
-
-                                    // QR Scan Result
-                                    if (scanState.verificationMethod ==
-                                        VerificationMethod.camera) ...[
-                                      const SizedBox(height: 24),
-                                      Container(
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: theme
-                                              .colorScheme
-                                              .surfaceContainerHighest,
-                                          border: Border.all(
-                                            color: theme.colorScheme.outline
-                                                .withOpacity(0.3),
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.check_circle,
-                                              color:
-                                                  theme.colorScheme.secondary,
-                                              size: 20,
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(
-                                                'QR code captured. Transaction details extracted.',
-                                                style:
-                                                    theme.textTheme.bodySmall,
-                                              ),
-                                            ),
-                                            TextButton(
-                                              onPressed: _handleScanQR,
-                                              child: Text(
-                                                'Rescan',
-                                                style: TextStyle(
-                                                  color:
-                                                      theme.colorScheme.primary,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-
-                                    // Tip Input
-                                    if (scanState.selectedBankId != null) ...[
-                                      const SizedBox(height: 24),
-                                      Container(
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: theme
-                                              .colorScheme
-                                              .surfaceContainerHighest
-                                              .withOpacity(0.5),
-                                          border: Border.all(
-                                            color: theme.colorScheme.outline
-                                                .withOpacity(0.3),
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
                                                   child: Column(
                                                     crossAxisAlignment:
                                                         CrossAxisAlignment
                                                             .start,
                                                     children: [
-                                                      Text(
-                                                        'Include Tip',
-                                                        style: theme
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
+                                                      Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  'Include Tip',
+                                                                  style: theme
+                                                                      .textTheme
+                                                                      .bodyMedium
+                                                                      ?.copyWith(
+                                                                        fontWeight:
+                                                                            FontWeight.w600,
+                                                                      ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  height: 4,
+                                                                ),
+                                                                Text(
+                                                                  'Add tip amount for this transaction',
+                                                                  style: theme
+                                                                      .textTheme
+                                                                      .bodySmall
+                                                                      ?.copyWith(
+                                                                        color: theme
+                                                                            .colorScheme
+                                                                            .onSurfaceVariant,
+                                                                      ),
+                                                                ),
+                                                              ],
                                                             ),
+                                                          ),
+                                                          Switch(
+                                                            value: scanState
+                                                                .showTip,
+                                                            onChanged:
+                                                                (
+                                                                  value,
+                                                                ) => context
+                                                                    .read<
+                                                                      ScanBloc
+                                                                    >()
+                                                                    .add(
+                                                                      ToggleTip(),
+                                                                    ),
+                                                          ),
+                                                        ],
                                                       ),
-                                                      const SizedBox(height: 4),
-                                                      Text(
-                                                        'Add tip amount for this transaction',
-                                                        style: theme
-                                                            .textTheme
-                                                            .bodySmall
-                                                            ?.copyWith(
-                                                              color: theme
-                                                                  .colorScheme
-                                                                  .onSurfaceVariant,
+                                                      if (scanState
+                                                          .showTip) ...[
+                                                        const SizedBox(
+                                                          height: 16,
+                                                        ),
+                                                        AppTextField(
+                                                          controller:
+                                                              _tipController,
+                                                          label:
+                                                              'Tip Amount (ETB)',
+                                                          hint:
+                                                              'Enter tip amount',
+                                                          keyboardType:
+                                                              TextInputType
+                                                                  .number,
+                                                          inputFormatters: [
+                                                            FilteringTextInputFormatter.allow(
+                                                              RegExp(
+                                                                r'^\d+\.?\d{0,2}',
+                                                              ),
                                                             ),
-                                                      ),
+                                                          ],
+                                                          onChanged: (value) =>
+                                                              context
+                                                                  .read<
+                                                                    ScanBloc
+                                                                  >()
+                                                                  .add(
+                                                                    UpdateTipAmount(
+                                                                      value,
+                                                                    ),
+                                                                  ),
+                                                        ),
+                                                      ],
                                                     ],
                                                   ),
                                                 ),
-                                                Switch(
-                                                  value: scanState.showTip,
-                                                  onChanged: (value) => context
-                                                      .read<ScanBloc>()
-                                                      .add(ToggleTip()),
+                                              ],
+
+                                              // Verify Button
+                                              if (scanState.selectedBankId !=
+                                                  null) ...[
+                                                const SizedBox(height: 24),
+                                                AppButton(
+                                                  text: scanState.isVerifying
+                                                      ? 'Verifying...'
+                                                      : 'Verify Payment',
+                                                  onPressed:
+                                                      scanState.isVerifying
+                                                      ? null
+                                                      : _handleVerify,
+                                                  icon: scanState.isVerifying
+                                                      ? null
+                                                      : Icons.check_circle,
+                                                  size: AppButtonSize.large,
+                                                  isLoading:
+                                                      scanState.isVerifying,
                                                 ),
                                               ],
-                                            ),
-                                            if (scanState.showTip) ...[
-                                              const SizedBox(height: 16),
-                                              AppTextField(
-                                                controller: _tipController,
-                                                label: 'Tip Amount (ETB)',
-                                                hint: 'Enter tip amount',
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                inputFormatters: [
-                                                  FilteringTextInputFormatter.allow(
-                                                    RegExp(r'^\d+\.?\d{0,2}'),
-                                                  ),
-                                                ],
-                                                onChanged: (value) => context
-                                                    .read<ScanBloc>()
-                                                    .add(
-                                                      UpdateTipAmount(value),
-                                                    ),
-                                              ),
                                             ],
-                                          ],
+                                          ),
                                         ),
                                       ),
-                                    ],
 
-                                    // Verify Button
-                                    if (scanState.selectedBankId != null) ...[
-                                      const SizedBox(height: 24),
-                                      AppButton(
-                                        text: scanState.isVerifying
-                                            ? 'Verifying...'
-                                            : 'Verify Payment',
-                                        onPressed: scanState.isVerifying
-                                            ? null
-                                            : _handleVerify,
-                                        icon: scanState.isVerifying
-                                            ? null
-                                            : Icons.check_circle,
-                                        size: AppButtonSize.large,
-                                        isLoading: scanState.isVerifying,
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                                      // Verification Results with enhanced styling
+                                      if (scanState.verificationResult !=
+                                          null) ...[
+                                        const SizedBox(height: 24),
+                                        FadeInUp(
+                                          delay: const Duration(
+                                            milliseconds: 600,
+                                          ),
+                                          child: VerificationResultCard(
+                                            result:
+                                                scanState.verificationResult!,
+                                            scrollController: _scrollController,
+                                          ),
+                                        ),
+                                      ],
 
-                                // Verification Results
-                                if (scanState.verificationResult != null) ...[
-                                  const SizedBox(height: 24),
-                                  VerificationResultCard(
-                                    result: scanState.verificationResult!,
-                                    scrollController: _scrollController,
+                                      const SizedBox(height: 20),
+                                    ],
                                   ),
-                                ],
-
-                                const SizedBox(height: 20),
-                              ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         );
       },
@@ -717,7 +914,7 @@ class _ScanScreenState extends State<ScanScreen> {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.1,
+            childAspectRatio: 0.95,
           ),
           itemCount: activeAccounts.length,
           itemBuilder: (context, index) {
@@ -731,7 +928,7 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: theme.cardTheme.color,
                   border: Border.all(
@@ -749,10 +946,11 @@ class _ScanScreenState extends State<ScanScreen> {
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: _getBankColor(account.bankId).withOpacity(0.1),
                         shape: BoxShape.circle,
@@ -765,28 +963,40 @@ class _ScanScreenState extends State<ScanScreen> {
                             return Icon(
                               Icons.account_balance,
                               color: _getBankColor(account.bankId),
-                              size: 24,
+                              size: 22,
                             );
                           },
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
-                      account.bankName,
+                      account.receiverLabel ?? account.bankName,
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
+                        fontSize: 11,
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
+                    Text(
+                      account.name,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 9,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 1),
                     Text(
                       '****${account.accountNumber.length > 4 ? account.accountNumber.substring(account.accountNumber.length - 4) : account.accountNumber}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 10,
+                        fontSize: 9,
                       ),
                     ),
                   ],
@@ -842,15 +1052,26 @@ class _ScanScreenState extends State<ScanScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  selectedAccount.bankName,
+                  selectedAccount.receiverLabel ?? selectedAccount.bankName,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '${selectedAccount.name} - ****${selectedAccount.accountNumber.substring(selectedAccount.accountNumber.length - 4)}',
+                  selectedAccount.name,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '****${selectedAccount.accountNumber.substring(selectedAccount.accountNumber.length - 4)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 11,
                   ),
                 ),
               ],

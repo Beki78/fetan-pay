@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:animate_do/animate_do.dart';
 import '../../../../core/bloc/theme/theme_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../widgets/app_card.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../bloc/history_bloc.dart';
 import '../bloc/history_event.dart';
@@ -108,274 +108,434 @@ class _HistoryScreenContentState extends State<HistoryScreenContent> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              theme.colorScheme.surface,
-              theme.colorScheme.surfaceContainerHighest,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      body: Stack(
+        children: [
+          // Background decorative elements for depth
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.tertiary.withValues(alpha: 0.08),
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: ResponsiveUtils.getResponsivePadding(context),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          'assets/images/logo/fetan-logo.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.account_balance,
-                              color: theme.colorScheme.primary,
-                              size: 24,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          Positioned(
+            top: 100,
+            left: -50,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.primary.withValues(alpha: 0.06),
+              ),
+            ),
+          ),
+
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.surface,
+                  theme.colorScheme.surfaceContainerHighest,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Enhanced Header with animations
+                  FadeInDown(
+                    duration: const Duration(milliseconds: 600),
+                    child: Padding(
+                      padding: ResponsiveUtils.getResponsivePadding(context),
+                      child: Row(
                         children: [
-                          Text(
-                            'Fetan Pay',
-                            style: GoogleFonts.poppins(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: theme.colorScheme.primary,
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  theme.colorScheme.tertiary.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  theme.colorScheme.tertiary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.colorScheme.tertiary.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.asset(
+                                'assets/images/logo/fetan-logo.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.history_rounded,
+                                    color: theme.colorScheme.tertiary,
+                                    size: 28,
+                                  );
+                                },
+                              ),
                             ),
                           ),
-                          Text(
-                            'Verification history',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Fetan Pay',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                    color: theme.colorScheme.primary,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                                Text(
+                                  'Verification history',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          BlocBuilder<ThemeBloc, ThemeState>(
+                            builder: (context, themeState) {
+                              final isDarkMode =
+                                  themeState.themeMode == ThemeMode.dark;
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: theme
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: IconButton(
+                                  onPressed: () {
+                                    context.read<ThemeBloc>().add(
+                                      ToggleTheme(),
+                                    );
+                                  },
+                                  icon: Icon(
+                                    isDarkMode
+                                        ? Icons.dark_mode_rounded
+                                        : Icons.light_mode_rounded,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  tooltip: isDarkMode
+                                      ? 'Switch to Light Mode'
+                                      : 'Switch to Dark Mode',
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
                     ),
-                    BlocBuilder<ThemeBloc, ThemeState>(
-                      builder: (context, themeState) {
-                        final isDarkMode =
-                            themeState.themeMode == ThemeMode.dark;
-                        return IconButton(
-                          onPressed: () {
-                            context.read<ThemeBloc>().add(ToggleTheme());
-                          },
-                          icon: Icon(
-                            isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          tooltip: isDarkMode
-                              ? 'Switch to Light Mode'
-                              : 'Switch to Dark Mode',
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
+                  ),
 
-              // Content
-              Expanded(
-                child: BlocBuilder<HistoryBloc, HistoryState>(
-                  builder: (context, state) {
-                    if (state is HistoryLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                  // Content with animations
+                  Expanded(
+                    child: FadeInUp(
+                      delay: const Duration(milliseconds: 200),
+                      child: BlocBuilder<HistoryBloc, HistoryState>(
+                        builder: (context, state) {
+                          if (state is HistoryLoading) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
 
-                    if (state is HistoryError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: theme.colorScheme.error,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error loading history',
-                              style: theme.textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              state.message,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                          if (state is HistoryError) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    size: 64,
+                                    color: theme.colorScheme.error,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Error loading history',
+                                    style: theme.textTheme.titleLarge,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    state.message,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      context.read<HistoryBloc>().add(
+                                        const RefreshVerificationHistory(),
+                                      );
+                                    },
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () {
+                            );
+                          }
+
+                          if (state is HistoryLoaded) {
+                            return RefreshIndicator(
+                              onRefresh: () async {
                                 context.read<HistoryBloc>().add(
                                   const RefreshVerificationHistory(),
                                 );
                               },
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    if (state is HistoryLoaded) {
-                      return RefreshIndicator(
-                        onRefresh: () async {
-                          context.read<HistoryBloc>().add(
-                            const RefreshVerificationHistory(),
-                          );
-                        },
-                        child: SingleChildScrollView(
-                          controller: _scrollController,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 672),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // History List
-                                    AppCard(
-                                      padding: const EdgeInsets.all(20),
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.history,
-                                              color: theme.colorScheme.primary,
-                                              size: 24,
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Text(
-                                              'Verification History',
-                                              style: theme.textTheme.titleLarge
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-
-                                        if (state.items.isEmpty)
-                                          Center(
-                                            child: Column(
-                                              children: [
-                                                Icon(
-                                                  Icons.history,
-                                                  size: 48,
-                                                  color: theme
-                                                      .colorScheme
-                                                      .onSurfaceVariant
-                                                      .withValues(alpha: 0.5),
-                                                ),
-                                                const SizedBox(height: 16),
-                                                Text(
-                                                  'No verification history yet',
-                                                  style: theme
-                                                      .textTheme
-                                                      .bodyMedium
-                                                      ?.copyWith(
-                                                        color: theme
-                                                            .colorScheme
-                                                            .onSurfaceVariant,
-                                                      ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  'Payment verifications will appear here',
-                                                  style: theme
-                                                      .textTheme
-                                                      .bodySmall
-                                                      ?.copyWith(
-                                                        color: theme
-                                                            .colorScheme
-                                                            .onSurfaceVariant,
-                                                      ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                        else
-                                          Column(
-                                            children: [
-                                              ListView.separated(
-                                                shrinkWrap: true,
-                                                physics:
-                                                    const NeverScrollableScrollPhysics(),
-                                                itemCount: state.items.length,
-                                                separatorBuilder:
-                                                    (context, index) => Divider(
-                                                      color: theme
-                                                          .colorScheme
-                                                          .outline
-                                                          .withValues(
-                                                            alpha: 0.3,
-                                                          ),
-                                                      height: 16,
-                                                    ),
-                                                itemBuilder: (context, index) {
-                                                  final item =
-                                                      state.items[index];
-                                                  return _buildHistoryItem(
-                                                    item,
-                                                    theme,
-                                                  );
-                                                },
-                                              ),
-                                              if (state.isLoadingMore)
-                                                const Padding(
-                                                  padding: EdgeInsets.all(16.0),
-                                                  child:
-                                                      CircularProgressIndicator(),
-                                                ),
-                                            ],
-                                          ),
-                                      ],
+                              child: SingleChildScrollView(
+                                controller: _scrollController,
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 672,
                                     ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Enhanced History List Card
+                                          SlideInUp(
+                                            delay: const Duration(
+                                              milliseconds: 400,
+                                            ),
+                                            child: Container(
+                                              padding: const EdgeInsets.all(24),
+                                              decoration: BoxDecoration(
+                                                color: theme.colorScheme.surface
+                                                    .withValues(alpha: 0.9),
+                                                borderRadius:
+                                                    BorderRadius.circular(24),
+                                                border: Border.all(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.2),
+                                                  width: 1,
+                                                ),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: theme.shadowColor
+                                                        .withValues(alpha: 0.1),
+                                                    blurRadius: 20,
+                                                    offset: const Offset(0, 10),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Container(
+                                                        width: 40,
+                                                        height: 40,
+                                                        decoration: BoxDecoration(
+                                                          gradient: LinearGradient(
+                                                            colors: [
+                                                              theme
+                                                                  .colorScheme
+                                                                  .tertiary
+                                                                  .withValues(
+                                                                    alpha: 0.2,
+                                                                  ),
+                                                              theme
+                                                                  .colorScheme
+                                                                  .tertiary
+                                                                  .withValues(
+                                                                    alpha: 0.1,
+                                                                  ),
+                                                            ],
+                                                            begin: Alignment
+                                                                .topLeft,
+                                                            end: Alignment
+                                                                .bottomRight,
+                                                          ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                        ),
+                                                        child: Icon(
+                                                          Icons.history_rounded,
+                                                          color: theme
+                                                              .colorScheme
+                                                              .tertiary,
+                                                          size: 20,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Text(
+                                                        'Verification History',
+                                                        style:
+                                                            GoogleFonts.poppins(
+                                                              fontSize: 18,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color: theme
+                                                                  .colorScheme
+                                                                  .onSurface,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 20),
 
-                                    const SizedBox(height: 20),
-                                  ],
+                                                  if (state.items.isEmpty)
+                                                    Center(
+                                                      child: Column(
+                                                        children: [
+                                                          Icon(
+                                                            Icons.history,
+                                                            size: 48,
+                                                            color: theme
+                                                                .colorScheme
+                                                                .onSurfaceVariant
+                                                                .withValues(
+                                                                  alpha: 0.5,
+                                                                ),
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 16,
+                                                          ),
+                                                          Text(
+                                                            'No verification history yet',
+                                                            style: theme
+                                                                .textTheme
+                                                                .bodyMedium
+                                                                ?.copyWith(
+                                                                  color: theme
+                                                                      .colorScheme
+                                                                      .onSurfaceVariant,
+                                                                ),
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 8,
+                                                          ),
+                                                          Text(
+                                                            'Payment verifications will appear here',
+                                                            style: theme
+                                                                .textTheme
+                                                                .bodySmall
+                                                                ?.copyWith(
+                                                                  color: theme
+                                                                      .colorScheme
+                                                                      .onSurfaceVariant,
+                                                                ),
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    )
+                                                  else
+                                                    Column(
+                                                      children: [
+                                                        ListView.separated(
+                                                          shrinkWrap: true,
+                                                          physics:
+                                                              const NeverScrollableScrollPhysics(),
+                                                          itemCount: state
+                                                              .items
+                                                              .length,
+                                                          separatorBuilder:
+                                                              (
+                                                                context,
+                                                                index,
+                                                              ) => Divider(
+                                                                color: theme
+                                                                    .colorScheme
+                                                                    .outline
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.3,
+                                                                    ),
+                                                                height: 16,
+                                                              ),
+                                                          itemBuilder:
+                                                              (context, index) {
+                                                                final item = state
+                                                                    .items[index];
+                                                                return _buildHistoryItem(
+                                                                  item,
+                                                                  theme,
+                                                                );
+                                                              },
+                                                        ),
+                                                        if (state.isLoadingMore)
+                                                          const Padding(
+                                                            padding:
+                                                                EdgeInsets.all(
+                                                                  16.0,
+                                                                ),
+                                                            child:
+                                                                CircularProgressIndicator(),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 20),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
+                            );
+                          }
 
-                    return const SizedBox.shrink();
-                  },
-                ),
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

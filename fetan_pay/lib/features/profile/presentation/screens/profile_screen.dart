@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/screens/login_screen.dart';
 import '../../../scan/presentation/bloc/scan_bloc.dart';
 import '../../../scan/presentation/bloc/scan_event.dart';
 import '../../../scan/presentation/bloc/scan_state.dart';
@@ -50,8 +51,10 @@ class ProfileScreenContent extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
+        title: const Text('Logout'),
+        content: const Text(
+          'Are you sure you want to logout? You will need to login again to access your account.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -59,10 +62,19 @@ class ProfileScreenContent extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
+              Navigator.of(context).pop(); // Close dialog first
+
+              // Dispatch logout event to AuthBloc
               context.read<AuthBloc>().add(LogoutRequested());
-              Navigator.of(context).pop();
+
+              // Navigate to login screen and remove all previous routes
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
+              );
             },
-            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Logout'),
           ),
         ],
       ),
@@ -544,8 +556,6 @@ class ProfileScreenContent extends StatelessWidget {
                                                                     color: theme
                                                                         .colorScheme
                                                                         .onSurfaceVariant,
-                                                                    fontFamily:
-                                                                        'RobotoMono',
                                                                   ),
                                                             ),
                                                           ],
@@ -558,7 +568,7 @@ class ProfileScreenContent extends StatelessWidget {
                                             )
                                     else
                                       const Center(
-                                        child: Text('Loading accounts...'),
+                                        child: CircularProgressIndicator(),
                                       ),
                                   ],
                                 );

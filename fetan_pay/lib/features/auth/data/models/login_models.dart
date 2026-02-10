@@ -19,25 +19,41 @@ class LoginResponse extends Equatable {
   final bool success;
   final String? token;
   final Map<String, dynamic>? user;
+  final bool? redirect;
 
   const LoginResponse({
     required this.message,
     required this.success,
     this.token,
     this.user,
+    this.redirect,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
-    return LoginResponse(
-      message: json['message'] as String? ?? '',
-      success: json['success'] as bool? ?? false,
-      token: json['token'] as String?,
-      user: json['user'] as Map<String, dynamic>?,
-    );
+    // Handle Better Auth response format
+    if (json.containsKey('token') && json.containsKey('user')) {
+      // Better Auth format: {"redirect": false, "token": "...", "user": {...}}
+      return LoginResponse(
+        message: 'Login successful',
+        success: true,
+        token: json['token'] as String?,
+        user: json['user'] as Map<String, dynamic>?,
+        redirect: json['redirect'] as bool?,
+      );
+    } else {
+      // Legacy format: {"message": "...", "success": true, "token": "...", "user": {...}}
+      return LoginResponse(
+        message: json['message'] as String? ?? '',
+        success: json['success'] as bool? ?? false,
+        token: json['token'] as String?,
+        user: json['user'] as Map<String, dynamic>?,
+        redirect: json['redirect'] as bool?,
+      );
+    }
   }
 
   @override
-  List<Object?> get props => [message, success, token, user];
+  List<Object?> get props => [message, success, token, user, redirect];
 }
 
 class QRLoginRequest extends Equatable {

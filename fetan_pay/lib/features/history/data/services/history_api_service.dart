@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/utils/secure_logger.dart';
@@ -46,9 +47,26 @@ class HistoryApiServiceImpl implements HistoryApiService {
         );
         return Left(Exception('Failed to load verification history'));
       }
+    } on DioException catch (e) {
+      SecureLogger.error('DioException loading verification history', error: e);
+
+      // Extract backend error message if available
+      String errorMessage = 'Network error';
+      final responseData = e.response?.data;
+
+      if (responseData is Map<String, dynamic>) {
+        errorMessage =
+            responseData['message'] as String? ??
+            responseData['error'] as String? ??
+            errorMessage;
+      } else if (e.message != null) {
+        errorMessage = e.message!;
+      }
+
+      return Left(Exception(errorMessage));
     } catch (e) {
       SecureLogger.error(
-        'Network error loading verification history',
+        'Unexpected error loading verification history',
         error: e,
       );
       return Left(Exception('Network error: ${e.toString()}'));

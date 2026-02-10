@@ -5,6 +5,11 @@ import 'package:intl/intl.dart';
 import 'package:animate_do/animate_do.dart';
 import '../../../../core/bloc/theme/theme_bloc.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../data/models/transaction_models.dart';
+import '../bloc/transaction_bloc.dart';
+import '../bloc/transaction_event.dart';
+import '../bloc/transaction_state.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -19,16 +24,47 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   // Mock Data
   final List<Map<String, dynamic>> _allTransactions = [
-    {'id': 'TXN-001', 'amount': 500.00, 'status': 'CONFIRMED', 'vendor': 'Waiter John', 'timestamp': DateTime.now().subtract(const Duration(minutes: 15)), 'method': 'CBE Mobile'},
-    {'id': 'TXN-002', 'amount': 750.25, 'status': 'CONFIRMED', 'vendor': 'Waiter Sarah', 'timestamp': DateTime.now().subtract(const Duration(minutes: 32)), 'method': 'TeleBirr'},
-    {'id': 'TXN-003', 'amount': 1200.00, 'status': 'UNCONFIRMED', 'vendor': 'Waiter Mike', 'timestamp': DateTime.now().subtract(const Duration(hours: 1)), 'method': 'Awash Bank'},
-    {'id': 'TXN-005', 'amount': 890.75, 'status': 'PENDING', 'vendor': 'Waiter David', 'timestamp': DateTime.now().subtract(const Duration(hours: 3)), 'method': 'CBE Mobile'},
+    {
+      'id': 'TXN-001',
+      'amount': 500.00,
+      'status': 'CONFIRMED',
+      'vendor': 'Waiter John',
+      'timestamp': DateTime.now().subtract(const Duration(minutes: 15)),
+      'method': 'CBE Mobile',
+    },
+    {
+      'id': 'TXN-002',
+      'amount': 750.25,
+      'status': 'CONFIRMED',
+      'vendor': 'Waiter Sarah',
+      'timestamp': DateTime.now().subtract(const Duration(minutes: 32)),
+      'method': 'TeleBirr',
+    },
+    {
+      'id': 'TXN-003',
+      'amount': 1200.00,
+      'status': 'UNCONFIRMED',
+      'vendor': 'Waiter Mike',
+      'timestamp': DateTime.now().subtract(const Duration(hours: 1)),
+      'method': 'Awash Bank',
+    },
+    {
+      'id': 'TXN-005',
+      'amount': 890.75,
+      'status': 'PENDING',
+      'vendor': 'Waiter David',
+      'timestamp': DateTime.now().subtract(const Duration(hours: 3)),
+      'method': 'CBE Mobile',
+    },
   ];
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 600), () => setState(() => _isLoading = false));
+    Future.delayed(
+      const Duration(milliseconds: 600),
+      () => setState(() => _isLoading = false),
+    );
   }
 
   @override
@@ -150,10 +186,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         ),
                         BlocBuilder<ThemeBloc, ThemeState>(
                           builder: (context, themeState) {
-                            final isDarkMode = themeState.themeMode == ThemeMode.dark;
+                            final isDarkMode =
+                                themeState.themeMode == ThemeMode.dark;
                             return Container(
                               decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerHighest.withOpacity(0.8),
+                                color: colorScheme.surfaceContainerHighest
+                                    .withOpacity(0.8),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: IconButton(
@@ -161,10 +199,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   context.read<ThemeBloc>().add(ToggleTheme());
                                 },
                                 icon: Icon(
-                                  isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                                  isDarkMode
+                                      ? Icons.dark_mode_rounded
+                                      : Icons.light_mode_rounded,
                                   color: colorScheme.onSurfaceVariant,
                                 ),
-                                tooltip: isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                                tooltip: isDarkMode
+                                    ? 'Switch to Light Mode'
+                                    : 'Switch to Dark Mode',
                               ),
                             );
                           },
@@ -206,11 +248,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             child: ListView.separated(
                               physics: const BouncingScrollPhysics(),
                               itemCount: _getFilteredTransactions().length,
-                              separatorBuilder: (context, index) => const SizedBox(height: 16),
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 16),
                               itemBuilder: (context, index) {
                                 final tx = _getFilteredTransactions()[index];
                                 return FadeInUp(
-                                  delay: Duration(milliseconds: 600 + (index * 100)),
+                                  delay: Duration(
+                                    milliseconds: 600 + (index * 100),
+                                  ),
                                   child: _buildTransactionTile(tx, theme),
                                 );
                               },
@@ -297,7 +342,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildMiniStat('12', 'Transactions', statFontSize, labelFontSize),
+                  _buildMiniStat(
+                    '12',
+                    'Transactions',
+                    statFontSize,
+                    labelFontSize,
+                  ),
                   Container(
                     width: 1,
                     height: 32,
@@ -306,9 +356,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       borderRadius: BorderRadius.circular(1),
                     ),
                   ),
-                  _buildMiniStat('98%', 'Success Rate', statFontSize, labelFontSize),
+                  _buildMiniStat(
+                    '98%',
+                    'Success Rate',
+                    statFontSize,
+                    labelFontSize,
+                  ),
                 ],
-              )
+              ),
             ],
           ),
         );
@@ -316,7 +371,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  Widget _buildMiniStat(String value, String label, double statFontSize, double labelFontSize) {
+  Widget _buildMiniStat(
+    String value,
+    String label,
+    double statFontSize,
+    double labelFontSize,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -363,7 +423,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 ),
               ),
               selected: isSelected,
-              onSelected: (val) => setState(() => _selectedStatusFilter = statuses[index]),
+              onSelected: (val) =>
+                  setState(() => _selectedStatusFilter = statuses[index]),
               selectedColor: color.primary,
               checkmarkColor: Colors.white,
               backgroundColor: color.surfaceContainerHighest.withOpacity(0.3),
@@ -392,7 +453,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.3)),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+        ),
         boxShadow: [
           BoxShadow(
             color: theme.shadowColor.withOpacity(0.05),
@@ -434,14 +497,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     Icon(
                       Icons.access_time,
                       size: 12,
-                      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                      color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                        0.6,
+                      ),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       DateFormat('HH:mm • MMM d').format(tx['timestamp']),
                       style: GoogleFonts.poppins(
                         fontSize: 12,
-                        color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+                        color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                          0.8,
+                        ),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -472,7 +539,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -513,6 +583,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   List<Map<String, dynamic>> _getFilteredTransactions() {
     if (_selectedStatusFilter == 'All') return _allTransactions;
-    return _allTransactions.where((t) => t['status'] == _selectedStatusFilter).toList();
+    return _allTransactions
+        .where((t) => t['status'] == _selectedStatusFilter)
+        .toList();
   }
 }

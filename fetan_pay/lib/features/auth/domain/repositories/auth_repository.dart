@@ -14,7 +14,10 @@ abstract class AuthRepository {
   Future<Either<Failure, User?>> getCurrentUser();
 
   /// Validate QR code for login
-  Future<Either<Failure, QRLoginResponse>> validateQRCode(String qrData, String origin);
+  Future<Either<Failure, QRLoginResponse>> validateQRCode(
+    String qrData,
+    String origin,
+  );
 
   /// Check if user is authenticated
   Future<bool> isAuthenticated();
@@ -24,4 +27,7 @@ abstract class AuthRepository {
 
   /// Clear all cached authentication data
   Future<void> clearCache();
+
+  /// Test connection to server
+  Future<bool> testConnection();
 }

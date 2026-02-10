@@ -8,6 +8,7 @@ class ActiveAccount extends Equatable {
   final String bankName;
   final bool isActive;
   final String? merchantId;
+  final String? receiverLabel;
 
   const ActiveAccount({
     required this.id,
@@ -17,6 +18,7 @@ class ActiveAccount extends Equatable {
     required this.bankName,
     required this.isActive,
     this.merchantId,
+    this.receiverLabel,
   });
 
   factory ActiveAccount.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class ActiveAccount extends Equatable {
       bankName: _getBankNameFromProvider(provider),
       isActive: json['status'] == 'ACTIVE',
       merchantId: json['merchantId'] as String?,
+      receiverLabel: json['receiverLabel'] as String?,
     );
   }
 
@@ -50,7 +53,16 @@ class ActiveAccount extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, name, accountNumber, bankId, bankName, isActive, merchantId];
+  List<Object?> get props => [
+    id,
+    name,
+    accountNumber,
+    bankId,
+    bankName,
+    isActive,
+    merchantId,
+    receiverLabel,
+  ];
 }
 
 class VerificationRequest extends Equatable {
@@ -108,7 +120,13 @@ class VerificationResponse extends Equatable {
   bool get isVerified => status == 'VERIFIED';
 
   @override
-  List<Object?> get props => [status, reference, transaction, checks, mismatchReason];
+  List<Object?> get props => [
+    status,
+    reference,
+    transaction,
+    checks,
+    mismatchReason,
+  ];
 }
 
 class TransactionDetails extends Equatable {
@@ -134,13 +152,22 @@ class TransactionDetails extends Equatable {
       senderName: json['senderName'] as String?,
       receiverAccount: json['receiverAccount'] as String?,
       receiverName: json['receiverName'] as String?,
-      amount: json['amount'] != null ? (json['amount'] as num).toDouble() : null,
+      amount: json['amount'] != null
+          ? (json['amount'] as num).toDouble()
+          : null,
       raw: json['raw'] as Map<String, dynamic>?,
     );
   }
 
   @override
-  List<Object?> get props => [reference, senderName, receiverAccount, receiverName, amount, raw];
+  List<Object?> get props => [
+    reference,
+    senderName,
+    receiverAccount,
+    receiverName,
+    amount,
+    raw,
+  ];
 }
 
 class VerificationChecks extends Equatable {
@@ -175,7 +202,12 @@ class VerificationChecks extends Equatable {
   }
 
   @override
-  List<Object?> get props => [referenceFound, receiverMatches, amountMatches, details];
+  List<Object?> get props => [
+    referenceFound,
+    receiverMatches,
+    amountMatches,
+    details,
+  ];
 }
 
 class VerificationResult extends Equatable {
@@ -203,11 +235,15 @@ class VerificationResult extends Equatable {
     this.message,
   });
 
-  factory VerificationResult.fromResponse(VerificationResponse response, String provider) {
+  factory VerificationResult.fromResponse(
+    VerificationResponse response,
+    String provider,
+  ) {
     final failureMessage = (() {
       if (response.checks == null) return 'Transaction could not be verified';
       if (!response.checks!.referenceFound) return 'Transaction not found';
-      if (!response.checks!.receiverMatches) return 'Receiver account doesn\'t match your configured account';
+      if (!response.checks!.receiverMatches)
+        return 'Receiver account doesn\'t match your configured account';
       return 'Transaction could not be verified';
     })();
 
@@ -224,21 +260,23 @@ class VerificationResult extends Equatable {
         'checks': response.checks?.toJson(),
         'raw': response.transaction?.raw,
       },
-      message: response.isVerified ? null : (response.mismatchReason ?? failureMessage),
+      message: response.isVerified
+          ? null
+          : (response.mismatchReason ?? failureMessage),
     );
   }
 
   @override
   List<Object?> get props => [
-        success,
-        status,
-        reference,
-        provider,
-        senderName,
-        receiverAccount,
-        receiverName,
-        amount,
-        details,
-        message,
-      ];
+    success,
+    status,
+    reference,
+    provider,
+    senderName,
+    receiverAccount,
+    receiverName,
+    amount,
+    details,
+    message,
+  ];
 }

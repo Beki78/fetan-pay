@@ -35,19 +35,42 @@ class ApiConfig {
   static const String verificationHistory =
       '$apiBaseUrl/payments/verification-history';
 
+  // Transaction endpoints
+  static const String transactionsEndpoint = '$apiBaseUrl/transactions';
+
+  // Payments endpoints
+  static const String paymentsEndpoint = '$apiBaseUrl/payments';
+
+  // Merchant Users endpoints
+  static const String merchantUsersEndpoint = '$apiBaseUrl/merchant-users';
+
   // Environment helpers
   static bool get isProduction =>
       const String.fromEnvironment('ENVIRONMENT') == 'production';
   static bool get isDevelopment => !isProduction;
 
-  // HTTP Configuration
-  static const Duration connectTimeout = Duration(seconds: 30);
-  static const Duration receiveTimeout = Duration(seconds: 30);
+  // HTTP Configuration - Increased timeouts for better debugging
+  static const Duration connectTimeout = Duration(seconds: 60);
+  static const Duration receiveTimeout = Duration(seconds: 60);
   static const int maxRetries = 3;
 
   // Headers
   static const Map<String, String> defaultHeaders = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    // Required by Better Auth for CORS
   };
+
+  // Debug method to print current configuration
+  static void printConfig() {
+    print('=== API CONFIG DEBUG ===');
+    print('Base URL: $baseUrl');
+    print('API Base URL: $apiBaseUrl');
+    print('Better Auth Base URL: $betterAuthBaseUrl');
+    print('Sign In Email: $signInEmail');
+    print('Environment: ${isProduction ? 'production' : 'development'}');
+    print('Connect Timeout: ${connectTimeout.inSeconds}s');
+    print('Receive Timeout: ${receiveTimeout.inSeconds}s');
+    print('=== END CONFIG DEBUG ===');
+  }
 }

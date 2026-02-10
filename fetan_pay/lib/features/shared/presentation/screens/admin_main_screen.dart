@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/bloc/admin_navigation/admin_navigation_bloc.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../widgets/admin_bottom_navigation.dart';
 import '../../../bank_accounts/presentation/widgets/add_bank_account_modal.dart';
 import '../../../dashboard/presentation/screens/admin_dashboard_screen.dart';
 import '../../../transactions/presentation/widgets/transaction_modal.dart';
 import '../../../vendors/presentation/widgets/user_modal.dart';
+import '../../../vendors/presentation/bloc/merchant_users_bloc.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
-import '../../../transactions/presentation/screens/transactions_screen.dart';
+import '../../../transactions/presentation/screens/enhanced_transactions_screen.dart';
 import '../../../vendors/presentation/screens/users_screen.dart';
 
 class AdminMainScreen extends StatelessWidget {
@@ -27,8 +29,11 @@ class AdminMainScreen extends StatelessWidget {
                   index: state.currentIndex,
                   children: [
                     AdminDashboardScreen(),
-                    TransactionsScreen(),
-                    UsersScreen(),
+                    EnhancedTransactionsScreen(),
+                    BlocProvider(
+                      create: (_) => getIt<MerchantUsersBloc>(),
+                      child: const UsersScreen(),
+                    ),
                     SettingsScreen(),
                   ],
                 ),
@@ -43,21 +48,31 @@ class AdminMainScreen extends StatelessWidget {
                       // Handle tab navigation
                       switch (index) {
                         case 0:
-                          context.read<AdminNavigationBloc>().add(NavigateToDashboard());
+                          context.read<AdminNavigationBloc>().add(
+                            NavigateToDashboard(),
+                          );
                           break;
                         case 1:
-                          context.read<AdminNavigationBloc>().add(NavigateToTransactions());
+                          context.read<AdminNavigationBloc>().add(
+                            NavigateToTransactions(),
+                          );
                           break;
                         case 2:
-                          context.read<AdminNavigationBloc>().add(NavigateToUsers());
+                          context.read<AdminNavigationBloc>().add(
+                            NavigateToUsers(),
+                          );
                           break;
                         case 3:
-                          context.read<AdminNavigationBloc>().add(NavigateToSettings());
+                          context.read<AdminNavigationBloc>().add(
+                            NavigateToSettings(),
+                          );
                           break;
                         case 4: // FAB pressed
                           _showQuickActions(context).then((navigationAction) {
                             if (navigationAction != null) {
-                              context.read<AdminNavigationBloc>().add(navigationAction);
+                              context.read<AdminNavigationBloc>().add(
+                                navigationAction,
+                              );
                               _showNavigationMessage(context, navigationAction);
                             }
                           });
@@ -88,42 +103,38 @@ class AdminMainScreen extends StatelessWidget {
             children: [
               Text(
                 'Quick Actions',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 20),
               // First row - 3 buttons
               Row(
                 children: [
-                  
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildQuickActionButton(
                       context,
-                      'Add Vendor',
-                      Icons.business,
+                      'Add User',
+                      Icons.person_add,
                       Colors.teal,
-                      () {
-                        Navigator.pop(context, null); // Close quick actions modal
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                              UserModal.show(context).then((user) {
-                            if (user != null) {
-                              // Here you would typically save the user to your backend
-                              // For now, just show success message
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                      () async {
+                        Navigator.pop(
+                          context,
+                          null,
+                        ); // Close quick actions modal
+
+                        // Show user modal
+                        await UserModal.show(context);
+
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'User "${user.name}" added successfully!\n${user.email} - ${user.branch}',
-                                    ),
-                                    backgroundColor: Colors.green,
-                                  ),
+                            const SnackBar(
+                              content: Text('User added successfully!'),
+                              backgroundColor: Colors.green,
+                            ),
                           );
-                              });
-                            }
-                          });
-                        });
+                        }
                       },
                     ),
                   ),
@@ -135,17 +146,24 @@ class AdminMainScreen extends StatelessWidget {
                       Icons.receipt_long,
                       Colors.blue,
                       () {
-                        Navigator.pop(context, null); // Close quick actions modal
+                        Navigator.pop(
+                          context,
+                          null,
+                        ); // Close quick actions modal
                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                          TransactionModal.show(context).then((transaction) {
-                            if (transaction != null) {
-                              // Here you would typically save the transaction to your backend
-                              // For now, just show success message
+                          TransactionModal.show(context).then((orderResponse) {
+                            if (orderResponse != null) {
+                              // Payment intent created successfully
+                              final amount =
+                                  double.tryParse(
+                                    orderResponse.order.expectedAmount ?? '0',
+                                  ) ??
+                                  0.0;
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Transaction created successfully!\nETB ${transaction.amount.toStringAsFixed(2)} - ${transaction.vendor}',
+                                      'Payment intent created successfully!\nETB ${amount.toStringAsFixed(2)} - Order ID: ${orderResponse.order.id}',
                                     ),
                                     backgroundColor: Colors.green,
                                   ),
@@ -170,16 +188,16 @@ class AdminMainScreen extends StatelessWidget {
                       Icons.account_balance,
                       Colors.indigo,
                       () {
-                        Navigator.pop(context, null); // Close quick actions modal
+                        Navigator.pop(
+                          context,
+                          null,
+                        ); // Close quick actions modal
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           AddBankAccountModal.show(context);
                         });
                       },
                     ),
                   ),
-                  
-                  
-                  
                 ],
               ),
               const SizedBox(height: 20),
@@ -190,38 +208,45 @@ class AdminMainScreen extends StatelessWidget {
     );
   }
 
-
-  void _showNavigationMessage(BuildContext context, AdminNavigationEvent navigationEvent) {
+  void _showNavigationMessage(
+    BuildContext context,
+    AdminNavigationEvent navigationEvent,
+  ) {
     String message;
     switch (navigationEvent.runtimeType) {
-      case NavigateToUsers:
+      case NavigateToUsers _:
         message = 'Switched to Vendors - Add vendor feature coming soon!';
         break;
-      case NavigateToTransactions:
-        message = 'Switched to Transactions - Add transaction feature coming soon!';
+      case NavigateToTransactions _:
+        message =
+            'Switched to Transactions - Add transaction feature coming soon!';
         break;
-      case NavigateToDashboard:
+      case NavigateToDashboard _:
         message = 'Switched to Dashboard - Export feature available!';
         break;
       default:
         message = 'Navigation completed!';
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Widget _buildQuickActionButton(BuildContext context, String label, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionButton(
+    BuildContext context,
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return ElevatedButton(
       onPressed: onTap,
       style: ElevatedButton.styleFrom(
-        backgroundColor: color.withOpacity(0.1),
+        backgroundColor: color.withValues(alpha: 0.1),
         foregroundColor: color,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       ),
       child: Column(
@@ -230,10 +255,7 @@ class AdminMainScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
             textAlign: TextAlign.center,
           ),
         ],

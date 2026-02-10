@@ -37,6 +37,9 @@ async function bootstrap() {
     'http://localhost:3003',
     'http://localhost:3009',
     'https://jenine-sphagnous-coleen.ngrok-free.dev',
+    // Local network access (for mobile development)
+    'http://192.168.1.6:3003',
+    'http://192.168.0.147:3003',
     // Production subdomains
     'https://admin.fetanpay.et',
     'https://merchant.fetanpay.et',

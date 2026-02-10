@@ -1,8 +1,9 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:path_provider/path_provider.dart';
 import '../config/api_config.dart';
-import '../utils/secure_logger.dart';
 
 class DioClient {
   late final Dio _dio;
@@ -10,6 +11,9 @@ class DioClient {
   late final CookieManager _cookieManager;
 
   DioClient() {
+    // Print configuration for debugging
+    ApiConfig.printConfig();
+
     _initializeCookieJarSync();
     _dio = Dio(_createBaseOptions());
 
@@ -26,12 +30,14 @@ class DioClient {
   }
 
   void _initializeCookieJarSync() {
-    // Create a custom cookie jar that handles domain mapping
+    // Create a custom cookie jar that handles persistence only (no domain mapping)
     _cookieJar = _CustomCookieJar();
-    SecureLogger.debug('Initialized custom cookie jar with domain mapping');
+    print('Initialized custom cookie jar with persistence only');
   }
 
   BaseOptions _createBaseOptions() {
+    print('Creating Dio base options with baseUrl: ${ApiConfig.baseUrl}');
+
     return BaseOptions(
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: ApiConfig.connectTimeout,
@@ -42,6 +48,11 @@ class DioClient {
       // Ensure cookies are sent with requests - CRITICAL for Better Auth
       followRedirects: true,
       maxRedirects: 5,
+      // Add validation for responses
+      validateStatus: (status) {
+        print('Response status: $status');
+        return status != null && status < 500;
+      },
     );
   }
 
@@ -59,7 +70,7 @@ class DioClient {
         // Handle authentication errors
         if (error.response?.statusCode == 401) {
           // Token expired or invalid - could trigger logout
-          SecureLogger.auth('Authentication error occurred');
+          print('Authentication error occurred');
         }
         handler.next(error);
       },
@@ -69,9 +80,6 @@ class DioClient {
   Interceptor _createLoggingInterceptor() {
     return InterceptorsWrapper(
       onRequest: (options, handler) {
-        SecureLogger.networkRequest(options.method, options.uri.toString());
-
-        // Debug cookie information for authentication debugging
         print('=== REQUEST DEBUG ===');
         print('Request to: ${options.uri}');
         print('Request headers: ${options.headers}');
@@ -82,39 +90,77 @@ class DioClient {
         handler.next(options);
       },
       onResponse: (response, handler) {
-        SecureLogger.networkResponse(
-          response.statusCode ?? 0,
-          response.requestOptions.uri.toString(),
-        );
-
-        // Debug response cookies
         print('=== RESPONSE DEBUG ===');
         print('Response from: ${response.requestOptions.uri}');
         print('Response status: ${response.statusCode}');
+        print('Response data: ${response.data}');
+        print('All response headers: ${response.headers.map}');
 
         // Check if cookies were set
         final setCookieHeaders = response.headers['set-cookie'];
         if (setCookieHeaders != null && setCookieHeaders.isNotEmpty) {
           print('Set-Cookie headers received: $setCookieHeaders');
+          print('Number of Set-Cookie headers: ${setCookieHeaders.length}');
+
+          // Parse and log each cookie
+          for (int i = 0; i < setCookieHeaders.length; i++) {
+            print('Set-Cookie[$i]: ${setCookieHeaders[i]}');
+          }
+
           // Give the cookie jar a moment to process the cookies
           Future.delayed(Duration(milliseconds: 100), () {
             _debugCookieJarAfterResponse();
           });
+        } else {
+          print('No Set-Cookie headers in response');
+          print(
+            'Available response headers: ${response.headers.map.keys.toList()}',
+          );
         }
 
         handler.next(response);
       },
       onError: (error, handler) {
-        SecureLogger.networkResponse(
-          error.response?.statusCode ?? 0,
-          error.requestOptions.uri.toString(),
-        );
-
         print('=== ERROR DEBUG ===');
         print('Error response from: ${error.requestOptions.uri}');
         print('Error status: ${error.response?.statusCode}');
+        print('Error data: ${error.response?.data}');
+        print('Error message: ${error.message}');
+        print('Error type: ${error.type}');
+
+        // Enhanced connection debugging
+        if (error.type == DioExceptionType.connectionTimeout) {
+          print('CONNECTION TIMEOUT - Server not responding or unreachable');
+          print('Attempted to connect to: ${error.requestOptions.uri}');
+          print('Connect timeout: ${error.requestOptions.connectTimeout}');
+          print('TROUBLESHOOTING:');
+          print('1. Check if server is running on ${ApiConfig.baseUrl}');
+          print(
+            '2. Verify IP address ${error.requestOptions.uri.host} is correct',
+          );
+          print('3. Check network connectivity');
+          print('4. Verify firewall/port settings');
+        } else if (error.type == DioExceptionType.receiveTimeout) {
+          print(
+            'RECEIVE TIMEOUT - Server started responding but took too long',
+          );
+          print('Receive timeout: ${error.requestOptions.receiveTimeout}');
+        } else if (error.type == DioExceptionType.sendTimeout) {
+          print('SEND TIMEOUT - Failed to send request data');
+          print('Send timeout: ${error.requestOptions.sendTimeout}');
+        } else if (error.type == DioExceptionType.connectionError) {
+          print('CONNECTION ERROR - Network connectivity issue');
+          print('This usually means:');
+          print('- No internet connection');
+          print('- Server is not running');
+          print('- Wrong IP address or port');
+          print('- Firewall blocking connection');
+        }
+
         if (error.response?.statusCode == 401) {
           print('401 Unauthorized - likely cookie/session issue');
+        } else if (error.response?.statusCode == null) {
+          print('Network error - server not responding or connection failed');
         }
 
         handler.next(error);
@@ -233,6 +279,26 @@ class DioClient {
     );
   }
 
+  Future<Response<T>> patch<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) {
+    return _dio.patch<T>(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+  }
+
   void _checkCookiesInJar(Uri uri) {
     try {
       _cookieJar.loadForRequest(uri).then((cookieList) {
@@ -251,15 +317,8 @@ class DioClient {
 
   void _debugCookieJarAfterResponse() {
     try {
-      // Check cookies for both localhost and IP
-      final localhostUri = Uri.parse('http://localhost:3003');
-      final ipUri = Uri.parse('http://192.168.0.147:3003');
-
-      _cookieJar.loadForRequest(localhostUri).then((localhostCookies) {
-        print(
-          'Cookies stored for localhost: ${localhostCookies.map((c) => '${c.name}=${c.value}').join('; ')}',
-        );
-      });
+      // Check cookies for current base URL
+      final ipUri = Uri.parse(ApiConfig.baseUrl);
 
       _cookieJar.loadForRequest(ipUri).then((ipCookies) {
         print(
@@ -270,116 +329,165 @@ class DioClient {
       print('Error debugging cookie jar: $e');
     }
   }
+
+  /// Clear all cookies from the cookie jar (for logout)
+  Future<void> clearAllCookies() async {
+    try {
+      print('=== CLEARING ALL COOKIES ===');
+      await _cookieJar.deleteAll();
+      print('All cookies cleared from cookie jar');
+    } catch (e) {
+      print('Error clearing cookies: $e');
+      rethrow;
+    }
+  }
 }
 
-/// Custom cookie jar that maps IP addresses to localhost for cookie domain matching
+/// Custom cookie jar that provides persistent storage without domain mapping
+/// Uses IP address consistently as requested by user
 class _CustomCookieJar implements CookieJar {
-  final CookieJar _delegate = CookieJar();
+  late final CookieJar _delegate;
+  bool _initialized = false;
+
+  _CustomCookieJar() {
+    _initializeAsync();
+  }
+
+  void _initializeAsync() async {
+    try {
+      // Use persistent cookie storage
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final cookieDir = Directory('${appDocDir.path}/.cookies');
+
+      // Ensure directory exists
+      if (!await cookieDir.exists()) {
+        await cookieDir.create(recursive: true);
+        print('Created cookie directory: ${cookieDir.path}');
+      }
+
+      // Create a persistent cookie jar
+      _delegate = PersistCookieJar(storage: FileStorage(cookieDir.path));
+      _initialized = true;
+
+      print('Initialized persistent cookie jar at: ${cookieDir.path}');
+    } catch (e) {
+      // Fallback to in-memory cookie jar if persistent storage fails
+      print('Failed to initialize persistent cookie jar, using in-memory: $e');
+      _delegate = CookieJar();
+      _initialized = true;
+    }
+  }
+
+  Future<void> _ensureInitialized() async {
+    int attempts = 0;
+    while (!_initialized && attempts < 100) {
+      // Wait up to 10 seconds
+      await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
+    }
+    if (!_initialized) {
+      print('Cookie jar initialization timeout, using fallback');
+      _delegate = CookieJar();
+      _initialized = true;
+    }
+  }
 
   @override
-  bool get ignoreExpires => _delegate.ignoreExpires;
+  bool get ignoreExpires => _initialized ? _delegate.ignoreExpires : false;
 
   @override
   Future<void> saveFromResponse(Uri uri, List<Cookie> cookies) async {
+    await _ensureInitialized();
+
     print('=== SAVING COOKIES ===');
-    print('Original URI: $uri');
+    print('URI: $uri');
     print('Cookies to save: ${cookies.length}');
 
-    // Map IP address to localhost for cookie storage
-    final mappedUri = _mapUriToLocalhost(uri);
-    print('Mapped URI: $mappedUri');
+    if (cookies.isEmpty) {
+      print('No cookies to save');
+      print('=== COOKIES SAVED (NONE) ===');
+      return;
+    }
 
-    // Modify cookies to work with both localhost and IP address
+    // No domain mapping - use IP address consistently as requested
+
+    // Modify cookies to work with IP address consistently
     final modifiedCookies = cookies.map((cookie) {
       print(
-        'Original cookie: ${cookie.name}=${cookie.value}, domain=${cookie.domain}',
+        'Original cookie: ${cookie.name}=${cookie.value}, domain=${cookie.domain}, path=${cookie.path}, secure=${cookie.secure}, httpOnly=${cookie.httpOnly}',
       );
 
-      // Create a new cookie with modified domain
+      // Create a new cookie with modified domain and path
       final newCookie = Cookie(cookie.name, cookie.value)
         ..path = cookie.path ?? '/'
         ..httpOnly = cookie.httpOnly
-        ..secure = cookie.secure
+        ..secure =
+            false // Disable secure flag for local development
         ..expires = cookie.expires
         ..maxAge = cookie.maxAge;
 
-      // CRITICAL: Remove domain restrictions to allow cookies to work with any host
-      // This is the key fix for the domain mismatch issue
+      // CRITICAL: Remove domain restrictions to allow cookies to work with IP address
       newCookie.domain = null;
 
       print(
-        'Modified cookie: ${newCookie.name}=${newCookie.value}, domain=${newCookie.domain}',
+        'Modified cookie: ${newCookie.name}=${newCookie.value}, domain=${newCookie.domain}, path=${newCookie.path}, secure=${newCookie.secure}',
       );
       return newCookie;
     }).toList();
 
     print('Saving ${modifiedCookies.length} modified cookies');
 
-    // Save cookies for both original and mapped URI to ensure compatibility
-    await _delegate.saveFromResponse(uri, modifiedCookies);
-    if (uri != mappedUri) {
-      await _delegate.saveFromResponse(mappedUri, modifiedCookies);
-      print('Also saved cookies for mapped URI');
-    }
+    try {
+      // Save cookies for the original URI only (no domain mapping)
+      await _delegate.saveFromResponse(uri, modifiedCookies);
+      print('Saved cookies for URI: $uri');
 
-    print('=== COOKIES SAVED ===');
+      // Immediately verify cookies were saved
+      final savedCookies = await _delegate.loadForRequest(uri);
+      print('Verification: ${savedCookies.length} cookies now stored for URI');
+
+      print('=== COOKIES SAVED SUCCESSFULLY ===');
+    } catch (e) {
+      print('Error saving cookies: $e');
+      print('=== COOKIES SAVE FAILED ===');
+    }
   }
 
   @override
   Future<List<Cookie>> loadForRequest(Uri uri) async {
+    await _ensureInitialized();
+
     print('=== LOADING COOKIES ===');
     print('Loading cookies for URI: $uri');
 
-    // Try to load cookies for both original and mapped URI
-    final mappedUri = _mapUriToLocalhost(uri);
-    print('Mapped URI: $mappedUri');
+    // Load cookies only from the original URI (no domain mapping)
+    try {
+      final cookies = await _delegate.loadForRequest(uri);
+      print(
+        'Original cookies (${cookies.length}): ${cookies.map((c) => '${c.name}=${c.value}').join('; ')}',
+      );
 
-    final originalCookies = await _delegate.loadForRequest(uri);
-    print(
-      'Original cookies (${originalCookies.length}): ${originalCookies.map((c) => '${c.name}=${c.value}').join('; ')}',
-    );
-
-    final mappedCookies = uri != mappedUri
-        ? await _delegate.loadForRequest(mappedUri)
-        : <Cookie>[];
-    print(
-      'Mapped cookies (${mappedCookies.length}): ${mappedCookies.map((c) => '${c.name}=${c.value}').join('; ')}',
-    );
-
-    // Combine and deduplicate cookies by name
-    final allCookies = <String, Cookie>{};
-    for (final cookie in [...originalCookies, ...mappedCookies]) {
-      allCookies[cookie.name] = cookie;
+      print('=== COOKIES LOADED ===');
+      return cookies;
+    } catch (e) {
+      print('Error loading cookies: $e');
+      print('=== COOKIES LOADED ===');
+      return [];
     }
-
-    final result = allCookies.values.toList();
-    print(
-      'Final cookies (${result.length}): ${result.map((c) => '${c.name}=${c.value}').join('; ')}',
-    );
-    print('=== COOKIES LOADED ===');
-
-    return result;
   }
 
   @override
   Future<void> delete(Uri uri, [bool withDomainSharedCookie = false]) async {
-    final mappedUri = _mapUriToLocalhost(uri);
+    await _ensureInitialized();
+
+    // Delete cookies only from the original URI (no domain mapping)
     await _delegate.delete(uri, withDomainSharedCookie);
-    if (uri != mappedUri) {
-      await _delegate.delete(mappedUri, withDomainSharedCookie);
-    }
+    print('Deleted cookies for URI: $uri');
   }
 
   @override
   Future<void> deleteAll() async {
+    await _ensureInitialized();
     await _delegate.deleteAll();
-  }
-
-  /// Maps IP address URIs to localhost for cookie compatibility
-  Uri _mapUriToLocalhost(Uri uri) {
-    if (uri.host == '192.168.0.147') {
-      return uri.replace(host: 'localhost');
-    }
-    return uri;
   }
 }

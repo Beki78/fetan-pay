@@ -70,7 +70,9 @@ class User extends Equatable {
     return User(
       id: json['id'] as String? ?? '', // Membership ID as user ID fallback
       email: json['email'] as String? ?? '',
-      role: _parseUserRole('employee'), // Default to employee for merchants
+      role: _parseUserRole(
+        json['role'] as String?,
+      ), // Parse actual role from server
       firstName: firstName,
       lastName: lastName,
       merchantId: merchantId,
@@ -93,23 +95,36 @@ class User extends Equatable {
   }
 
   static UserRole _parseUserRole(String? roleString) {
-    switch (roleString?.toLowerCase()) {
-      case 'admin':
-      case 'superadmin':
-        return UserRole.admin;
-      case 'merchant_owner':
-      case 'merchantowner':
-        return UserRole.merchantOwner;
-      case 'sales':
-        return UserRole.sales;
-      case 'waiter':
-        return UserRole.waiter;
-      case 'employee':
-        return UserRole.employee;
-      default:
-        // Default to employee for unknown roles (merchant interface)
-        return UserRole.employee;
-    }
+    print('=== ROLE PARSING DEBUG ===');
+    print('Raw role string from server: "$roleString"');
+
+    // Normalize the role string: trim whitespace and convert to uppercase
+    final normalizedRole = roleString?.trim().toUpperCase();
+    print('Normalized role string: "$normalizedRole"');
+
+    final parsedRole = switch (normalizedRole) {
+      // Admin roles
+      'ADMIN' || 'SUPERADMIN' || 'SUPER_ADMIN' => UserRole.admin,
+
+      // Merchant owner roles - handle all variations
+      'MERCHANT_OWNER' ||
+      'MERCHANTOWNER' ||
+      'MERCHANT OWNER' ||
+      'MERCHANT-OWNER' => UserRole.merchantOwner,
+
+      // Staff roles
+      'SALES' || 'SALES_PERSON' || 'SALESPERSON' => UserRole.sales,
+      'WAITER' || 'SERVER' => UserRole.waiter,
+      'EMPLOYEE' || 'STAFF' => UserRole.employee,
+
+      // Default case for unknown roles
+      _ => UserRole.employee, // Default to employee for unknown roles
+    };
+
+    print('Parsed role: $parsedRole');
+    print('=== END ROLE PARSING DEBUG ===');
+
+    return parsedRole;
   }
 
   @override

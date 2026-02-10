@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/config/api_config.dart';
 import '../models/tip_models.dart';
@@ -35,6 +36,21 @@ class TipApiServiceImpl implements TipApiService {
       } else {
         return Left(Exception('Failed to load tips summary'));
       }
+    } on DioException catch (e) {
+      // Extract backend error message if available
+      String errorMessage = 'Network error';
+      final responseData = e.response?.data;
+
+      if (responseData is Map<String, dynamic>) {
+        errorMessage =
+            responseData['message'] as String? ??
+            responseData['error'] as String? ??
+            errorMessage;
+      } else if (e.message != null) {
+        errorMessage = e.message!;
+      }
+
+      return Left(Exception(errorMessage));
     } catch (e) {
       return Left(Exception('Network error: ${e.toString()}'));
     }
@@ -62,6 +78,21 @@ class TipApiServiceImpl implements TipApiService {
       } else {
         return Left(Exception('Failed to load tips'));
       }
+    } on DioException catch (e) {
+      // Extract backend error message if available
+      String errorMessage = 'Network error';
+      final responseData = e.response?.data;
+
+      if (responseData is Map<String, dynamic>) {
+        errorMessage =
+            responseData['message'] as String? ??
+            responseData['error'] as String? ??
+            errorMessage;
+      } else if (e.message != null) {
+        errorMessage = e.message!;
+      }
+
+      return Left(Exception(errorMessage));
     } catch (e) {
       return Left(Exception('Network error: ${e.toString()}'));
     }

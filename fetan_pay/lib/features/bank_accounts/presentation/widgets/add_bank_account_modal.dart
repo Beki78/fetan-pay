@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../../widgets/bank_selection.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../data/models/payment_provider_models.dart';
+import '../../../transactions/data/models/transaction_models.dart';
+import '../bloc/payment_provider_bloc.dart';
+import '../bloc/payment_provider_event.dart';
+import '../bloc/payment_provider_state.dart';
+import '../../../../core/di/injection_container.dart';
 
 class AddBankAccountModal extends StatefulWidget {
   const AddBankAccountModal({super.key});
@@ -11,7 +17,12 @@ class AddBankAccountModal extends StatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => const AddBankAccountModal(),
+      builder: (context) => BlocProvider(
+        create: (context) =>
+            getIt<PaymentProviderBloc>()
+              ..add(const LoadPaymentProvidersAndAccounts()),
+        child: const AddBankAccountModal(),
+      ),
     );
   }
 
@@ -20,238 +31,504 @@ class AddBankAccountModal extends StatefulWidget {
 }
 
 class _AddBankAccountModalState extends State<AddBankAccountModal> {
-  Bank? selectedBank;
+  PaymentProviderRecord? selectedProvider;
+  ReceiverAccount? existingAccount;
   final accountNumberController = TextEditingController();
+  final accountHolderNameController = TextEditingController();
   final formKey = GlobalKey<FormState>();
+  bool isEnabled = false;
+  bool isSaving = false;
+  List<PaymentProviderRecord> availableProviders = [];
+  List<ReceiverAccount> receiverAccounts = [];
 
   @override
   void dispose() {
     accountNumberController.dispose();
+    accountHolderNameController.dispose();
     super.dispose();
+  }
+
+  String _getProviderDisplayName(ProviderCode code) {
+    switch (code) {
+      case ProviderCode.CBE:
+        return 'Commercial Bank of Ethiopia';
+      case ProviderCode.TELEBIRR:
+        return 'Telebirr';
+      case ProviderCode.AWASH:
+        return 'Awash Bank';
+      case ProviderCode.BOA:
+        return 'Bank of Abyssinia';
+      case ProviderCode.DASHEN:
+        return 'Dashen Bank';
+    }
+  }
+
+  void _onProviderSelected(PaymentProviderRecord? provider) {
+    if (provider == null) return;
+
+    setState(() {
+      selectedProvider = provider;
+
+      // Check if this provider already has a receiver account
+      existingAccount = receiverAccounts.firstWhere(
+        (acc) => acc.provider.name == provider.code.name,
+        orElse: () => ReceiverAccount(
+          id: '',
+          merchantId: '',
+          provider: TransactionProvider.values.firstWhere(
+            (p) => p.name == provider.code.name,
+          ),
+          receiverAccount: '',
+          receiverName: '',
+          status: 'INACTIVE',
+        ),
+      );
+
+      // Pre-fill form if account exists
+      if (existingAccount!.id.isNotEmpty) {
+        accountNumberController.text = existingAccount!.receiverAccount;
+        accountHolderNameController.text = existingAccount!.receiverName ?? '';
+        isEnabled = existingAccount!.status == 'ACTIVE';
+      } else {
+        accountNumberController.clear();
+        accountHolderNameController.clear();
+        isEnabled = false;
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 20,
-        right: 20,
-        top: 20,
-      ),
-      child: Form(
-        key: formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.indigo.withOpacity(0.1),
-                    shape: BoxShape.circle,
+    return BlocListener<PaymentProviderBloc, PaymentProviderState>(
+      listener: (context, state) {
+        if (state is PaymentProviderLoaded) {
+          setState(() {
+            availableProviders = state.providers;
+            receiverAccounts = state.receiverAccounts;
+          });
+        } else if (state is ProviderConfigured) {
+          // Success - close modal
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Payment provider configured successfully: ${state.provider}',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else if (state is ProviderConfigurationError) {
+          // Error - show message
+          setState(() {
+            isSaving = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+          );
+        } else if (state is ProviderConfiguring) {
+          setState(() {
+            isSaving = true;
+          });
+        }
+      },
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.account_balance,
+                      color: Colors.indigo,
+                      size: 24,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.account_balance,
-                    color: Colors.indigo,
-                    size: 24,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Configure Payment Provider',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Set up your payment provider account',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Form Fields
+              Flexible(
+                child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Payment Provider Selection
                       Text(
-                        'Add Bank Account',
-                        style: theme.textTheme.titleLarge?.copyWith(
+                        'Payment Provider',
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      BlocBuilder<PaymentProviderBloc, PaymentProviderState>(
+                        builder: (context, state) {
+                          if (state is PaymentProviderLoading) {
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: theme.colorScheme.outline.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          }
+
+                          if (availableProviders.isEmpty) {
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.orange.withValues(alpha: 0.3),
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                color: Colors.orange.withValues(alpha: 0.1),
+                              ),
+                              child: Text(
+                                'No payment providers available.',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.orange[800],
+                                ),
+                              ),
+                            );
+                          }
+
+                          return Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: 0.3,
+                                ),
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child:
+                                DropdownButtonFormField<PaymentProviderRecord>(
+                                  value: selectedProvider,
+                                  decoration: const InputDecoration(
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
+                                    border: InputBorder.none,
+                                    hintText: 'Select a provider',
+                                  ),
+                                  validator: (value) {
+                                    if (value == null) {
+                                      return 'Please select a payment provider';
+                                    }
+                                    return null;
+                                  },
+                                  items: availableProviders.map((provider) {
+                                    return DropdownMenuItem<
+                                      PaymentProviderRecord
+                                    >(
+                                      value: provider,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 28,
+                                            height: 28,
+                                            decoration: BoxDecoration(
+                                              color: Colors.indigo.withValues(
+                                                alpha: 0.1,
+                                              ),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.account_balance,
+                                              color: Colors.indigo,
+                                              size: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Flexible(
+                                            child: Text(
+                                              _getProviderDisplayName(
+                                                provider.code,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: _onProviderSelected,
+                                ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Account Number Field
                       Text(
-                        'Add a new bank account for receiving payments',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                        'Account Number',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: accountNumberController,
+                        decoration: InputDecoration(
+                          hintText: 'Enter account number',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.3,
+                              ),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.3,
+                              ),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Only allow digits
+                          if (value.isNotEmpty &&
+                              !RegExp(r'^\d+$').hasMatch(value)) {
+                            accountNumberController.text = value.substring(
+                              0,
+                              value.length - 1,
+                            );
+                            accountNumberController.selection =
+                                TextSelection.fromPosition(
+                                  TextPosition(
+                                    offset: accountNumberController.text.length,
+                                  ),
+                                );
+                          }
+                        },
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Account number is required';
+                          }
+                          if (!RegExp(r'^\d+$').hasMatch(value)) {
+                            return 'Account number must contain only digits';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Account Holder Name Field
+                      Text(
+                        'Account Holder Name',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: accountHolderNameController,
+                        decoration: InputDecoration(
+                          hintText: 'Name as shown on account',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.3,
+                              ),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.3,
+                              ),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          // Only allow letters and spaces
+                          if (value.isNotEmpty &&
+                              !RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
+                            accountHolderNameController.text = value.substring(
+                              0,
+                              value.length - 1,
+                            );
+                            accountHolderNameController
+                                .selection = TextSelection.fromPosition(
+                              TextPosition(
+                                offset: accountHolderNameController.text.length,
+                              ),
+                            );
+                          }
+                        },
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Account holder name is required';
+                          }
+                          if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
+                            return 'Name must contain only letters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Enable Provider Checkbox
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: isEnabled,
+                            onChanged: (value) {
+                              setState(() {
+                                isEnabled = value ?? false;
+                              });
+                            },
+                          ),
+                          Expanded(
+                            child: Text(
+                              'Enable this provider for payments',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
+              ),
 
-            // Bank Selection Dropdown
-            Text(
-              'Select Bank',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.colorScheme.outline.withOpacity(0.3),
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownButtonFormField<Bank>(
-                value: selectedBank,
-                decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  border: InputBorder.none,
-                  hintText: 'Choose a bank',
-                ),
-                validator: (value) {
-                  if (value == null) {
-                    return 'Please select a bank';
-                  }
-                  return null;
-                },
-                items: banks.map((bank) {
-                  return DropdownMenuItem<Bank>(
-                    value: bank,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: bank.color.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              bank.imagePath,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(
-                                  Icons.account_balance,
-                                  color: bank.color,
-                                  size: 16,
-                                );
-                              },
-                            ),
-                          ),
+              const SizedBox(height: 32),
+
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(width: 12),
-                        Text(bank.fullName),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedBank = value;
-                  });
-                },
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Account Number Field
-            Text(
-              'Account Number',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: accountNumberController,
-              decoration: InputDecoration(
-                hintText: 'Enter account number',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: theme.colorScheme.outline.withOpacity(0.3),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: theme.colorScheme.outline.withOpacity(0.3),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: theme.colorScheme.primary,
-                    width: 2,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              ),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter account number';
-                }
-                if (value.length < 10) {
-                  return 'Account number must be at least 10 digits';
-                }
-                if (!RegExp(r'^\d+$').hasMatch(value)) {
-                  return 'Account number must contain only digits';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 32),
-
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
+                      child: const Text('Cancel'),
                     ),
-                    child: const Text('Cancel'),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (formKey.currentState!.validate()) {
-                        // Here you would typically save the bank account
-                        // For now, just show success message
-                        Navigator.pop(context);
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Bank account added successfully!\n${selectedBank!.fullName} - ${accountNumberController.text}',
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: (isSaving || availableProviders.isEmpty)
+                          ? null
+                          : () {
+                              if (formKey.currentState!.validate()) {
+                                context.read<PaymentProviderBloc>().add(
+                                  ConfigureProvider(
+                                    provider: selectedProvider!.code.name,
+                                    accountNumber: accountNumberController.text
+                                        .trim(),
+                                    accountHolderName:
+                                        accountHolderNameController.text.trim(),
+                                    isEnabled: isEnabled,
+                                  ),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
                               ),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        });
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                            )
+                          : const Text('Save Configuration'),
                     ),
-                    child: const Text('Add Account'),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );

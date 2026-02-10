@@ -3,10 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:animate_do/animate_do.dart';
 import '../../../../core/bloc/theme/theme_bloc.dart';
-import '../../../../widgets/app_card.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../bank_accounts/presentation/widgets/add_bank_account_modal.dart';
+import '../../../subscription/presentation/screens/subscription_screen.dart';
+import '../../../subscription/presentation/bloc/subscription_bloc.dart';
 import '../../../../widgets/bank_selection.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/screens/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -109,7 +113,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: theme.colorScheme.primary.withOpacity(0.2),
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.2,
+                                ),
                                 blurRadius: 12,
                                 offset: const Offset(0, 6),
                               ),
@@ -157,10 +163,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         BlocBuilder<ThemeBloc, ThemeState>(
                           builder: (context, themeState) {
-                            final isDarkMode = themeState.themeMode == ThemeMode.dark;
+                            final isDarkMode =
+                                themeState.themeMode == ThemeMode.dark;
                             return Container(
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.8),
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withOpacity(0.8),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: IconButton(
@@ -168,10 +176,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   context.read<ThemeBloc>().add(ToggleTheme());
                                 },
                                 icon: Icon(
-                                  isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                                  isDarkMode
+                                      ? Icons.dark_mode_rounded
+                                      : Icons.light_mode_rounded,
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
-                                tooltip: isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                                tooltip: isDarkMode
+                                    ? 'Switch to Light Mode'
+                                    : 'Switch to Dark Mode',
                               ),
                             );
                           },
@@ -231,19 +243,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     gradient: LinearGradient(
                                       colors: [
                                         theme.colorScheme.surfaceContainerLow,
-                                        theme.colorScheme.surfaceContainerLowest,
+                                        theme
+                                            .colorScheme
+                                            .surfaceContainerLowest,
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                      color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+                                      color: theme.colorScheme.outlineVariant
+                                          .withOpacity(0.3),
                                       width: 1,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: theme.shadowColor.withOpacity(0.08),
+                                        color: theme.shadowColor.withOpacity(
+                                          0.08,
+                                        ),
                                         blurRadius: 16,
                                         offset: const Offset(0, 8),
                                       ),
@@ -253,7 +270,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     children: [
                                       // Add Bank Account Button
                                       FadeInUp(
-                                        delay: const Duration(milliseconds: 300),
+                                        delay: const Duration(
+                                          milliseconds: 300,
+                                        ),
                                         child: _buildEnhancedSettingItem(
                                           'Add Bank Account',
                                           'Add a new bank account for receiving payments',
@@ -266,17 +285,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       // Bank Accounts List
                                       if (_bankAccounts.isNotEmpty) ...[
                                         const SizedBox(height: 20),
-                                        ..._bankAccounts.asMap().entries.map((entry) {
+                                        ..._bankAccounts.asMap().entries.map((
+                                          entry,
+                                        ) {
                                           final account = entry.value;
                                           return FadeInUp(
-                                            delay: Duration(milliseconds: 400 + (entry.key * 100)),
+                                            delay: Duration(
+                                              milliseconds:
+                                                  400 + (entry.key * 100),
+                                            ),
                                             child: Column(
                                               children: [
-                                                _buildEnhancedBankAccountItem(account),
-                                                if (_bankAccounts.last != account)
+                                                _buildEnhancedBankAccountItem(
+                                                  account,
+                                                ),
+                                                if (_bankAccounts.last !=
+                                                    account)
                                                   Divider(
                                                     height: 24,
-                                                    color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+                                                    color: theme
+                                                        .colorScheme
+                                                        .outlineVariant
+                                                        .withOpacity(0.3),
                                                   ),
                                               ],
                                             ),
@@ -290,45 +320,124 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
 
-                      const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                      // Notification Settings
-                      // Text(
-                      //   'Notification Settings',
-                      //   style: theme.textTheme.titleLarge?.copyWith(
-                      //     fontWeight: FontWeight.w600,
-                      //   ),
-                      // ),
-                      // const SizedBox(height: 16),
-                      // AppCard(
-                      //   padding: const EdgeInsets.all(20),
-                      //   children: [
-                      //     _buildSwitchItem(
-                      //       'Email Notifications',
-                      //       'Receive notifications via email',
-                      //       Icons.email,
-                      //       _emailNotifications,
-                      //       (value) => setState(() => _emailNotifications = value),
-                      //     ),
-                      //     const Divider(height: 20),
-                      //     _buildSwitchItem(
-                      //       'Push Notifications',
-                      //       'Receive push notifications on device',
-                      //       Icons.notifications,
-                      //       _pushNotifications,
-                      //       (value) => setState(() => _pushNotifications = value),
-                      //     ),
-                      //     const Divider(height: 20),
-                      //     _buildSwitchItem(
-                      //       'SMS Alerts',
-                      //       'Receive critical alerts via SMS',
-                      //       Icons.sms,
-                      //       _smsAlerts,
-                      //       (value) => setState(() => _smsAlerts = value),
-                      //     ),
-                      //   ],
-                      // ),
+                          // Subscription Section
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 300),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.card_membership_rounded,
+                                      color: theme.colorScheme.primary,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Subscription',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: theme.colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Manage your subscription plan and billing',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        theme.colorScheme.surfaceContainerLow,
+                                        theme
+                                            .colorScheme
+                                            .surfaceContainerLowest,
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: theme.colorScheme.outlineVariant
+                                          .withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: theme.shadowColor.withOpacity(
+                                          0.08,
+                                        ),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: FadeInUp(
+                                    delay: const Duration(milliseconds: 400),
+                                    child: _buildEnhancedSettingItem(
+                                      'View Subscription',
+                                      'Manage your plan, billing, and usage',
+                                      Icons.subscriptions_rounded,
+                                      () => _navigateToSubscription(),
+                                      theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
+                          const SizedBox(height: 24),
+
+                          // Notification Settings
+                          // Text(
+                          //   'Notification Settings',
+                          //   style: theme.textTheme.titleLarge?.copyWith(
+                          //     fontWeight: FontWeight.w600,
+                          //   ),
+                          // ),
+                          // const SizedBox(height: 16),
+                          // AppCard(
+                          //   padding: const EdgeInsets.all(20),
+                          //   children: [
+                          //     _buildSwitchItem(
+                          //       'Email Notifications',
+                          //       'Receive notifications via email',
+                          //       Icons.email,
+                          //       _emailNotifications,
+                          //       (value) => setState(() => _emailNotifications = value),
+                          //     ),
+                          //     const Divider(height: 20),
+                          //     _buildSwitchItem(
+                          //       'Push Notifications',
+                          //       'Receive push notifications on device',
+                          //       Icons.notifications,
+                          //       _pushNotifications,
+                          //       (value) => setState(() => _pushNotifications = value),
+                          //     ),
+                          //     const Divider(height: 20),
+                          //     _buildSwitchItem(
+                          //       'SMS Alerts',
+                          //       'Receive critical alerts via SMS',
+                          //       Icons.sms,
+                          //       _smsAlerts,
+                          //       (value) => setState(() => _smsAlerts = value),
+                          //     ),
+                          //   ],
+                          // ),
                           const SizedBox(height: 32),
 
                           // Export & Reports Section
@@ -371,19 +480,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     gradient: LinearGradient(
                                       colors: [
                                         theme.colorScheme.surfaceContainerLow,
-                                        theme.colorScheme.surfaceContainerLowest,
+                                        theme
+                                            .colorScheme
+                                            .surfaceContainerLowest,
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                      color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+                                      color: theme.colorScheme.outlineVariant
+                                          .withOpacity(0.3),
                                       width: 1,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: theme.shadowColor.withOpacity(0.08),
+                                        color: theme.shadowColor.withOpacity(
+                                          0.08,
+                                        ),
                                         blurRadius: 16,
                                         offset: const Offset(0, 8),
                                       ),
@@ -392,40 +506,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   child: Column(
                                     children: [
                                       FadeInUp(
-                                        delay: const Duration(milliseconds: 500),
+                                        delay: const Duration(
+                                          milliseconds: 500,
+                                        ),
                                         child: _buildEnhancedSwitchItem(
                                           'Auto Export',
                                           'Automatically export reports',
                                           Icons.download_rounded,
                                           _autoExport,
-                                          (value) => setState(() => _autoExport = value),
+                                          (value) => setState(
+                                            () => _autoExport = value,
+                                          ),
                                           theme.colorScheme.primary,
                                         ),
                                       ),
                                       if (_autoExport) ...[
                                         const SizedBox(height: 20),
                                         FadeInUp(
-                                          delay: const Duration(milliseconds: 600),
+                                          delay: const Duration(
+                                            milliseconds: 600,
+                                          ),
                                           child: _buildEnhancedDropdownItem(
                                             'Export Frequency',
                                             _exportFrequency,
                                             ['Daily', 'Weekly', 'Monthly'],
-                                            (value) => setState(() => _exportFrequency = value!),
+                                            (value) => setState(
+                                              () => _exportFrequency = value!,
+                                            ),
                                             theme.colorScheme.primary,
                                           ),
                                         ),
                                       ],
                                       const SizedBox(height: 20),
                                       FadeInUp(
-                                        delay: const Duration(milliseconds: 700),
+                                        delay: const Duration(
+                                          milliseconds: 700,
+                                        ),
                                         child: _buildEnhancedSettingItem(
                                           'Manual Export',
                                           'Export data manually',
                                           Icons.file_download_rounded,
                                           () {
                                             // TODO: Implement manual export
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Manual export coming soon!')),
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Manual export coming soon!',
+                                                ),
+                                              ),
                                             );
                                           },
                                           theme.colorScheme.secondary,
@@ -480,19 +610,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     gradient: LinearGradient(
                                       colors: [
                                         theme.colorScheme.surfaceContainerLow,
-                                        theme.colorScheme.surfaceContainerLowest,
+                                        theme
+                                            .colorScheme
+                                            .surfaceContainerLowest,
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                      color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+                                      color: theme.colorScheme.outlineVariant
+                                          .withOpacity(0.3),
                                       width: 1,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: theme.shadowColor.withOpacity(0.08),
+                                        color: theme.shadowColor.withOpacity(
+                                          0.08,
+                                        ),
                                         blurRadius: 16,
                                         offset: const Offset(0, 8),
                                       ),
@@ -501,15 +636,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   child: Column(
                                     children: [
                                       FadeInUp(
-                                        delay: const Duration(milliseconds: 700),
+                                        delay: const Duration(
+                                          milliseconds: 700,
+                                        ),
                                         child: _buildEnhancedSettingItem(
                                           'Clear Cache',
                                           'Clear app cache and temporary data',
                                           Icons.cleaning_services_rounded,
                                           () {
                                             // TODO: Implement cache clearing
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Cache cleared!')),
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Cache cleared!'),
+                                              ),
                                             );
                                           },
                                           theme.colorScheme.tertiary,
@@ -517,7 +658,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                       const SizedBox(height: 16),
                                       FadeInUp(
-                                        delay: const Duration(milliseconds: 800),
+                                        delay: const Duration(
+                                          milliseconds: 800,
+                                        ),
                                         child: _buildInfoItem(
                                           'App Version',
                                           'v1.0.0 (Latest)',
@@ -534,21 +677,104 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                           const SizedBox(height: 32),
 
-                          
+                          // Account Section
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 700),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.account_circle_rounded,
+                                      color: Colors.red,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Account',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: theme.colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Manage your account and security',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        theme.colorScheme.surfaceContainerLow,
+                                        theme
+                                            .colorScheme
+                                            .surfaceContainerLowest,
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: theme.colorScheme.outlineVariant
+                                          .withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: theme.shadowColor.withOpacity(
+                                          0.08,
+                                        ),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: FadeInUp(
+                                    delay: const Duration(milliseconds: 800),
+                                    child: _buildDangerItem(
+                                      'Logout',
+                                      'Sign out of your account',
+                                      Icons.logout_rounded,
+                                      () => _handleLogout(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
                           const SizedBox(height: 40),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            )],
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
-  ])
     );
   }
 
-  Widget _buildEnhancedSettingItem(String title, String subtitle, IconData icon, VoidCallback? onTap, Color accentColor) {
+  Widget _buildEnhancedSettingItem(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback? onTap,
+    Color accentColor,
+  ) {
     final theme = Theme.of(context);
 
     return InkWell(
@@ -566,10 +792,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: accentColor.withOpacity(0.2),
-            width: 1,
-          ),
+          border: Border.all(color: accentColor.withOpacity(0.2), width: 1),
         ),
         child: Row(
           children: [
@@ -587,11 +810,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: accentColor,
-                size: 24,
-              ),
+              child: Icon(icon, color: accentColor, size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -618,18 +837,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: accentColor,
-              size: 24,
-            ),
+            Icon(Icons.chevron_right_rounded, color: accentColor, size: 24),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoItem(String title, String subtitle, IconData icon, Color accentColor) {
+  Widget _buildInfoItem(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color accentColor,
+  ) {
     final theme = Theme.of(context);
 
     return Container(
@@ -658,11 +878,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: accentColor,
-              size: 24,
-            ),
+            child: Icon(icon, color: accentColor, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -694,25 +910,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildEnhancedSwitchItem(String title, String subtitle, IconData icon, bool value, Function(bool) onChanged, Color accentColor) {
+  Widget _buildEnhancedSwitchItem(
+    String title,
+    String subtitle,
+    IconData icon,
+    bool value,
+    Function(bool) onChanged,
+    Color accentColor,
+  ) {
     final theme = Theme.of(context);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            accentColor.withOpacity(0.1),
-            accentColor.withOpacity(0.05),
-          ],
+          colors: [accentColor.withOpacity(0.1), accentColor.withOpacity(0.05)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: accentColor.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: accentColor.withOpacity(0.2), width: 1),
       ),
       child: Row(
         children: [
@@ -730,11 +947,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: accentColor,
-              size: 24,
-            ),
+            child: Icon(icon, color: accentColor, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -766,7 +979,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: onChanged,
             activeColor: accentColor,
             activeTrackColor: accentColor.withOpacity(0.3),
-            inactiveThumbColor: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+            inactiveThumbColor: theme.colorScheme.onSurfaceVariant.withOpacity(
+              0.5,
+            ),
             inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
           ),
         ],
@@ -774,7 +989,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildEnhancedDropdownItem(String title, String value, List<String> options, Function(String?) onChanged, Color accentColor) {
+  Widget _buildEnhancedDropdownItem(
+    String title,
+    String value,
+    List<String> options,
+    Function(String?) onChanged,
+    Color accentColor,
+  ) {
     final theme = Theme.of(context);
 
     return Container(
@@ -818,19 +1039,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: accentColor.withOpacity(0.2),
-                width: 1,
-              ),
+              border: Border.all(color: accentColor.withOpacity(0.2), width: 1),
             ),
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
               underline: const SizedBox(),
-              icon: Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: accentColor,
-              ),
+              icon: Icon(Icons.keyboard_arrow_down_rounded, color: accentColor),
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -857,7 +1072,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildDangerItem(String title, String subtitle, IconData icon, VoidCallback onTap) {
+  Widget _buildDangerItem(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     final theme = Theme.of(context);
 
     return InkWell(
@@ -867,18 +1087,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Colors.red.withOpacity(0.1),
-              Colors.red.withOpacity(0.05),
-            ],
+            colors: [Colors.red.withOpacity(0.1), Colors.red.withOpacity(0.05)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.red.withOpacity(0.3),
-            width: 1,
-          ),
+          border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
         ),
         child: Row(
           children: [
@@ -896,11 +1110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: Colors.red,
-                size: 24,
-              ),
+              child: Icon(icon, color: Colors.red, size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -927,11 +1137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Colors.red,
-              size: 24,
-            ),
+            Icon(Icons.chevron_right_rounded, color: Colors.red, size: 24),
           ],
         ),
       ),
@@ -965,13 +1171,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               : theme.colorScheme.outlineVariant.withOpacity(0.3),
           width: isDefault ? 2 : 1,
         ),
-        boxShadow: isDefault ? [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ] : null,
+        boxShadow: isDefault
+            ? [
+                BoxShadow(
+                  color: theme.colorScheme.primary.withOpacity(0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1033,7 +1241,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         if (isDefault) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
@@ -1045,7 +1256,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: theme.colorScheme.primary.withOpacity(0.3),
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.3,
+                                ),
                                 width: 1,
                               ),
                             ),
@@ -1088,7 +1301,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // Enhanced Actions Menu
               Container(
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                    0.5,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: PopupMenuButton<String>(
@@ -1203,10 +1418,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _navigateToSubscription() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BlocProvider(
+          create: (_) => getIt<SubscriptionBloc>(),
+          child: const SubscriptionScreen(),
+        ),
+      ),
+    );
+  }
+
   void _editBankAccount(Map<String, dynamic> bankAccount) {
     // TODO: Implement bank account editing modal
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Edit bank account ${bankAccount['accountName']} - Coming soon!')),
+      SnackBar(
+        content: Text(
+          'Edit bank account ${bankAccount['accountName']} - Coming soon!',
+        ),
+      ),
     );
   }
 
@@ -1217,11 +1448,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'Are you sure you want to delete the bank account "${bankAccount['accountName']}"? This action cannot be undone.',
       () {
         setState(() {
-          _bankAccounts.removeWhere((account) => account['id'] == bankAccount['id']);
+          _bankAccounts.removeWhere(
+            (account) => account['id'] == bankAccount['id'],
+          );
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Bank account "${bankAccount['accountName']}" deleted successfully!'),
+            content: Text(
+              'Bank account "${bankAccount['accountName']}" deleted successfully!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -1235,7 +1470,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         account['isDefault'] = account['id'] == accountId;
       }
     });
-    final account = _bankAccounts.firstWhere((account) => account['id'] == accountId);
+    final account = _bankAccounts.firstWhere(
+      (account) => account['id'] == accountId,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('"${account['accountName']}" set as default account'),
@@ -1244,7 +1481,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showConfirmationDialog(BuildContext context, String title, String message, VoidCallback onConfirm) {
+  void _showConfirmationDialog(
+    BuildContext context,
+    String title,
+    String message,
+    VoidCallback onConfirm,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1260,13 +1502,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.of(context).pop();
               onConfirm();
             },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Confirm'),
           ),
         ],
       ),
+    );
+  }
+
+  void _handleLogout() {
+    _showConfirmationDialog(
+      context,
+      'Logout',
+      'Are you sure you want to logout? You will need to login again to access your account.',
+      () {
+        // Dispatch logout event to AuthBloc
+        context.read<AuthBloc>().add(LogoutRequested());
+
+        // Navigate to login screen and remove all previous routes
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      },
     );
   }
 }

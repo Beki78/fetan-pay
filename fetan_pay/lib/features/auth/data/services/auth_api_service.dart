@@ -11,6 +11,7 @@ abstract class AuthApiService {
   Future<User?> getCurrentUser();
   Future<QRLoginResponse> validateQRCode(String qrData, String origin);
   Future<Map<String, dynamic>?> getSession();
+  Future<bool> testConnection();
 }
 
 class AuthApiServiceImpl implements AuthApiService {
@@ -18,87 +19,116 @@ class AuthApiServiceImpl implements AuthApiService {
 
   AuthApiServiceImpl(this._dioClient);
 
+  /// Create consistent options for Better Auth endpoints
+  /// Includes required Origin header and cookie handling
+  Options _createAuthOptions() {
+    return Options(
+      // Critical: Ensure cookies are sent with Better Auth requests
+      extra: {'withCredentials': true},
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Origin': ApiConfig.baseUrl, // Required by Better Auth for CORS
+      },
+      // Follow redirects if Better Auth sends any
+      followRedirects: true,
+      maxRedirects: 3,
+      // Set reasonable timeouts
+      sendTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+    );
+  }
+
   @override
   Future<LoginResponse> signInWithEmail(String email, String password) async {
     try {
-      SecureLogger.auth('Sign-in attempt initiated');
+      print('Sign-in attempt initiated');
 
       final response = await _dioClient.post(
         ApiConfig.signInEmail,
         data: {'email': email, 'password': password},
-        options: Options(
-          // Ensure cookies are handled properly for login
-          extra: {'withCredentials': true},
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        ),
+        options: _createAuthOptions(),
       );
-      print('-----------------signInWithEmail------------------------');
-      print(response.data);
 
-      SecureLogger.auth(
-        'Login API response received with status: ${response.statusCode}',
-      );
+      print('-----------------signInWithEmail------------------------');
+      print('Response data: ${response.data}');
+
+      print('Login API response received with status: ${response.statusCode}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = response.data as Map<String, dynamic>;
 
-        SecureLogger.auth(
-          'Login response data keys: ${responseData.keys.toList()}',
-        );
+        print('Login response data keys: ${responseData.keys.toList()}');
 
-        // Better Auth typically returns session and user data
-        // Handle different response formats from Better Auth
-        String? token;
-        Map<String, dynamic>? userData;
+        // Handle Better Auth response format
+        if (responseData.containsKey('token') &&
+            responseData.containsKey('user')) {
+          // Better Auth format: {"redirect": false, "token": "...", "user": {...}}
+          print('Detected Better Auth response format');
 
-        // Check for Better Auth session format
-        if (responseData.containsKey('session')) {
-          final sessionData = responseData['session'] as Map<String, dynamic>?;
-          token = sessionData?['token'] as String?;
-        }
+          final token = responseData['token'] as String?;
+          final userData = responseData['user'] as Map<String, dynamic>?;
 
-        // Check for user data in response
-        if (responseData.containsKey('user')) {
-          userData = responseData['user'] as Map<String, dynamic>?;
-        }
+          SecureLogger.auth(
+            'Extracted token: ${token != null ? 'present' : 'null'}',
+          );
+          SecureLogger.auth(
+            'Extracted user data: ${userData != null ? 'present' : 'null'}',
+          );
 
-        // Also check for direct token field
-        if (token == null && responseData.containsKey('token')) {
-          token = responseData['token'] as String?;
-        }
-
-        SecureLogger.auth(
-          'Extracted token: ${token != null ? 'present' : 'null'}',
-        );
-        SecureLogger.auth(
-          'Extracted user data: ${userData != null ? 'present' : 'null'}',
-        );
-
-        // Test session immediately after login to verify cookie handling
-        print('-------------Session test after login----------');
-        try {
-          final sessionTest = await getSession();
-          print(sessionTest);
-          if (sessionTest != null) {
-            SecureLogger.auth('Session successfully established after login');
-          } else {
-            SecureLogger.auth(
-              'WARNING: Session not established - cookie issue likely',
-            );
+          // Test session immediately after login to verify cookie handling
+          print('-------------Session test after login----------');
+          try {
+            final sessionTest = await getSession();
+            print('Session test result: $sessionTest');
+            if (sessionTest != null) {
+              print('Session successfully established after login');
+            } else {
+              print('WARNING: Session not established - cookie issue likely');
+            }
+          } catch (e) {
+            print('Session test failed: $e');
           }
-        } catch (e) {
-          SecureLogger.auth('Session test failed: $e');
-        }
 
-        return LoginResponse.fromJson({
-          'message': responseData['message'] ?? 'Login successful',
-          'success': true,
-          'token': token,
-          'user': userData,
-        });
+          return LoginResponse.fromJson(responseData);
+        } else {
+          // Legacy format handling
+          print('Using legacy response format handling');
+
+          String? token;
+          Map<String, dynamic>? userData;
+
+          // Check for Better Auth session format
+          if (responseData.containsKey('session')) {
+            final sessionData =
+                responseData['session'] as Map<String, dynamic>?;
+            token = sessionData?['token'] as String?;
+          }
+
+          // Check for user data in response
+          if (responseData.containsKey('user')) {
+            userData = responseData['user'] as Map<String, dynamic>?;
+          }
+
+          // Also check for direct token field
+          if (token == null && responseData.containsKey('token')) {
+            token = responseData['token'] as String?;
+          }
+
+          SecureLogger.auth(
+            'Extracted token: ${token != null ? 'present' : 'null'}',
+          );
+          SecureLogger.auth(
+            'Extracted user data: ${userData != null ? 'present' : 'null'}',
+          );
+
+          return LoginResponse.fromJson({
+            'message': responseData['message'] ?? 'Login successful',
+            'success': true,
+            'token': token,
+            'user': userData,
+          });
+        }
       } else {
         throw DioException(
           requestOptions: response.requestOptions,
@@ -107,30 +137,53 @@ class AuthApiServiceImpl implements AuthApiService {
         );
       }
     } on DioException catch (e) {
-      SecureLogger.error('Login DioException', error: e);
+      print('Login DioException: $e');
 
-      // Parse error response from Better Auth
+      // Extract the EXACT error message from backend
       final errorData = e.response?.data;
       String errorMessage = 'Login failed';
 
       if (errorData is Map<String, dynamic>) {
-        errorMessage =
-            errorData['message'] ?? errorData['error'] ?? errorMessage;
+        // PRIORITY 1: Get the direct 'message' field from backend
+        if (errorData.containsKey('message')) {
+          errorMessage = errorData['message'] as String;
+          print('Using backend message: $errorMessage');
+        }
+        // PRIORITY 2: Check for nested error object
+        else if (errorData.containsKey('error')) {
+          final error = errorData['error'];
+          if (error is Map<String, dynamic> && error.containsKey('message')) {
+            errorMessage = error['message'] as String;
+            print('Using nested error message: $errorMessage');
+          } else if (error is String) {
+            errorMessage = error;
+            print('Using error string: $errorMessage');
+          }
+        }
 
-        // Handle specific Better Auth error codes
-        if (errorData['code'] == 'BANNED_USER' ||
-            errorMessage.toLowerCase().contains('banned') ||
-            errorMessage.toLowerCase().contains('suspended')) {
-          errorMessage =
-              'Your account has been banned. Please contact support.';
+        // Log the error code if available for debugging
+        if (errorData.containsKey('code')) {
+          print('Backend error code: ${errorData['code']}');
         }
       } else if (errorData is String) {
         errorMessage = errorData;
       }
 
+      // Only add context for network-related errors (not auth errors)
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout) {
+        errorMessage =
+            'Connection timeout. Please check your internet connection and try again.';
+      } else if (e.type == DioExceptionType.connectionError) {
+        errorMessage =
+            'No internet connection. Please check your network settings.';
+      }
+
+      print('Final error message to show: $errorMessage');
       throw Exception(errorMessage);
     } catch (e) {
-      SecureLogger.error('Login unexpected error', error: e);
+      print('Login unexpected error: $e');
       throw Exception('Network error: ${e.toString()}');
     }
   }
@@ -144,20 +197,7 @@ class AuthApiServiceImpl implements AuthApiService {
       // Make the sign out request with proper Better Auth configuration
       final response = await _dioClient.post(
         ApiConfig.signOut,
-        options: Options(
-          // Critical: Ensure cookies are sent with this request for Better Auth
-          extra: {'withCredentials': true},
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          // Follow redirects if Better Auth sends any
-          followRedirects: true,
-          maxRedirects: 3,
-          // Set a reasonable timeout
-          sendTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 10),
-        ),
+        options: _createAuthOptions(),
       );
 
       print("Sign out response status: ${response.statusCode}");
@@ -231,14 +271,7 @@ class AuthApiServiceImpl implements AuthApiService {
     try {
       final response = await _dioClient.get(
         ApiConfig.merchantProfile,
-        options: Options(
-          // Ensure cookies are sent with this request
-          extra: {'withCredentials': true},
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        ),
+        options: _createAuthOptions(),
       );
       print("---------------------getCurrentUser-----------------");
       print(response.data);
@@ -284,14 +317,21 @@ class AuthApiServiceImpl implements AuthApiService {
      * Random QR codes, even if they contain data, will be rejected as invalid.
      */
     try {
-      final requestData = <String, dynamic>{'qrData': qrData};
+      // Use the merchant app URL as origin if not provided
+      // This should match the MERCHANT_APP_URL in server .env
+      final effectiveOrigin = origin.isNotEmpty
+          ? origin
+          : ApiConfig
+                .baseUrl; // Use the base URL which should match merchant app
 
-      // Only include origin if it's not empty
-      if (origin.isNotEmpty) {
-        requestData['origin'] = origin;
-      }
+      final requestData = <String, dynamic>{
+        'qrData': qrData,
+        'origin': effectiveOrigin,
+      };
 
-      SecureLogger.qrEvent('Making QR validation request');
+      SecureLogger.qrEvent(
+        'Making QR validation request with origin: $effectiveOrigin',
+      );
 
       final response = await _dioClient.post(
         ApiConfig.qrLogin,
@@ -324,13 +364,26 @@ class AuthApiServiceImpl implements AuthApiService {
       String errorMessage = 'QR code validation failed';
 
       if (errorData is Map<String, dynamic>) {
-        final data = errorData['data'] as Map<String, dynamic>?;
-        errorMessage = data?['message'] ?? errorData['message'] ?? errorMessage;
+        // Extract the actual error message from the response
+        errorMessage = errorData['message'] ?? errorMessage;
 
-        // Add more specific error information
-        if (errorData['error'] == 'Unauthorized') {
-          errorMessage =
-              'QR code authentication failed. Please ensure you\'re scanning a valid login QR code from the merchant system.';
+        // Handle specific error cases
+        if (e.response?.statusCode == 400) {
+          // Bad Request - usually means password not available or other validation issue
+          // Use the server's error message directly as it's user-friendly
+          if (errorMessage.contains('Password not available')) {
+            errorMessage =
+                'This QR code cannot be used for login. Please use your email and password to sign in, or ask your admin to create a new account with QR login enabled.';
+          }
+        } else if (e.response?.statusCode == 401) {
+          // Unauthorized - invalid or expired QR code
+          if (errorMessage.contains('Invalid or expired')) {
+            errorMessage =
+                'This QR code is invalid or has expired. Please request a new QR code from your admin.';
+          } else {
+            errorMessage =
+                'QR code authentication failed. Please ensure you\'re scanning a valid login QR code from the merchant system.';
+          }
         }
       }
 
@@ -346,14 +399,7 @@ class AuthApiServiceImpl implements AuthApiService {
     try {
       final response = await _dioClient.get(
         ApiConfig.getSession,
-        options: Options(
-          // Ensure cookies are sent with this request
-          extra: {'withCredentials': true},
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        ),
+        options: _createAuthOptions(),
       );
       print("-------------getSession----------");
       print(response.data);
@@ -374,6 +420,55 @@ class AuthApiServiceImpl implements AuthApiService {
     } catch (e) {
       SecureLogger.error('Error getting session', error: e);
       return null;
+    }
+  }
+
+  @override
+  Future<bool> testConnection() async {
+    try {
+      print('=== CONNECTION TEST ===');
+      print('Testing connection to: ${ApiConfig.baseUrl}');
+
+      // Try to connect to the base URL with a simple GET request
+      final response = await _dioClient.get(
+        '/',
+        options: Options(
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          headers: {'Accept': 'text/html,application/json'},
+        ),
+      );
+
+      print('Connection test successful!');
+      print('Response status: ${response.statusCode}');
+      print('Server is reachable at: ${ApiConfig.baseUrl}');
+      return true;
+    } on DioException catch (e) {
+      print('Connection test failed!');
+      print('Error type: ${e.type}');
+      print('Error message: ${e.message}');
+
+      if (e.type == DioExceptionType.connectionTimeout) {
+        print('DIAGNOSIS: Server is not running or IP address is incorrect');
+        print('Expected server at: ${ApiConfig.baseUrl}');
+        print('SOLUTIONS:');
+        print('1. Start the server: cd server && npm run start:dev');
+        print(
+          '2. Check if IP address ${Uri.parse(ApiConfig.baseUrl).host} is correct',
+        );
+        print('3. Try using localhost instead: http://localhost:3003');
+      } else if (e.type == DioExceptionType.connectionError) {
+        print('DIAGNOSIS: Network connectivity issue');
+        print('SOLUTIONS:');
+        print('1. Check internet connection');
+        print('2. Verify device is on same network as server');
+        print('3. Check firewall settings');
+      }
+
+      return false;
+    } catch (e) {
+      print('Connection test error: $e');
+      return false;
     }
   }
 }

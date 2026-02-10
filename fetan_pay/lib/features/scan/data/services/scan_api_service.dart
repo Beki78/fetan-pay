@@ -54,6 +54,18 @@ class ScanApiServiceImpl implements ScanApiService {
 
         SecureLogger.debug('Raw accounts data: $data');
 
+        print('=== ALL RECEIVER ACCOUNTS DEBUG ===');
+        for (var account in data) {
+          final accountMap = account as Map<String, dynamic>;
+          print('Provider: ${accountMap['provider']}');
+          print('Status: ${accountMap['status']}');
+          print('Account: ${accountMap['receiverAccount']}');
+          print('Name: ${accountMap['receiverName']}');
+          print('Label: ${accountMap['receiverLabel']}');
+          print('---');
+        }
+        print('=== END DEBUG ===');
+
         // Filter only ACTIVE accounts - same logic as merchant web app
         final activeAccountsData = data.where((account) {
           final accountMap = account as Map<String, dynamic>;
@@ -102,9 +114,16 @@ class ScanApiServiceImpl implements ScanApiService {
 
       SecureLogger.error('DioException fetching active accounts', error: e);
 
-      // Handle specific error cases like merchant web app
-      String errorMessage = 'Network error: ${e.message}';
-      if (e.response?.statusCode == 401) {
+      // Extract backend error message if available
+      String errorMessage = 'Network error';
+      final responseData = e.response?.data;
+
+      if (responseData is Map<String, dynamic>) {
+        errorMessage =
+            responseData['message'] as String? ??
+            responseData['error'] as String? ??
+            errorMessage;
+      } else if (e.response?.statusCode == 401) {
         errorMessage = 'Authentication required. Please log in again.';
       } else if (e.response?.statusCode == 403) {
         errorMessage = 'Access denied. Check your permissions.';
@@ -112,6 +131,8 @@ class ScanApiServiceImpl implements ScanApiService {
         errorMessage = 'Endpoint not found. Please check server configuration.';
       } else if (e.response?.statusCode == 500) {
         errorMessage = 'Server error. Please try again later.';
+      } else if (e.message != null) {
+        errorMessage = e.message!;
       }
 
       return Left(Exception(errorMessage));
@@ -159,8 +180,16 @@ class ScanApiServiceImpl implements ScanApiService {
     } on DioException catch (e) {
       SecureLogger.error('DioException during payment verification', error: e);
 
-      String errorMessage = 'Network error during verification: ${e.message}';
-      if (e.response?.statusCode == 401) {
+      // Extract backend error message if available
+      String errorMessage = 'Network error during verification';
+      final responseData = e.response?.data;
+
+      if (responseData is Map<String, dynamic>) {
+        errorMessage =
+            responseData['message'] as String? ??
+            responseData['error'] as String? ??
+            errorMessage;
+      } else if (e.response?.statusCode == 401) {
         errorMessage = 'Authentication required. Please log in again.';
       } else if (e.response?.statusCode == 403) {
         errorMessage = 'Access denied. Check your permissions.';
@@ -168,6 +197,8 @@ class ScanApiServiceImpl implements ScanApiService {
         errorMessage = 'Verification endpoint not found.';
       } else if (e.response?.statusCode == 500) {
         errorMessage = 'Server error during verification. Please try again.';
+      } else if (e.message != null) {
+        errorMessage = e.message!;
       }
 
       return Left(Exception(errorMessage));

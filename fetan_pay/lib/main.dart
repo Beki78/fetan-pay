@@ -45,6 +45,11 @@ class MyApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeState.themeMode,
+            routes: {
+              '/login': (context) => const LoginScreen(),
+              '/main': (context) => const MainNavigationScreen(),
+              '/admin': (context) => const AdminMainScreen(),
+            },
             home: BlocBuilder<AuthBloc, AuthState>(
               builder: (context, state) {
                 if (state is AuthLoading || state is AuthInitial) {
@@ -68,9 +73,14 @@ class MyApp extends StatelessWidget {
                 }
 
                 if (state is AuthAuthenticated) {
-                  return state.user.role == UserRole.admin
-                      ? const AdminMainScreen()
-                      : const MainNavigationScreen();
+                  // Role-based routing
+                  return switch (state.user.role) {
+                    UserRole.merchantOwner ||
+                    UserRole.admin => const AdminMainScreen(),
+                    UserRole.sales ||
+                    UserRole.waiter ||
+                    UserRole.employee => const MainNavigationScreen(),
+                  };
                 }
 
                 return const LoginScreen();

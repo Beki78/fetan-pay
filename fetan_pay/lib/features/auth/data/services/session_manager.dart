@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/di/injection_container.dart';
 
 abstract class SessionManager {
   Future<void> saveUser(User user);
@@ -164,7 +166,21 @@ class SessionManagerImpl implements SessionManager {
       await prefs.remove(_lastLoginTimeKey);
       print("SharedPreferences cleared");
 
+      // CRITICAL: Clear cookies from DioClient cookie jar
+      print("Clearing cookies from cookie jar...");
+      try {
+        final dioClient = getIt<DioClient>();
+        await dioClient.clearAllCookies();
+        print("Cookies cleared from cookie jar");
+      } catch (cookieError) {
+        print("Error clearing cookies (non-critical): $cookieError");
+        // Don't fail the entire logout process if cookie clearing fails
+      }
+
       print("=== SESSION CLEARED SUCCESSFULLY ===");
+
+      // POST-LOGOUT VERIFICATION: Verify cleanup was successful
+      await _verifySessionCleanup();
     } catch (e) {
       print('Error clearing session: $e');
       if (kDebugMode) {
@@ -181,6 +197,15 @@ class SessionManagerImpl implements SessionManager {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_isLoggedInKey, false);
+
+        // Try to clear cookies in individual cleanup too
+        try {
+          final dioClient = getIt<DioClient>();
+          await dioClient.clearAllCookies();
+        } catch (cookieError) {
+          print("Individual cookie cleanup failed: $cookieError");
+        }
+
         print("Individual cleanup completed");
       } catch (individualError) {
         print('Individual cleanup also failed: $individualError');
@@ -248,6 +273,47 @@ class SessionManagerImpl implements SessionManager {
       } catch (e) {
         print('Error clearing secure storage: $e');
       }
+    }
+  }
+
+  /// Verify that session cleanup was successful
+  Future<void> _verifySessionCleanup() async {
+    try {
+      print("=== POST-LOGOUT VERIFICATION ===");
+
+      // Check if secure storage was cleared
+      final userJson = await _secureStorage.read(key: _userKey);
+      final tokenJson = await _secureStorage.read(key: _sessionTokenKey);
+      final emailJson = await _secureStorage.read(key: _loginEmailKey);
+      final passwordJson = await _secureStorage.read(key: _loginPasswordKey);
+
+      if (userJson == null &&
+          tokenJson == null &&
+          emailJson == null &&
+          passwordJson == null) {
+        print("✅ Secure storage cleared successfully");
+      } else {
+        print(
+          "⚠️ Some secure storage data remains: user=${userJson != null}, token=${tokenJson != null}, email=${emailJson != null}, password=${passwordJson != null}",
+        );
+      }
+
+      // Check if SharedPreferences was cleared
+      final prefs = await SharedPreferences.getInstance();
+      final isLoggedIn = prefs.getBool(_isLoggedInKey) ?? false;
+      final lastLoginTime = prefs.getString(_lastLoginTimeKey);
+
+      if (!isLoggedIn && lastLoginTime == null) {
+        print("✅ SharedPreferences cleared successfully");
+      } else {
+        print(
+          "⚠️ Some SharedPreferences data remains: isLoggedIn=$isLoggedIn, lastLoginTime=$lastLoginTime",
+        );
+      }
+
+      print("=== END POST-LOGOUT VERIFICATION ===");
+    } catch (e) {
+      print("Error during post-logout verification: $e");
     }
   }
 }
