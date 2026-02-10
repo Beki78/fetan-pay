@@ -11,7 +11,8 @@ import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+// import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { z } from "zod";
 import Image from "next/image";
 import { useSetActiveReceiverAccountMutation } from "@/lib/services/paymentsServiceApi";
@@ -43,6 +44,8 @@ export default function SignUpForm() {
   const {
     signInWithGoogle,
     signUpWithEmailAndPassword,
+    sendEmailOtp,
+    verifyEmailWithOtp,
     isLoading,
   } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -50,6 +53,9 @@ export default function SignUpForm() {
   const [isChecked, setIsChecked] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2>(1); // 1: Account Creation, 2: Bank Setup
   const [accountCreated, setAccountCreated] = useState(false);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [verificationOtp, setVerificationOtp] = useState("");
+  const [verificationInfo, setVerificationInfo] = useState<string | null>(null);
   
   // Step 1: Account Creation State
   const [formState, setFormState] = useState<SignupFormData>({
@@ -206,13 +212,10 @@ export default function SignUpForm() {
           setError("Account created for business, but user signup failed. Please retry login or contact support.");
           return;
         }
-
-        // Link the Better Auth user to the MerchantUser record
-        await linkUserToMerchant();
-
-        toast.success("Account created successfully!");
+        toast.success("Account created. Please verify your email to continue.");
         setAccountCreated(true);
-        setCurrentStep(2);
+        setVerificationPending(true);
+        setVerificationInfo("We sent a verification code to your email.");
         
       } catch (err) {
         console.error("❌ Self registration error", err);
@@ -234,6 +237,30 @@ export default function SignUpForm() {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setVerificationInfo(null);
+
+    const ok = await verifyEmailWithOtp(formState.email, verificationOtp.trim());
+    if (!ok) {
+      setError("Email verification failed. Please try again.");
+      return;
+    }
+
+    await linkUserToMerchant();
+    setVerificationPending(false);
+    setCurrentStep(2);
+  };
+
+  const handleResendVerification = async () => {
+    setVerificationInfo(null);
+    const ok = await sendEmailOtp(formState.email, "email-verification");
+    if (ok) {
+      setVerificationInfo("A new verification code was sent to your email.");
     }
   };
 
@@ -339,8 +366,9 @@ export default function SignUpForm() {
                 </p> */}
               </div>
               
-              <form onSubmit={handleCreateAccount}>
-                <div className="space-y-5">
+              {!verificationPending ? (
+                <form onSubmit={handleCreateAccount}>
+                  <div className="space-y-5">
                   <div>
                     <Label>
                       Business Name<span className="text-error-500">*</span>
@@ -540,20 +568,65 @@ export default function SignUpForm() {
                     </p>
                   </div>
                   
-                  <div>
-                    <button
-                      type="submit"
-                      disabled={isLoading || isSubmitting}
-                      className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {isLoading || isSubmitting ? "Creating Account..." : "Create Account"}
-                    </button>
-                    {error && (
-                      <p className="mt-3 text-sm text-error-500">{error}</p>
-                    )}
+                    <div>
+                      <button
+                        type="submit"
+                        disabled={isLoading || isSubmitting}
+                        className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isLoading || isSubmitting ? "Creating Account..." : "Create Account"}
+                      </button>
+                      {error && (
+                        <p className="mt-3 text-sm text-error-500">{error}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </form>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyEmail} className="space-y-4">
+                  <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+                    <h2 className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
+                      Verify your email
+                    </h2>
+                    <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                      Enter the 6-digit code sent to {formState.email} to continue.
+                    </p>
+                    <Input
+                      type="text"
+                      placeholder="Verification code"
+                      value={verificationOtp}
+                      onChange={(e) => setVerificationOtp(e.target.value)}
+                      required
+                    />
+                    {verificationInfo && (
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {verificationInfo}
+                      </div>
+                    )}
+                    {error && <p className="mt-2 text-sm text-error-500">{error}</p>}
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        type="submit"
+                        disabled={isSubmitting || isLoading}
+                      >
+                        {isSubmitting || isLoading ? "Verifying..." : "Verify email"}
+                      </Button>
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        type="button"
+                        onClick={handleResendVerification}
+                        disabled={isSubmitting || isLoading}
+                        variant="outline"
+                      >
+                        Resend code
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              )}
 
               <div className="mt-5">
                 <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">

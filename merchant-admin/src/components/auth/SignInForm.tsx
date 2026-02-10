@@ -15,7 +15,18 @@ export default function SignInForm() {
   const [email, setEmail] = useState("merchantadmin@test.com");
   const [password, setPassword] = useState("merchantadmin123");
   const [urlError, setUrlError] = useState<string | null>(null);
-  const { signInWithGoogle, signInWithEmailAndPassword, isLoading, error } = useAuth();
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationOtp, setVerificationOtp] = useState("");
+  const [verificationInfo, setVerificationInfo] = useState<string | null>(null);
+  const {
+    signInWithGoogle,
+    signInWithEmailAndPassword,
+    sendEmailOtp,
+    verifyEmailWithOtp,
+    isLoading,
+    error,
+    errorCode,
+  } = useAuth();
   const router = useRouter();
 
   // Check for error in URL parameters (from OAuth callback)
@@ -40,6 +51,17 @@ export default function SignInForm() {
     }
   }, [router]);
 
+  React.useEffect(() => {
+    const message = (error || "").toLowerCase();
+    const needsVerification =
+      errorCode === "EMAIL_NOT_VERIFIED" || message.includes("email not verified");
+
+    if (needsVerification) {
+      setShowVerification(true);
+      setVerificationInfo("We sent a verification code to your email.");
+    }
+  }, [error, errorCode]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const success = await signInWithEmailAndPassword(email, password, isChecked);
@@ -50,8 +72,44 @@ export default function SignInForm() {
       } else {
         router.push("/");
       }
+    } else {
+      const message = (error || "").toLowerCase();
+      const needsVerification =
+        errorCode === "EMAIL_NOT_VERIFIED" || message.includes("email not verified");
+
+      if (needsVerification) {
+        setShowVerification(true);
+        setVerificationInfo("We sent a verification code to your email.");
+      }
     }
   };
+
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerificationInfo(null);
+
+    const ok = await verifyEmailWithOtp(email.trim(), verificationOtp.trim());
+    if (ok) {
+      if (process.env.NODE_ENV === "production") {
+        window.location.href = "/";
+      } else {
+        router.push("/");
+      }
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setVerificationInfo(null);
+    const ok = await sendEmailOtp(email, "email-verification");
+    if (ok) {
+      setVerificationInfo("A new code was sent to your email.");
+    }
+  };
+
+  const emailNotVerified =
+    errorCode === "EMAIL_NOT_VERIFIED" ||
+    (error || "").toLowerCase().includes("email not verified");
+  const displayError = !showVerification || !emailNotVerified;
 
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full">
@@ -134,7 +192,7 @@ export default function SignInForm() {
               </button>
              
             </div>
-            {(error || urlError) && (
+            {displayError && (error || urlError) && (
               <div className="mb-4 text-sm text-error-600 dark:text-error-400">
                 {urlError || error}
               </div>
@@ -149,8 +207,9 @@ export default function SignInForm() {
                 </span>
               </div>
             </div>
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-6">
+            {!showVerification ? (
+              <form onSubmit={handleSubmit}>
+                <div className="space-y-6">
                 <div>
                   <Label>
                     Email Address <span className="text-error-500">*</span>
@@ -202,18 +261,62 @@ export default function SignInForm() {
                     Forgot password?
                   </Link>
                 </div>
-                <div>
-                  <Button
-                    className="w-full"
-                    size="sm"
-                    type="submit"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Signing in..." : "Sign in"}
-                  </Button>
+                  <div>
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      type="submit"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Signing in..." : "Sign in"}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </form>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyEmail} className="mt-2 space-y-4">
+                <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+                  <h2 className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
+                    Verify your email
+                  </h2>
+                  <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                    Enter the 6-digit code we sent to {email}.
+                  </p>
+                  <Input
+                    type="text"
+                    placeholder="Verification code"
+                    value={verificationOtp}
+                    onChange={(e) => setVerificationOtp(e.target.value)}
+                    required
+                  />
+                  {verificationInfo && (
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {verificationInfo}
+                    </div>
+                  )}
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      type="submit"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Verifying..." : "Verify email"}
+                    </Button>
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={isLoading}
+                      variant="outline"
+                    >
+                      Resend code
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            )}
 
             <div className="mt-6">
               <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
