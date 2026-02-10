@@ -771,6 +771,12 @@ export class MerchantsService {
       if (!authUserId) {
         throw new Error('Failed to create auth user for merchant employee');
       }
+
+      // Merchant-created users should bypass email verification
+      await this.prisma.user.update({
+        where: { id: authUserId },
+        data: { emailVerified: true },
+      });
     } catch (error) {
       // Surface Better Auth errors (often include status/statusCode) so debugging is possible.
       const e = error as any;
