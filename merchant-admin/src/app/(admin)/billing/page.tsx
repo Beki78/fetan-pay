@@ -1,9 +1,10 @@
-"use client";
+"use client"
 import { useState } from "react";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import AlertBanner from "@/components/ui/alert/AlertBanner";
 import SubscribePaymentModal from "@/components/billing/SubscribePaymentModal";
+import Pagination from "@/components/tables/Pagination";
 import { CheckCircleIcon, ArrowRightIcon } from "@/icons";
 import {
   Table,
@@ -23,6 +24,8 @@ import {
 export default function BillingPage() {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const { status: accountStatus, isPending } = useAccountStatus();
   const { merchantId, isLoading: merchantLoading, error: merchantError } = useMerchant();
 
@@ -41,12 +44,15 @@ export default function BillingPage() {
   
   const { data: transactionsResponse, isLoading: transactionsLoading } = useGetMerchantBillingTransactionsQuery({
     merchantId: merchantId || '',
-    limit: 10
+    page: currentPage,
+    limit: pageSize
   }, { skip: !merchantId });
 
   const plans = plansResponse?.data || [];
   const currentSubscription = subscriptionResponse?.subscription;
   const subscriptionHistory = transactionsResponse?.data || [];
+  const totalTransactions = transactionsResponse?.pagination?.total || 0;
+  const totalPages = Math.ceil(totalTransactions / pageSize);
 
   // Debug logging
   console.log('Merchant ID:', merchantId);
@@ -321,7 +327,7 @@ export default function BillingPage() {
               <div className="flex flex-wrap gap-4 mb-4">
                 {effectiveSubscription.plan.features.map((feature, index) => (
                   <div key={index} className="flex items-center gap-2">
-                    <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
+                    <CheckCircleIcon className=" text-green-600 dark:text-green-400 shrink-0" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">
                       {feature}
                     </span>
@@ -442,6 +448,21 @@ export default function BillingPage() {
                 )}
               </div>
             </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Showing {(currentPage - 1) * pageSize + 1} to{" "}
+                  {Math.min(currentPage * pageSize, totalTransactions)} of {totalTransactions} transactions
+                </div>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+            )}
           </div>
 
           {/* Plans Section (for upgrade) - Always visible */}
@@ -503,7 +524,7 @@ export default function BillingPage() {
                       <div className="space-y-2 mb-6">
                         {plan.features.map((feature, index) => (
                           <div key={index} className="flex items-start gap-2">
-                            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                            <CheckCircleIcon className=" text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
                             <span className="text-sm text-gray-700 dark:text-gray-300">
                               {feature}
                             </span>

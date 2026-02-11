@@ -88,4 +88,13 @@ export class CreatePlanDto {
   @IsOptional()
   @Min(1)
   displayOrder?: number = 1;
+
+  @ApiProperty({
+    description: 'Show plan on landing page',
+    example: true,
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  showOnLanding?: boolean = true;
 }

@@ -257,7 +257,7 @@ export default function ApiKeysPage() {
               onClick={handleCopy}
               className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/20"
             >
-              <CopyIcon className="w-4 h-4" />
+              <CopyIcon className="" />
               {copied ? "Copied!" : "Copy"}
             </Button>
             <Button
@@ -357,7 +357,7 @@ Authorization: Bearer ${displayKey.includes("•••") ? displayKey : maskKey(
       {/* Security & Usage Information */}
       <div className="rounded-xl border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20 p-6">
         <div className="flex items-start gap-3">
-          <AlertIcon className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+          <AlertIcon className=" text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
           <div>
             <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-2">
               Security & Usage Guidelines

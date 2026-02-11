@@ -230,7 +230,7 @@ export class SubscriptionGuard implements CanActivate {
       verifications_monthly: 100,
       team_members: 2,
       bank_accounts: 2,
-      payment_providers: 2,
+      // payment_providers: intentionally omitted - unlimited for free plan
       tips: false,
       custom_branding: false,
       advanced_analytics: false,
@@ -279,15 +279,19 @@ export class SubscriptionGuard implements CanActivate {
         return hasFeature;
       }
 
-      // For numerical features like verifications_monthly, if not defined = feature disabled
+      // For numerical features like payment_providers, if not defined = feature is unlimited/disabled
       if (
         feature === 'verifications_monthly' ||
         feature === 'api_calls_daily' ||
         feature === 'team_members' ||
-        feature === 'bank_accounts' ||
-        feature === 'payment_providers'
+        feature === 'bank_accounts'
       ) {
         return false; // Feature not available in this plan
+      }
+
+      // For payment_providers specifically, if undefined = unlimited (feature disabled in admin)
+      if (feature === 'payment_providers') {
+        return true; // Allow unlimited if not defined
       }
 
       return true; // Allow access if not defined for other features

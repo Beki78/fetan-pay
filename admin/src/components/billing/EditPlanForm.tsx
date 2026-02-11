@@ -55,6 +55,7 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
     billingCycle: "MONTHLY" as BillingCycle,
     isPopular: false,
     displayOrder: "1",
+    showOnLanding: true,
     status: "ACTIVE" as PlanStatus
   });
   const [limits, setLimits] = useState<Record<string, any>>({});
@@ -70,6 +71,7 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
         billingCycle: plan.billingCycle,
         isPopular: plan.isPopular,
         displayOrder: plan.displayOrder?.toString() || "1",
+        showOnLanding: plan.showOnLanding !== undefined ? plan.showOnLanding : true,
         status: plan.status
       });
       setLimits(plan.limits || {});
@@ -124,7 +126,8 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
           features: features,
           status: formData.status,
           isPopular: formData.isPopular,
-          displayOrder: parseInt(formData.displayOrder) || 1
+          displayOrder: parseInt(formData.displayOrder) || 1,
+          showOnLanding: formData.showOnLanding
         }
       }).unwrap();
       
@@ -425,6 +428,18 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
               />
               <label htmlFor="isPopular" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                 Mark as "Most Popular" plan
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="showOnLanding"
+                checked={formData.showOnLanding}
+                onChange={(e) => handleInputChange("showOnLanding", e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="showOnLanding" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                Show on landing page (public visibility)
               </label>
             </div>
             <div className="flex items-center">

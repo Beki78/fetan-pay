@@ -166,17 +166,10 @@ export default function WalletPage() {
       return;
     }
 
-    // If only one receiver, create deposit directly; otherwise show selection modal
-    if (activeReceivers.length === 1) {
-      const receiver = activeReceivers[0];
-      handleBankSelect(receiver);
-      setIsTopUpModalOpen(false);
-    } else {
-      // Multiple receivers - show selection modal
-      setSelectedAmount(amount);
-      setIsTopUpModalOpen(false);
-      setIsBankSelectionModalOpen(true);
-    }
+    // Always show bank selection modal so merchant can review bank details
+    setSelectedAmount(amount);
+    setIsTopUpModalOpen(false);
+    setIsBankSelectionModalOpen(true);
   };
 
   const handleBankSelect = async (receiver: WalletDepositReceiverAccount) => {
@@ -207,14 +200,18 @@ export default function WalletPage() {
   };
 
   const handleVerifyPayment = async (reference: string) => {
-    if (!selectedReceiver || !selectedAmount) {
+    // Check pendingTopUp first, then fall back to selectedReceiver/selectedAmount
+    const receiver = selectedReceiver || pendingTopUp?.receiver;
+    const amount = selectedAmount || pendingTopUp?.amount;
+    
+    if (!receiver || !amount) {
       toast.error("Missing payment information");
       return;
     }
 
     try {
       const result = await verifyDeposit({
-        provider: selectedReceiver.provider,
+        provider: receiver.provider,
         reference: reference.trim(),
       }).unwrap();
 

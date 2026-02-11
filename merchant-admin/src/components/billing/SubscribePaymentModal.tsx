@@ -545,7 +545,6 @@ export default function SubscribePaymentModal({
                 <p className="text-sm text-white/90 mb-2">Amount to Pay</p>
                 <div className="flex items-baseline justify-center gap-2">
                   <h1 className="text-5xl font-bold">{plan.price} ETB</h1>
-                  <span className="text-base">₦</span>
                 </div>
                 <p className="text-sm text-white/80 mt-2">
                   {formatTime(timeRemaining)} remaining
@@ -671,7 +670,7 @@ export default function SubscribePaymentModal({
               {activeTab === "receipt" && (
                 <div className="space-y-3 transition-all duration-200">
                   <label className="block text-sm font-medium text-gray-800 dark:text-white">
-                    Upload Payment Receipt (PDF)
+                    Upload Payment Receipt
                   </label>
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center bg-white dark:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
                     {receiptPreview ? (
@@ -701,7 +700,7 @@ export default function SubscribePaymentModal({
                             </span>
                             <input
                               type="file"
-                              accept=".pdf"
+                              accept=".pdf,.jpg,.jpeg,.png,.webp"
                               onChange={handleReceiptUpload}
                               className="hidden"
                             />
@@ -728,12 +727,12 @@ export default function SubscribePaymentModal({
                             Click to upload or drag and drop
                           </p>
                           <p className="text-[10px] text-gray-500 dark:text-gray-500">
-                            PDF file only (max 10MB)
+                            PDF, JPG, PNG or WEBP (max 10MB)
                           </p>
                         </div>
                         <input
                           type="file"
-                          accept=".pdf"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp"
                           onChange={handleReceiptUpload}
                           className="hidden"
                         />

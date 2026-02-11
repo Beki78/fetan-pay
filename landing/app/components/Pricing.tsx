@@ -587,14 +587,7 @@ export default function Pricing() {
           </div>
         </div>
 
-        {/* Error message if API failed but we have fallback data */}
-        {error && (
-          <div className="text-center mb-4">
-            <p className="text-amber-600 text-sm">
-              Using cached pricing data. Some information may be outdated.
-            </p>
-          </div>
-        )}
+       
 
         {/* Pricing Cards - Responsive */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mt-8 sm:mt-10 md:mt-12">

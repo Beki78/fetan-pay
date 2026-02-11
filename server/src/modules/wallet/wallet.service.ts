@@ -498,10 +498,26 @@ export class WalletService {
     if (status === 'VERIFIED') {
       // Use transaction for atomicity
       const result = await this.prisma.$transaction(async (tx) => {
-        // Update existing pending deposit or create new one
-        const deposit = pendingDeposit
+        // Check if deposit already exists (verified or not)
+        const existingDeposit = await tx.walletDeposit.findFirst({
+          where: {
+            merchantId: membership.merchantId,
+            provider: body.provider,
+            reference: body.reference,
+          },
+        });
+
+        // If already verified, return error
+        if (existingDeposit && existingDeposit.status === 'VERIFIED') {
+          throw new BadRequestException(
+            'This deposit has already been verified and credited to your wallet',
+          );
+        }
+
+        // Update existing deposit or create new one
+        const deposit = existingDeposit
           ? await tx.walletDeposit.update({
-              where: { id: pendingDeposit.id },
+              where: { id: existingDeposit.id },
               data: {
                 reference: body.reference, // Update with actual reference
                 amount: depositAmount,

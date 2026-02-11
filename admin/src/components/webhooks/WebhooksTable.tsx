@@ -156,7 +156,7 @@ export default function WebhooksTable({ searchQuery, statusFilter }: WebhooksTab
                     <TableCell className="px-4 py-3 text-start">
                       {merchant.webhookUrl ? (
                         <div className="flex items-center gap-2">
-                          <PaperPlaneIcon className="w-4 h-4 text-purple-500 shrink-0" />
+                          <PaperPlaneIcon className=" text-purple-500 shrink-0" />
                           <div className="min-w-0">
                             <div className="text-sm text-gray-800 dark:text-white truncate max-w-[200px]" title={merchant.webhookUrl}>
                               {merchant.webhookUrl}
@@ -185,7 +185,7 @@ export default function WebhooksTable({ searchQuery, statusFilter }: WebhooksTab
                     <TableCell className="px-4 py-3 text-start">
                       {merchant.ipAddresses.length > 0 ? (
                         <div className="flex items-center gap-2">
-                          <LockIcon className="w-4 h-4 text-blue-500 shrink-0" />
+                          <LockIcon className=" text-blue-500 shrink-0" />
                           <div>
                             <div className="text-sm font-medium text-gray-800 dark:text-white">
                               {merchant.ipAddresses.length} IP{merchant.ipAddresses.length !== 1 ? 's' : ''}
@@ -206,13 +206,13 @@ export default function WebhooksTable({ searchQuery, statusFilter }: WebhooksTab
                     <TableCell className="px-4 py-3 text-start">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
-                          <CheckCircleIcon className="w-4 h-4 text-green-500" />
+                          <CheckCircleIcon className=" text-green-500" />
                           <span className="text-sm text-gray-800 dark:text-white">
                             {merchant.successfulDeliveries.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <AlertIcon className="w-4 h-4 text-red-500" />
+                          <AlertIcon className=" text-red-500" />
                           <span className="text-sm text-gray-800 dark:text-white">
                             {merchant.failedDeliveries.toLocaleString()}
                           </span>
@@ -237,7 +237,7 @@ export default function WebhooksTable({ searchQuery, statusFilter }: WebhooksTab
                         size="sm"
                         variant="outline"
                         onClick={() => router.push(`/webhooks-management/${merchant.id}`)}
-                        startIcon={<EyeIcon className="w-4 h-4" />}
+                        startIcon={<EyeIcon className="" />}
                         className="text-purple-600 border-purple-200 hover:bg-purple-50 dark:text-purple-400 dark:border-purple-800 dark:hover:bg-purple-900/20"
                       >
                         Details

@@ -150,8 +150,8 @@ export const useSubscription = (): UseSubscriptionReturn => {
       webhooks: limits.webhooks ?? 1,
       teamMembers: teamMembersLimit,
       bankAccounts: limits.bank_accounts ?? 2,
-      // Use payment_providers if set, otherwise fall back to bank_accounts (they're the same thing)
-      paymentProviders: limits.payment_providers !== undefined ? limits.payment_providers : (limits.bank_accounts ?? 2),
+      // Use payment_providers if set, otherwise unlimited (undefined means feature disabled/unlimited)
+      paymentProviders: limits.payment_providers !== undefined ? limits.payment_providers : -1,
       verificationsMonthly: limits.verifications_monthly ?? 100,
       advancedAnalytics: hasAdvancedAnalytics,
       exportFunctionality: limits.export_functionality ?? false,

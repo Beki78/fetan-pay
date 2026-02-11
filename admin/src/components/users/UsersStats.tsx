@@ -36,7 +36,7 @@ export default function UsersStats() {
       <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex items-center justify-center w-10 h-10 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg">
-            <GroupIcon className="text-blue-600 dark:text-blue-400 size-5" />
+            <GroupIcon className="text-blue-600 dark:text-blue-400" />
           </div>
           <span className="text-sm text-gray-600 dark:text-gray-400">Total Users</span>
         </div>
@@ -52,7 +52,7 @@ export default function UsersStats() {
       <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex items-center justify-center w-10 h-10 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
-            <GroupIcon className="text-purple-600 dark:text-purple-400 size-5" />
+            <GroupIcon className="text-purple-600 dark:text-purple-400" />
           </div>
           <span className="text-sm text-gray-600 dark:text-gray-400">Total Merchants</span>
         </div>
@@ -68,7 +68,7 @@ export default function UsersStats() {
       <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex items-center justify-center w-10 h-10 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
-            <TaskIcon className="text-green-600 dark:text-green-400 size-5" />
+            <TaskIcon className="text-green-600 dark:text-green-400" />
           </div>
           <span className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</span>
         </div>
@@ -84,7 +84,7 @@ export default function UsersStats() {
       <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex items-center justify-center w-10 h-10 bg-orange-500/10 dark:bg-orange-500/20 rounded-lg">
-            <TimeIcon className="text-orange-600 dark:text-orange-400 size-5" />
+            <TimeIcon className="text-orange-600 dark:text-orange-400" />
           </div>
           <span className="text-sm text-gray-600 dark:text-gray-400">Pending Actions</span>
         </div>
