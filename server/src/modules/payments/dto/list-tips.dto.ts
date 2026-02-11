@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { TransactionProvider } from '@prisma/client';
 
 export class ListTipsDto {
   @ApiPropertyOptional({ description: 'ISO date string (inclusive)' })
@@ -12,6 +13,32 @@ export class ListTipsDto {
   @IsOptional()
   @IsString()
   to?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by payment provider',
+    enum: TransactionProvider,
+  })
+  @IsOptional()
+  @IsEnum(TransactionProvider)
+  provider?: TransactionProvider;
+
+  @ApiPropertyOptional({
+    description: 'Filter by verification status',
+    enum: ['PENDING', 'VERIFIED', 'UNVERIFIED'],
+  })
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @ApiPropertyOptional({ description: 'Search by phone number' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Search by customer name' })
+  @IsOptional()
+  @IsString()
+  name?: string;
 
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
@@ -28,4 +55,3 @@ export class ListTipsDto {
   @Max(100)
   pageSize?: number = 20;
 }
-

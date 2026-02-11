@@ -94,7 +94,7 @@ export default function CurrentPlan() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {mockCurrentPlan.features.map((feature, index) => (
             <div key={index} className="flex items-start gap-2">
-              <CheckCircleIcon className="w-5 h-5 text-success-500 flex-shrink-0 mt-0.5" />
+              <CheckCircleIcon className=" text-success-500 flex-shrink-0 mt-0.5" />
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 {feature}
               </span>

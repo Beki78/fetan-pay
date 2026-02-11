@@ -60,6 +60,13 @@ export default function BankSelectionModal({
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Choose the bank you want to use for depositing {selectedAmount.toFixed(2)} ETB
           </p>
+          {activeReceivers.length === 1 && (
+            <div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Only one deposit account is available. Click to continue with this account.
+              </p>
+            </div>
+          )}
         </div>
 
         {activeReceivers.length === 0 ? (

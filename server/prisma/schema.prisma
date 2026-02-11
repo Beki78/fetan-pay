@@ -1095,6 +1095,7 @@ model Plan {
   status            PlanStatus          @default(ACTIVE)
   isPopular         Boolean             @default(false)
   displayOrder      Int                 @default(1)
+  showOnLanding     Boolean             @default(true)  // Toggle to show/hide on landing page
   
   // Metadata
   createdAt         DateTime            @default(now())

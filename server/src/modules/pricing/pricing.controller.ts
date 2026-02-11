@@ -536,6 +536,7 @@ export class PricingController {
   async getPublicPlans() {
     return this.pricingService.getPlans({
       status: 'ACTIVE' as any,
+      showOnLanding: true, // Only show plans with showOnLanding = true
       page: 1,
       limit: 100,
       sortBy: 'displayOrder',

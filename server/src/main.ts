@@ -36,6 +36,7 @@ async function bootstrap() {
     'http://localhost:3002', // Landing page
     'http://localhost:3003',
     'http://localhost:3009',
+    'http://localhost:3010',
     'https://jenine-sphagnous-coleen.ngrok-free.dev',
     // Production subdomains
     'https://admin.fetanpay.et',

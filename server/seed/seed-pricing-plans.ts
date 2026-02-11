@@ -25,7 +25,7 @@ async function seedPricingPlans() {
       limits: {
         verifications_monthly: 20,
         team_members: 1,
-        payment_providers: 2,
+        // payment_providers: intentionally omitted - unlimited for free trial
         custom_branding: false,
         advanced_analytics: false,
         tips: false,
@@ -36,7 +36,7 @@ async function seedPricingPlans() {
         '1 team member',
         'Unlimited webhooks',
         'Basic analytics',
-        'Bank account management (up to 2 accounts)',
+        'Bank account management (unlimited during trial)',
         'All verification methods',
         'Transaction history (30 days)',
         'Verification by usage',

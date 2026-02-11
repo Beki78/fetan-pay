@@ -187,11 +187,11 @@ export default function BillingTransactionsTable() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
-            <DownloadIcon className="w-4 h-4 mr-2" />
+            <DownloadIcon className=" mr-2" />
             Export CSV
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportPDF}>
-            <FileIcon className="w-4 h-4 mr-2" />
+            <FileIcon className=" mr-2" />
             Export PDF
           </Button>
         </div>

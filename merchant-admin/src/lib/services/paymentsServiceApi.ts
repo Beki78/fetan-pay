@@ -112,6 +112,7 @@ export interface TipItem {
   status: PaymentVerificationStatus;
   createdAt: string;
   verifiedAt: string | null;
+  verificationPayload?: unknown;
   verifiedBy: {
     id: string;
     name: string | null;
@@ -131,6 +132,10 @@ export interface ListTipsResponse {
 export interface ListTipsParams {
   from?: string;
   to?: string;
+  provider?: TransactionProvider;
+  status?: PaymentVerificationStatus;
+  phone?: string;
+  name?: string;
   page?: number;
   pageSize?: number;
 }
@@ -279,6 +284,10 @@ export const paymentsServiceApi = createApi({
         const query = new URLSearchParams();
         if (params?.from) query.set('from', params.from);
         if (params?.to) query.set('to', params.to);
+        if (params?.provider) query.set('provider', params.provider);
+        if (params?.status) query.set('status', params.status);
+        if (params?.phone) query.set('phone', params.phone);
+        if (params?.name) query.set('name', params.name);
         query.set('page', String(params?.page ?? 1));
         query.set('pageSize', String(params?.pageSize ?? 20));
         return { url: `/payments/tips?${query.toString()}` };

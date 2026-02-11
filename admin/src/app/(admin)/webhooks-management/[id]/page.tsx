@@ -179,7 +179,7 @@ export default function WebhookDetailPage() {
         <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <PaperPlaneIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <PaperPlaneIcon className=" text-blue-600 dark:text-blue-400" />
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Requests</p>
@@ -193,7 +193,7 @@ export default function WebhookDetailPage() {
         <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <CheckCircleIcon className=" text-green-600 dark:text-green-400" />
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Successful Requests</p>
@@ -207,7 +207,7 @@ export default function WebhookDetailPage() {
         <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-              <AlertIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
+              <AlertIcon className=" text-red-600 dark:text-red-400" />
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Failed Requests</p>
@@ -221,7 +221,7 @@ export default function WebhookDetailPage() {
         <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50 p-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-              <LockIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <LockIcon className=" text-purple-600 dark:text-purple-400" />
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">IP Addresses</p>
@@ -240,7 +240,7 @@ export default function WebhookDetailPage() {
             Webhook Configuration
           </h2>
           <div className="flex items-center gap-3">
-            <PaperPlaneIcon className="w-5 h-5 text-purple-500" />
+            <PaperPlaneIcon className=" text-purple-500" />
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Webhook URL</p>
               <p className="text-sm font-mono text-gray-800 dark:text-white break-all">
@@ -515,7 +515,7 @@ export default function WebhookDetailPage() {
                 onClick={() => setConfirmModal({ isOpen: false, ipId: "", ipAddress: "", action: 'disable' })}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
-                <CloseIcon className="w-5 h-5" />
+                <CloseIcon className="" />
               </button>
             </div>
             

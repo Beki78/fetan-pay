@@ -68,6 +68,7 @@ export default function PaymentProvidersPage() {
       : undefined;
 
     // Check if user can add/enable more providers
+    // Use > instead of >= to allow the full limit (e.g., limit of 2 means you can have 2 providers)
     if (!isUnlimited && currentProvidersCount >= paymentProvidersLimit) {
       // Allow editing existing ACTIVE providers, but not adding new ones or enabling INACTIVE ones
       if (!existing) {
@@ -142,6 +143,7 @@ export default function PaymentProvidersPage() {
     }
 
     // Check if enabling this provider would exceed the limit
+    // Use > instead of >= to allow the full limit (e.g., limit of 2 means you can have 2 providers)
     if (!isUnlimited && currentProvidersCount >= paymentProvidersLimit) {
       toast.warning(
         `You have reached the maximum number of payment providers for your ${plan?.name || 'current'} plan (${currentProvidersCount}/${paymentProvidersLimit}). Please upgrade your plan to enable more providers.`,

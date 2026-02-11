@@ -189,7 +189,7 @@ export default function PlanManagement() {
           </p>
         </div>
         <Button onClick={handleCreatePlan}>
-          <PlusIcon className="w-4 h-4 mr-2" />
+          <PlusIcon className=" mr-2" />
           Create New Plan
         </Button>
       </div>
@@ -250,7 +250,7 @@ export default function PlanManagement() {
                       size="sm"
                       onClick={() => handleEditPlan(plan)}
                     >
-                      <PencilIcon className="w-4 h-4" />
+                      <PencilIcon className="" />
                     </Button>
                     <Button
                       variant={plan.status === "ACTIVE" ? "outline" : "primary"}

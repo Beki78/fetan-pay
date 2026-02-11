@@ -45,7 +45,8 @@ export default function CreatePlanPage() {
     price: "",
     billingCycle: "MONTHLY" as BillingCycle,
     isPopular: false,
-    displayOrder: "1"
+    displayOrder: "1",
+    showOnLanding: true
   });
 
   const [limits, setLimits] = useState<Record<string, any>>({});
@@ -100,7 +101,8 @@ export default function CreatePlanPage() {
         limits: limits, // Use the flexible limits object
         features: features,
         isPopular: formData.isPopular,
-        displayOrder: parseInt(formData.displayOrder) || 1
+        displayOrder: parseInt(formData.displayOrder) || 1,
+        showOnLanding: formData.showOnLanding
       };
 
       await createPlan(planData).unwrap();
@@ -331,7 +333,11 @@ export default function CreatePlanPage() {
                     min="1"
                   />
                 </div>
-                <div className="flex items-center pt-6">
+              </div>
+
+              {/* Plan Visibility Toggles */}
+              <div className="space-y-4 mt-4">
+                <div className="flex items-center">
                   <input
                     type="checkbox"
                     id="isPopular"
@@ -341,6 +347,18 @@ export default function CreatePlanPage() {
                   />
                   <label htmlFor="isPopular" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                     Mark as "Most Popular" plan
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="showOnLanding"
+                    checked={formData.showOnLanding}
+                    onChange={(e) => handleInputChange("showOnLanding", e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="showOnLanding" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                    Show on landing page (public visibility)
                   </label>
                 </div>
               </div>

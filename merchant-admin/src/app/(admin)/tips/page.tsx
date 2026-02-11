@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
-import { useGetTipsSummaryQuery, useListTipsQuery } from "@/lib/services/paymentsServiceApi";
+import { useState } from "react";
+import { 
+  useGetTipsSummaryQuery, 
+  useListTipsQuery,
+  type TransactionProvider,
+  type PaymentVerificationStatus 
+} from "@/lib/services/paymentsServiceApi";
+import { useGetPaymentProvidersQuery } from "@/lib/services/paymentProvidersServiceApi";
 import { useSubscription } from "@/hooks/useSubscription";
 import { formatNumberWithCommas } from "@/lib/utils";
 import Button from "@/components/ui/button/Button";
@@ -13,8 +19,10 @@ interface DateRange {
 }
 
 interface FilterState {
-  provider?: string;
-  status?: string;
+  provider?: TransactionProvider;
+  status?: PaymentVerificationStatus;
+  phone?: string;
+  name?: string;
 }
 
 export default function TipsPage() {
@@ -28,10 +36,13 @@ export default function TipsPage() {
   // Check if user can access tips feature
   const canAccessTips = canAccessFeature('tips');
 
+  // Fetch payment providers
+  const { data: providersData } = useGetPaymentProvidersQuery();
+  const providers = providersData?.providers || [];
+
   const {
     data: tipsSummary,
     isLoading: isSummaryLoading,
-    error: summaryError,
   } = useGetTipsSummaryQuery(dateRange, {
     skip: !canAccessTips,
   });
@@ -79,11 +90,6 @@ export default function TipsPage() {
 
   const handleDateRangeChange = (range: DateRange) => {
     setDateRange(range);
-    setCurrentPage(1); // Reset to first page when changing filters
-  };
-
-  const clearDateRange = () => {
-    setDateRange({});
     setCurrentPage(1);
   };
 
@@ -124,13 +130,12 @@ export default function TipsPage() {
   const totalPages = tipsData ? Math.ceil(tipsData.total / pageSize) : 0;
 
   // Filter handlers
-  const handleProviderFilter = (provider: string) => {
-    setFilters(prev => ({ ...prev, provider: provider === 'all' ? undefined : provider }));
-    setCurrentPage(1);
-  };
-
-  const handleStatusFilter = (status: string) => {
-    setFilters(prev => ({ ...prev, status: status === 'all' ? undefined : status }));
+  const handleFilterChange = (key: keyof FilterState, value: string) => {
+    if (key === 'provider' || key === 'status') {
+      setFilters(prev => ({ ...prev, [key]: value === 'all' ? undefined : value as any }));
+    } else {
+      setFilters(prev => ({ ...prev, [key]: value || undefined }));
+    }
     setCurrentPage(1);
   };
 
@@ -140,92 +145,19 @@ export default function TipsPage() {
     setCurrentPage(1);
   };
 
+  const hasActiveFilters = dateRange.from || dateRange.to || filters.provider || filters.status || filters.phone || filters.name;
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-         
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tips</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Track and manage customer tips
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Date Range Filter */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              From:
-            </label>
-            <input
-              type="date"
-              value={dateRange.from || ""}
-              onChange={(e) =>
-                handleDateRangeChange({ ...dateRange, from: e.target.value })
-              }
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              To:
-            </label>
-            <input
-              type="date"
-              value={dateRange.to || ""}
-              onChange={(e) =>
-                handleDateRangeChange({ ...dateRange, to: e.target.value })
-              }
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Provider:
-            </label>
-            <select
-              value={filters.provider || 'all'}
-              onChange={(e) => handleProviderFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="all">All Providers</option>
-              <option value="CBE">CBE</option>
-              <option value="TELEBIRR">Telebirr</option>
-              <option value="BOA">Bank of Abyssinia</option>
-              <option value="AWASH">Awash Bank</option>
-              <option value="DASHEN">Dashen Bank</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Status:
-            </label>
-            <select
-              value={filters.status || 'all'}
-              onChange={(e) => handleStatusFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="all">All Status</option>
-              <option value="VERIFIED">Verified</option>
-              <option value="PENDING">Pending</option>
-              <option value="UNVERIFIED">Unverified</option>
-            </select>
-          </div>
-          {(dateRange.from || dateRange.to || filters.provider || filters.status) && (
-            <Button
-              onClick={clearAllFilters}
-              variant="outline"
-              size="sm"
-              className="text-sm"
-            >
-              Clear All Filters
-            </Button>
-          )}
         </div>
       </div>
 
@@ -245,7 +177,6 @@ export default function TipsPage() {
                 </p>
               )}
             </div>
-         
           </div>
         </div>
 
@@ -263,7 +194,6 @@ export default function TipsPage() {
                 </p>
               )}
             </div>
-            
           </div>
         </div>
       </div>
@@ -276,40 +206,114 @@ export default function TipsPage() {
           </h3>
         </div>
 
-        {isTipsLoading ? (
-          <div className="p-6">
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center space-x-4">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
-                </div>
-              ))}
+        <div className="p-6 space-y-4">
+          {/* Search and Filters */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex-1 max-w-md">
+              <input
+                type="text"
+                placeholder="Search by phone or name..."
+                value={filters.phone || filters.name || ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFilters(prev => ({
+                    ...prev,
+                    phone: value.match(/^\d/) ? value : undefined,
+                    name: !value.match(/^\d/) && value ? value : undefined,
+                  }));
+                  setCurrentPage(1);
+                }}
+                className="w-full h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <select
+                value={filters.provider || 'all'}
+                onChange={(e) => handleFilterChange('provider', e.target.value)}
+                className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+              >
+                <option value="all">All Providers</option>
+                {providers
+                  .filter(p => p.status === 'ACTIVE')
+                  .map(provider => (
+                    <option key={provider.code} value={provider.code}>
+                      {provider.name}
+                    </option>
+                  ))}
+              </select>
+              <select
+                value={filters.status || 'all'}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+              >
+                <option value="all">All Status</option>
+                <option value="VERIFIED">Verified</option>
+                <option value="PENDING">Pending</option>
+                <option value="UNVERIFIED">Unverified</option>
+              </select>
+              <input
+                type="date"
+                value={dateRange.from || ""}
+                onChange={(e) => handleDateRangeChange({ ...dateRange, from: e.target.value })}
+                placeholder="From date"
+                className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+              />
+              <input
+                type="date"
+                value={dateRange.to || ""}
+                onChange={(e) => handleDateRangeChange({ ...dateRange, to: e.target.value })}
+                placeholder="To date"
+                className="h-11 rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+              />
+              {hasActiveFilters && (
+                <Button
+                  onClick={clearAllFilters}
+                  variant="outline"
+                  size="sm"
+                >
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
-        ) : tipsError ? (
-          <div className="p-6 text-center">
-            <p className="text-red-600 dark:text-red-400">
-              Error loading tips data. Please try again.
-            </p>
-          </div>
-        ) : !tipsData?.data?.length ? (
-          <div className="p-6 text-center">
-            <p className="text-gray-600 dark:text-gray-400 mb-2">No tips recorded yet</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500">
-              Tips will appear here after payment verifications with tip amounts
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
+
+          {isTipsLoading ? (
+            <div className="p-6">
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center space-x-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : tipsError ? (
+            <div className="p-6 text-center">
+              <p className="text-red-600 dark:text-red-400">
+                Error loading tips data. Please try again.
+              </p>
+            </div>
+          ) : !tipsData?.data?.length ? (
+            <div className="p-6 text-center">
+              <p className="text-gray-600 dark:text-gray-400 mb-2">No tips recorded yet</p>
+              <p className="text-sm text-gray-500 dark:text-gray-500">
+                Tips will appear here after payment verifications with tip amounts
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-900">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Reference
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Customer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Provider
@@ -332,69 +336,58 @@ export default function TipsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {tipsData.data.map((tip) => (
-                    <tr key={tip.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {tip.reference}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {tip.provider}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {formatCurrency(tip.claimedAmount)} ETB
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
-                        {formatCurrency(tip.tipAmount)} ETB
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(tip.status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {formatDate(tip.verifiedAt || tip.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {tip.verifiedBy?.name || tip.verifiedBy?.email || "System"}
-                      </td>
-                    </tr>
-                  ))}
+                  {tipsData.data.map((tip) => {
+                    const payload = tip.verificationPayload as any;
+                    const customerName = payload?.name || '-';
+                    const customerPhone = payload?.phone || '-';
+                    
+                    return (
+                      <tr key={tip.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {tip.reference}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                          <div className="flex flex-col">
+                            <span>{customerName}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-500">{customerPhone}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                          {tip.provider}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {formatCurrency(tip.claimedAmount)} ETB
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
+                          {formatCurrency(tip.tipAmount)} ETB
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getStatusBadge(tip.status)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                          {formatDate(tip.verifiedAt || tip.createdAt)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                          {tip.verifiedBy?.name || tip.verifiedBy?.email || "System"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Showing {(currentPage - 1) * pageSize + 1} to{" "}
-                    {Math.min(currentPage * pageSize, tipsData.total)} of {tipsData.total} tips
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Previous
-                    </Button>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
+            {/* Results count */}
+            {tipsData?.data?.length > 0 && (
+              <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Showing {tipsData.data.length} of {tipsData.total} tips
+                </p>
               </div>
             )}
           </>
         )}
+        </div>
       </div>
     </div>
   );

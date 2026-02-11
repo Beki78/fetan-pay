@@ -91,7 +91,7 @@ export default function DashboardMetrics() {
       <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800/50">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex items-center justify-center w-10 h-10 bg-green-500/10 dark:bg-green-500/20 rounded-lg">
-            <CheckCircleIcon className="text-green-600 dark:text-green-400 size-5" />
+            <CheckCircleIcon className="text-green-600 dark:text-green-400 " />
           </div>
           <span className="text-sm text-gray-600 dark:text-gray-400">Verified</span>
         </div>

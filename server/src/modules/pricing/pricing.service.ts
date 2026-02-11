@@ -65,6 +65,7 @@ export class PricingService {
     const {
       status,
       search,
+      showOnLanding,
       page = 1,
       limit = 10,
       sortBy = 'displayOrder',
@@ -76,6 +77,10 @@ export class PricingService {
 
     if (status) {
       where.status = status;
+    }
+
+    if (showOnLanding !== undefined) {
+      where.showOnLanding = showOnLanding;
     }
 
     if (search) {

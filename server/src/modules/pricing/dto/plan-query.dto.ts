@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsEnum, IsString, IsNumber, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsEnum,
+  IsString,
+  IsNumber,
+  Min,
+  IsBoolean,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { PlanStatus } from '@prisma/client';
 
@@ -12,6 +19,16 @@ export class PlanQueryDto {
   @IsEnum(PlanStatus)
   @IsOptional()
   status?: PlanStatus;
+
+  @ApiProperty({
+    description: 'Filter by showOnLanding flag',
+    example: true,
+    required: false,
+  })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  showOnLanding?: boolean;
 
   @ApiProperty({
     description: 'Search by plan name or description',

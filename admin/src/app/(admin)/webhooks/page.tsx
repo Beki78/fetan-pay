@@ -123,9 +123,9 @@ export default function WebhooksPage() {
               type="button"
             >
               {showSecret ? (
-                <EyeCloseIcon className="w-5 h-5" />
+                <EyeCloseIcon className="" />
               ) : (
-                <EyeIcon className="w-5 h-5" />
+                <EyeIcon className="" />
               )}
             </button>
           </div>
@@ -212,7 +212,7 @@ export default function WebhooksPage() {
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <CheckCircleIcon className=" text-green-600 dark:text-green-400" />
               </div>
               <span className="text-sm font-semibold text-gray-800 dark:text-white">
                 payment.verified
@@ -227,7 +227,7 @@ export default function WebhooksPage() {
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
-                <AlertIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
+                <AlertIcon className=" text-red-600 dark:text-red-400" />
               </div>
               <span className="text-sm font-semibold text-gray-800 dark:text-white">
                 payment.failed
@@ -242,7 +242,7 @@ export default function WebhooksPage() {
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <InfoIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <InfoIcon className=" text-blue-600 dark:text-blue-400" />
               </div>
               <span className="text-sm font-semibold text-gray-800 dark:text-white">
                 test
@@ -336,25 +336,25 @@ $data = json_decode($payload, true);
         </div>
         <div className="space-y-3">
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className=" text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Always verify the signature before processing
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className=" text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Return a 2xx status code quickly to acknowledge receipt
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className=" text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Process webhooks asynchronously if needed
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <CheckCircleIcon className=" text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Handle duplicate events idempotently using payment_intent_id
             </p>

@@ -232,9 +232,10 @@ export class PaymentsService {
     // Determine which bank to query based on transfer type
     // For INTER_BANK: Always query sender bank (where transaction was created)
     // For SAME_BANK: Query the single bank (sender and receiver are the same)
-    const queryBank = body.transferType === 'INTER_BANK' 
-      ? body.senderBank! // For inter-bank, senderBank is required and validated
-      : body.receiverBank; // For same-bank, use receiverBank (which equals senderBank)
+    const queryBank =
+      body.transferType === 'INTER_BANK'
+        ? body.senderBank! // For inter-bank, senderBank is required and validated
+        : body.receiverBank; // For same-bank, use receiverBank (which equals senderBank)
 
     console.log('[VERIFY] Transfer details:', {
       transferType: body.transferType,
@@ -777,18 +778,27 @@ export class PaymentsService {
 
       // Check if merchant has reached payment provider limit
       const planLimits = (subscription?.plan as any)?.limits || {};
-      const paymentProviderLimit = planLimits.payment_providers || 2; // Default to 2 for free plan
+      const paymentProviderLimit = planLimits.payment_providers;
 
-      if (activeAccountsCount >= paymentProviderLimit) {
-        const planName = subscription?.plan?.name || 'Free';
-        throw new ForbiddenException({
-          message: `You have reached the maximum number of payment providers for your ${planName} plan (${activeAccountsCount}/${paymentProviderLimit}). Please upgrade your plan to add more payment providers.`,
-          feature: 'payment_providers',
-          currentPlan: planName,
-          currentUsage: activeAccountsCount,
-          limit: paymentProviderLimit,
-          upgradeRequired: true,
-        });
+      // Only enforce limit if payment_providers is explicitly defined in the plan
+      // If undefined, the feature is disabled/unlimited
+      if (
+        paymentProviderLimit !== undefined &&
+        paymentProviderLimit !== null &&
+        paymentProviderLimit !== -1
+      ) {
+        // Use > instead of >= to allow the full limit (e.g., limit of 2 means you can have 2 providers)
+        if (activeAccountsCount >= paymentProviderLimit) {
+          const planName = subscription?.plan?.name || 'Free';
+          throw new ForbiddenException({
+            message: `You have reached the maximum number of payment providers for your ${planName} plan (${activeAccountsCount}/${paymentProviderLimit}). Please upgrade your plan to add more payment providers.`,
+            feature: 'payment_providers',
+            currentPlan: planName,
+            currentUsage: activeAccountsCount,
+            limit: paymentProviderLimit,
+            upgradeRequired: true,
+          });
+        }
       }
     }
 
@@ -1002,18 +1012,27 @@ export class PaymentsService {
 
       // Check if merchant has reached payment provider limit
       const planLimits = (subscription?.plan as any)?.limits || {};
-      const paymentProviderLimit = planLimits.payment_providers || 2; // Default to 2 for free plan
+      const paymentProviderLimit = planLimits.payment_providers;
 
-      if (activeAccountsCount >= paymentProviderLimit) {
-        const planName = subscription?.plan?.name || 'Free';
-        throw new ForbiddenException({
-          message: `You have reached the maximum number of payment providers for your ${planName} plan (${activeAccountsCount}/${paymentProviderLimit}). Please upgrade your plan to add more payment providers.`,
-          feature: 'payment_providers',
-          currentPlan: planName,
-          currentUsage: activeAccountsCount,
-          limit: paymentProviderLimit,
-          upgradeRequired: true,
-        });
+      // Only enforce limit if payment_providers is explicitly defined in the plan
+      // If undefined, the feature is disabled/unlimited
+      if (
+        paymentProviderLimit !== undefined &&
+        paymentProviderLimit !== null &&
+        paymentProviderLimit !== -1
+      ) {
+        // Use > instead of >= to allow the full limit (e.g., limit of 2 means you can have 2 providers)
+        if (activeAccountsCount >= paymentProviderLimit) {
+          const planName = subscription?.plan?.name || 'Free';
+          throw new ForbiddenException({
+            message: `You have reached the maximum number of payment providers for your ${planName} plan (${activeAccountsCount}/${paymentProviderLimit}). Please upgrade your plan to add more payment providers.`,
+            feature: 'payment_providers',
+            currentPlan: planName,
+            currentUsage: activeAccountsCount,
+            limit: paymentProviderLimit,
+            upgradeRequired: true,
+          });
+        }
       }
     }
 
@@ -1385,7 +1404,16 @@ export class PaymentsService {
   }
 
   async listTips(
-    query: { from?: string; to?: string; page?: number; pageSize?: number },
+    query: {
+      from?: string;
+      to?: string;
+      provider?: string;
+      status?: string;
+      phone?: string;
+      name?: string;
+      page?: number;
+      pageSize?: number;
+    },
     req: Request,
   ) {
     const membership = await this.requireMembership(req);
@@ -1411,6 +1439,8 @@ export class PaymentsService {
       tipAmount: { not: null },
       // Filter by the current user so they only see their own tips
       verifiedById: membership.merchantUserId,
+      ...(query.provider ? { provider: query.provider as any } : {}),
+      ...(query.status ? { status: query.status as any } : {}),
       ...(from || to
         ? {
             createdAt: {
@@ -1420,6 +1450,32 @@ export class PaymentsService {
           }
         : {}),
     };
+
+    // Add search conditions for phone or name if provided
+    if (query.phone || query.name) {
+      const searchConditions: Prisma.PaymentWhereInput[] = [];
+
+      if (query.phone) {
+        searchConditions.push({
+          verificationPayload: {
+            path: ['phone'],
+            string_contains: query.phone,
+          },
+        });
+      }
+
+      if (query.name) {
+        searchConditions.push({
+          verificationPayload: {
+            path: ['name'],
+            string_contains: query.name,
+          },
+        });
+      }
+
+      // Combine with existing where conditions
+      where.AND = searchConditions.length > 0 ? searchConditions : undefined;
+    }
 
     const [total, data] = await this.prisma.$transaction([
       this.prisma.payment.count({ where }),
@@ -1437,6 +1493,7 @@ export class PaymentsService {
           status: true,
           createdAt: true,
           verifiedAt: true,
+          verificationPayload: true,
           verifiedBy: {
             select: {
               id: true,
