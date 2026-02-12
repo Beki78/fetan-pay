@@ -1,7 +1,20 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL } from '../config';
 
-export type TransactionProvider = 'CBE' | 'TELEBIRR' | 'AWASH' | 'BOA' | 'DASHEN';
+export type TransactionProvider = 
+  | 'CBE' 
+  | 'TELEBIRR' 
+  | 'AWASH' 
+  | 'BOA' 
+  | 'DASHEN'
+  | 'AMHARA'
+  | 'BIRHAN'
+  | 'CBEBIRR'
+  | 'COOP'
+  | 'ENAT'
+  | 'GADDA'
+  | 'HIBRET'
+  | 'WEGAGEN';
 export type PaymentVerificationStatus = 'PENDING' | 'VERIFIED' | 'UNVERIFIED';
 
 export interface ListVerificationHistoryParams {

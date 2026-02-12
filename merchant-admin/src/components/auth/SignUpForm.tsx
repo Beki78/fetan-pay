@@ -92,6 +92,20 @@ export default function SignUpForm() {
   });
   const [setActiveReceiverAccount] = useSetActiveReceiverAccountMutation();
 
+  // Helper to safely get logo URL
+  const getLogoUrl = (logoUrl: string | null | undefined): string => {
+    if (!logoUrl || !logoUrl.trim()) {
+      return "/images/banks/CBE.png";
+    }
+    const trimmed = logoUrl.trim();
+    // If it's already a full path, return it
+    if (trimmed.startsWith('/')) {
+      return trimmed;
+    }
+    // If it's just a filename, construct the full path
+    return `/images/banks/${trimmed}`;
+  };
+
   // Map providers to bank format
   const banks: BankProvider[] = (providersData?.providers ?? [])
     .filter(p => p.status === 'ACTIVE')
@@ -99,7 +113,7 @@ export default function SignUpForm() {
       id: p.code.toLowerCase(),
       name: p.name,
       code: p.code as TransactionProvider,
-      logoPath: `/images/banks/${p.logoUrl || 'CBE.png'}`,
+      logoPath: getLogoUrl(p.logoUrl),
     }));
 
   // Validate field on change

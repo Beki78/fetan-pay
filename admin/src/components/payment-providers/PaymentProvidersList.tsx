@@ -4,6 +4,7 @@ import Image from "next/image";
 import Button from "../ui/button/Button";
 import Badge from "../ui/badge/Badge";
 import { InfoIcon } from "@/icons";
+import { usePaymentProviders } from "@/hooks/usePaymentProviders";
 
 interface PaymentProvider {
   id: string;
@@ -14,95 +15,6 @@ interface PaymentProvider {
   accountNumber?: string;
   accountHolderName?: string;
 }
-
-const mockProviders: PaymentProvider[] = [
-  {
-    id: "cbe",
-    name: "Commercial Bank of Ethiopia",
-    type: "Bank account",
-    imagePath: "/images/banks/CBE.png",
-    status: "disabled",
-    accountNumber: "1000155415444",
-    accountHolderName: "EPHREM DEBEBE",
-  },
-  {
-    id: "telebirr",
-    name: "Telebirr",
-    type: "Phone-based wallet",
-    imagePath: "/images/banks/Telebirr.png",
-    status: "coming-soon",
-  },
-  {
-    id: "cbe-birr",
-    name: "CBE Birr",
-    type: "Phone-based wallet",
-    imagePath: "/images/banks/CBEBIRR.png",
-    status: "coming-soon",
-  },
-  {
-    id: "awash",
-    name: "Awash Bank",
-    type: "Bank account",
-    imagePath: "/images/banks/Awash.png",
-    status: "coming-soon",
-  },
-  {
-    id: "boa",
-    name: "Bank of Abyssinia",
-    type: "Bank account",
-    imagePath: "/images/banks/BOA.png",
-    status: "not-configured",
-  },
-  {
-    id: "amhara",
-    name: "Amhara Bank",
-    type: "Bank account",
-    imagePath: "/images/banks/Amhara.png",
-    status: "not-configured",
-  },
-  {
-    id: "birhan",
-    name: "Birhan Bank",
-    type: "Bank account",
-    imagePath: "/images/banks/Birhan.png",
-    status: "not-configured",
-  },
-  {
-    id: "coop",
-    name: "Cooperative Bank of Oromia",
-    type: "Bank account",
-    imagePath: "/images/banks/COOP.png",
-    status: "not-configured",
-  },
-  {
-    id: "enat",
-    name: "Enat Bank",
-    type: "Bank account",
-    imagePath: "/images/banks/Enat.jpg",
-    status: "not-configured",
-  },
-  {
-    id: "gadda",
-    name: "Gadda Bank",
-    type: "Bank account",
-    imagePath: "/images/banks/Gadda.png",
-    status: "not-configured",
-  },
-  {
-    id: "hibret",
-    name: "Hibret Bank",
-    type: "Bank account",
-    imagePath: "/images/banks/Hibret.jpg",
-    status: "not-configured",
-  },
-  {
-    id: "wegagen",
-    name: "Wegagen Bank",
-    type: "Bank account",
-    imagePath: "/images/banks/Wegagen.png",
-    status: "not-configured",
-  },
-];
 
 interface PaymentProvidersListProps {
   onConfigure: (providerId: string, provider?: PaymentProvider) => void;
@@ -115,6 +27,16 @@ export default function PaymentProvidersList({
   onEnable,
   onDisable,
 }: PaymentProvidersListProps) {
+  const { providers, getLogoUrl, isLoading } = usePaymentProviders();
+
+  // Map backend providers to component format
+  const mappedProviders: PaymentProvider[] = providers.map(p => ({
+    id: p.code.toLowerCase(),
+    name: p.name,
+    type: "Payment provider",
+    imagePath: getLogoUrl(p.code),
+    status: p.status === "ACTIVE" ? "enabled" : p.status === "COMING_SOON" ? "coming-soon" : "disabled",
+  }));
   const getStatusBadge = (status: PaymentProvider["status"]) => {
     switch (status) {
       case "disabled":
@@ -170,11 +92,16 @@ export default function PaymentProvidersList({
 
         {/* Providers List */}
         <div className="bg-white dark:bg-gray-800/50 rounded-lg overflow-hidden border-0">
-          {mockProviders.map((provider, index) => (
+          {isLoading ? (
+            <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
+              Loading providers…
+            </div>
+          ) : mappedProviders.length ? (
+            mappedProviders.map((provider, index) => (
             <div
               key={provider.id}
               className={`px-4 py-4 ${
-                index !== mockProviders.length - 1
+                index !== mappedProviders.length - 1
                   ? "border-b border-gray-200 dark:border-gray-700"
                   : ""
               }`}
@@ -258,7 +185,12 @@ export default function PaymentProvidersList({
                 </div>
               </div>
             </div>
-          ))}
+            ))
+          ) : (
+            <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
+              No providers configured yet.
+            </div>
+          )}
         </div>
       </div>
 

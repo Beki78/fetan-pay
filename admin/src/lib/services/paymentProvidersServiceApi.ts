@@ -20,7 +20,7 @@ export interface PaymentProviderRecord {
   id: string;
   code: ProviderCode;
   name: string;
-  // Stored as a local filename under /public/images/banks
+  // Full logo URL path (e.g. /images/banks/CBE.png)
   logoUrl?: string | null;
   status: ProviderStatus;
   createdAt?: string;
@@ -36,7 +36,7 @@ export const paymentProvidersServiceApi = baseApi.injectEndpoints({
 
     upsertPaymentProvider: builder.mutation<
       { provider: PaymentProviderRecord },
-      { code: ProviderCode; name: string; logoKey?: string; status?: ProviderStatus }
+      { code: ProviderCode; name: string; logoUrl?: string; status?: ProviderStatus }
     >({
       query: (body) => ({
         url: "/payment-providers",

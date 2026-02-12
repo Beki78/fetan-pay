@@ -98,18 +98,22 @@ export class AdminDashboardService {
       this.prisma.transaction.count({
         where: { ...transactionDateFilter, status: 'EXPIRED' },
       }),
-      // Total tips from payments
+      // Total tips from VERIFIED payments only
       (this.prisma as any).payment.aggregate({
         _sum: { tipAmount: true },
         where: {
           ...paymentDateFilter,
+          status: 'VERIFIED',
           tipAmount: { not: null },
         },
       }),
-      // Total payment amount from Payment table (this covers all payments including those linked to transactions)
+      // Total payment amount from VERIFIED payments only
       (this.prisma as any).payment.aggregate({
         _sum: { claimedAmount: true },
-        where: paymentDateFilter,
+        where: {
+          ...paymentDateFilter,
+          status: 'VERIFIED',
+        },
       }),
     ]);
 
@@ -150,22 +154,23 @@ export class AdminDashboardService {
     const combinedTotalTransactions = totalTransactions + totalPayments;
     const combinedTotalVerified =
       totalVerifiedTransactions + totalVerifiedPayments;
-    const combinedTotalPending = totalPendingTransactions + totalPendingPayments;
+    const combinedTotalPending =
+      totalPendingTransactions + totalPendingPayments;
     const combinedTotalUnsuccessful =
       totalFailedTransactions +
       totalExpiredTransactions +
       totalUnverifiedPayments;
 
     // Wallet Analytics
-    const totalDeposits = await (this.prisma as any).walletTransaction.aggregate(
-      {
-        _sum: { amount: true },
-        where: {
-          ...walletDateFilter,
-          type: 'DEPOSIT',
-        },
+    const totalDeposits = await (
+      this.prisma as any
+    ).walletTransaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        ...walletDateFilter,
+        type: 'DEPOSIT',
       },
-    );
+    });
 
     // Transaction Type Breakdown (QR, Cash, Bank)
     const [qrCount, cashCount, bankCount] = await Promise.all([
@@ -259,46 +264,42 @@ export class AdminDashboardService {
     to: Date | undefined,
     _paymentDateFilter: Prisma.PaymentWhereInput,
   ) {
-    // Default to current year if no date range provided
-    const startDate = from || new Date(new Date().getFullYear(), 0, 1);
-    const endDate = to || new Date();
+    // Default to last 30 days if no date range provided
+    // Always use current date/time for end date to include today
+    const now = new Date();
+    const endDate = to || now;
 
-    // Use raw SQL to group by date (day) - PostgreSQL syntax with quoted identifiers
-    const dailyPayments = await (this.prisma as any).$queryRaw<
+    // Set end date to end of day to ensure we capture all of today's transactions
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Calculate start date (30 days before end date)
+    const startDate =
+      from || new Date(endOfDay.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startOfDay = new Date(startDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // Use raw SQL to get all payment data
+    // Only count VERIFIED payments for amounts and tips
+    const dailyData = await (this.prisma as any).$queryRaw<
       Array<{ date: Date; total_amount: string; total_tips: string }>
     >`
       SELECT 
-        DATE("createdAt") as date,
-        SUM(CAST("claimedAmount" AS DECIMAL(12,2))) as total_amount,
-        SUM(CAST(COALESCE("tipAmount", 0) AS DECIMAL(12,2))) as total_tips
-      FROM payment
-      WHERE "createdAt" >= ${startDate}
-        AND "createdAt" <= ${endDate}
-      GROUP BY DATE("createdAt")
-      ORDER BY DATE("createdAt") ASC
+        DATE(p."createdAt") as date,
+        SUM(CAST(p."claimedAmount" AS DECIMAL(12,2))) as total_amount,
+        SUM(CAST(COALESCE(p."tipAmount", 0) AS DECIMAL(12,2))) as total_tips
+      FROM payment p
+      WHERE p."createdAt" >= ${startOfDay}
+        AND p."createdAt" <= ${endOfDay}
+        AND p."status" = 'VERIFIED'
+      GROUP BY DATE(p."createdAt")
+      ORDER BY date ASC
     `;
 
-    // Also get transaction amounts from orders linked to transactions
-    const dailyTransactionOrders = await this.prisma.$queryRaw<
-      Array<{ date: Date; total_amount: string }>
-    >`
-      SELECT 
-        DATE(o."createdAt") as date,
-        SUM(CAST(o."expectedAmount" AS DECIMAL(12,2))) as total_amount
-      FROM "order" o
-      INNER JOIN payment p ON p."orderId" = o.id
-      WHERE p."transactionId" IS NOT NULL
-        AND o."createdAt" >= ${startDate}
-        AND o."createdAt" <= ${endDate}
-      GROUP BY DATE(o."createdAt")
-      ORDER BY DATE(o."createdAt") ASC
-    `;
-
-    // Combine and merge the data
+    // Convert to map for easier processing
     const dailyMap = new Map<string, { amount: number; tips: number }>();
 
-    // Add payment data
-    for (const row of dailyPayments) {
+    for (const row of dailyData) {
       const dateStr = row.date.toISOString().split('T')[0];
       dailyMap.set(dateStr, {
         amount: Number(row.total_amount) || 0,
@@ -306,26 +307,15 @@ export class AdminDashboardService {
       });
     }
 
-    // Add transaction order amounts (merge with existing or create new)
-    for (const row of dailyTransactionOrders) {
-      const dateStr = row.date.toISOString().split('T')[0];
-      const existing = dailyMap.get(dateStr);
-      if (existing) {
-        existing.amount += Number(row.total_amount) || 0;
-      } else {
-        dailyMap.set(dateStr, {
-          amount: Number(row.total_amount) || 0,
-          tips: 0,
-        });
-      }
-    }
-
     // Convert to array and fill in missing dates with zeros
+    // Include all dates from start to end (including today)
     const result: Array<{ date: string; amount: number; tips: number }> = [];
-    const currentDate = new Date(startDate);
-    const end = new Date(endDate);
+    const currentDate = new Date(startOfDay);
 
-    while (currentDate <= end) {
+    // Get the date string for end date to ensure we include it
+    const endDateStr = endOfDay.toISOString().split('T')[0];
+
+    while (true) {
       const dateStr = currentDate.toISOString().split('T')[0];
       const data = dailyMap.get(dateStr) || { amount: 0, tips: 0 };
       result.push({
@@ -333,6 +323,12 @@ export class AdminDashboardService {
         amount: data.amount,
         tips: data.tips,
       });
+
+      // Break if we've reached the end date
+      if (dateStr === endDateStr) {
+        break;
+      }
+
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
@@ -450,4 +446,3 @@ export class AdminDashboardService {
     }
   }
 }
-

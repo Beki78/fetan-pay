@@ -18,6 +18,14 @@ enum TransactionProvider {
   AWASH
   BOA
   DASHEN
+  AMHARA
+  BIRHAN
+  CBEBIRR
+  COOP
+  ENAT
+  GADDA
+  HIBRET
+  WEGAGEN
 }
 
 enum ProviderStatus {

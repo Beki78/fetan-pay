@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -8,22 +9,35 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
-import { Dropdown } from "../ui/dropdown/Dropdown";
-import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { MoreDotIcon, EyeIcon, DollarLineIcon } from "@/icons";
+import { CheckCircleIcon, TimeIcon } from "@/icons";
 import Input from "../form/input/InputField";
 import Select from "../form/Select";
+import DatePicker from "../common/DatePicker";
 import { ListTipsResponse } from "@/lib/services/tipsApi";
 
 interface TipsByTransactionProps {
   data?: ListTipsResponse;
   isLoading?: boolean;
+  dateRange: { from?: string; to?: string };
+  onFromDateChange: (date: Date | null) => void;
+  onToDateChange: (date: Date | null) => void;
+  onClearDates: () => void;
 }
 
-export default function TipsByTransaction({ data, isLoading }: TipsByTransactionProps) {
+export default function TipsByTransaction({ 
+  data, 
+  isLoading,
+  dateRange,
+  onFromDateChange,
+  onToDateChange,
+  onClearDates
+}: TipsByTransactionProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [openMenuTipId, setOpenMenuTipId] = useState<string | null>(null);
+
+  const fromDate = dateRange.from ? new Date(dateRange.from) : null;
+  const toDate = dateRange.to ? new Date(dateRange.to) : null;
 
   const tips = data?.data || [];
 
@@ -54,11 +68,11 @@ export default function TipsByTransaction({ data, isLoading }: TipsByTransaction
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "VERIFIED":
-        return "Verified";
+        return "Completed";
       case "PENDING":
-        return "Pending";
+        return "Processing";
       case "UNVERIFIED":
-        return "Unverified";
+        return "Pending";
       default:
         return status;
     }
@@ -74,28 +88,51 @@ export default function TipsByTransaction({ data, isLoading }: TipsByTransaction
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 gap-4">
-          <Input
-            placeholder="Search transactions..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="max-w-xs"
-          />
-          <Select
-            value={statusFilter}
-            onChange={(value) => setStatusFilter(value)}
-            options={[
-              { value: "all", label: "All Status" },
-              { value: "PENDING", label: "Pending" },
-              { value: "VERIFIED", label: "Verified" },
-              { value: "UNVERIFIED", label: "Unverified" },
-            ]}
-            className="w-48"
-          />
-        </div>
+      {/* Filters - All Equal Width */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Input
+          placeholder="Search transactions..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <Select
+          value={statusFilter}
+          onChange={(value) => setStatusFilter(value)}
+          options={[
+            { value: "all", label: "All Status" },
+            { value: "PENDING", label: "Pending" },
+            { value: "VERIFIED", label: "Verified" },
+            { value: "UNVERIFIED", label: "Unverified" },
+          ]}
+        />
+        <DatePicker
+          selected={fromDate}
+          onChange={onFromDateChange}
+          placeholderText="From date"
+          maxDate={toDate || new Date()}
+        />
+        <DatePicker
+          selected={toDate}
+          onChange={onToDateChange}
+          placeholderText="To date"
+          minDate={fromDate || undefined}
+          maxDate={new Date()}
+        />
       </div>
+
+      {(dateRange.from || dateRange.to) && (
+        <div className="flex justify-end">
+          <button
+            onClick={onClearDates}
+            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 
+              hover:text-gray-800 dark:hover:text-gray-200 
+              hover:bg-gray-100 dark:hover:bg-gray-700
+              rounded-lg transition-colors"
+          >
+            Clear Dates
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50">
@@ -131,13 +168,19 @@ export default function TipsByTransaction({ data, isLoading }: TipsByTransaction
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
-                  Claimed Amount
+                  Total Amount
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
                 >
                   Date
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                >
+                  Verified By
                 </TableCell>
                 <TableCell
                   isHeader
@@ -156,7 +199,7 @@ export default function TipsByTransaction({ data, isLoading }: TipsByTransaction
             <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredTransactionTips.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={9} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                     No tips found
                   </TableCell>
                 </TableRow>
@@ -172,9 +215,14 @@ export default function TipsByTransaction({ data, isLoading }: TipsByTransaction
                       </span>
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <span className="text-gray-700 dark:text-gray-300">
-                        {tip.merchant?.name || "N/A"}
-                      </span>
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {tip.merchant?.name || "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {tip.merchant?.contactEmail || "—"}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
@@ -182,59 +230,58 @@ export default function TipsByTransaction({ data, isLoading }: TipsByTransaction
                       </span>
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <DollarLineIcon className="size-4 text-brand-600 dark:text-brand-400" />
-                        <span className="font-medium text-brand-600 dark:text-brand-400">
-                          ETB {tip.tipAmount.toFixed(2)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-5 py-4">
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        ETB {tip.claimedAmount.toFixed(2)}
+                      <span className="font-bold text-brand-600 dark:text-brand-400">
+                        ETB {Number(tip.tipAmount).toFixed(2)}
                       </span>
                     </TableCell>
                     <TableCell className="px-5 py-4">
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        ETB {Number(tip.claimedAmount).toFixed(2)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <div className="text-sm">
+                        <div className="text-gray-600 dark:text-gray-400">
+                          {new Date(tip.createdAt).toLocaleDateString()}
+                        </div>
+                        {tip.verifiedAt && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Verified: {new Date(tip.verifiedAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
                       <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(tip.createdAt).toLocaleDateString()}
-                        <br />
-                        {new Date(tip.createdAt).toLocaleTimeString()}
+                        {tip.verifiedBy ? (
+                          <>
+                            <div className="font-medium text-gray-900 dark:text-white">
+                              {tip.verifiedBy.name || "N/A"}
+                            </div>
+                            <div className="text-xs">
+                              {tip.verifiedBy.role}
+                            </div>
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <Badge color={getStatusColor(tip.status)}>
+                        {tip.status === "VERIFIED" && <CheckCircleIcon className="mr-1" />}
+                        {tip.status === "PENDING" && <TimeIcon className="mr-1" />}
                         {getStatusLabel(tip.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <div className="relative">
-                        <button
-                          type="button"
-                          className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onClick={() =>
-                            setOpenMenuTipId((prev) =>
-                              prev === tip.id ? null : tip.id
-                            )
-                          }
-                          aria-haspopup="menu"
-                          aria-expanded={openMenuTipId === tip.id}
-                        >
-                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                        <Dropdown
-                          isOpen={openMenuTipId === tip.id}
-                          onClose={() => setOpenMenuTipId(null)}
-                        >
-                          <DropdownItem
-                            onClick={() => {
-                              setOpenMenuTipId(null);
-                            }}
-                          >
-                            <EyeIcon className="size-4" />
-                            View Details
-                          </DropdownItem>
-                        </Dropdown>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/merchants/${tip.merchant?.id}`)}
+                        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                      >
+                        Details
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))
