@@ -22,12 +22,14 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateMerchantUserMutation } from "@/lib/services/merchantUsersServiceApi";
+import { usePaymentProviders } from "@/hooks/usePaymentProviders";
 import { API_BASE_URL } from "@/lib/config";
 
 export default function Settings() {
   const router = useRouter();
   const { user, isLoading: isSessionLoading, refreshSession } = useSession();
   const { status: accountStatus } = useAccountStatus();
+  const { getLogoUrl, getBankName } = usePaymentProviders();
 
   const deriveMerchantId = (u: any): string | null => {
     const meta = u?.metadata;
@@ -421,30 +423,6 @@ export default function Settings() {
     toast.info("To unlink Google, please contact support or set a password first and then you can disable Google sign-in");
   };
 
-  // Helper function to get bank logo path
-  const getBankLogo = (provider: TransactionProvider): string => {
-    const logos: Record<TransactionProvider, string> = {
-      CBE: "/images/banks/CBE.png",
-      TELEBIRR: "/images/banks/Telebirr.png",
-      AWASH: "/images/banks/Awash.png",
-      BOA: "/images/banks/BOA.png",
-      DASHEN: "/images/banks/CBE.png", // Fallback to CBE until Dashen logo is added
-    };
-    return logos[provider] || "/images/banks/CBE.png";
-  };
-
-  // Helper function to get bank name
-  const getBankName = (provider: TransactionProvider): string => {
-    const names: Record<TransactionProvider, string> = {
-      CBE: "Commercial Bank of Ethiopia",
-      TELEBIRR: "Telebirr",
-      AWASH: "Awash Bank",
-      BOA: "Bank of Abyssinia",
-      DASHEN: "Dashen Bank",
-    };
-    return names[provider] || provider;
-  };
-
   const handleDisableAccount = async (provider: TransactionProvider) => {
     try {
       await disableActiveReceiverAccount({ provider }).unwrap();
@@ -827,7 +805,7 @@ export default function Settings() {
             ) : (
               receiverAccounts.map((account: MerchantReceiverAccount) => {
                 const bankName = getBankName(account.provider);
-                const bankLogo = getBankLogo(account.provider);
+                const bankLogo = getLogoUrl(account.provider);
                 const isActive = account.status === "ACTIVE";
                 const maskedAccount = account.receiverAccount.length > 4
                   ? `****${account.receiverAccount.slice(-4)}`

@@ -43,6 +43,19 @@ export default function PaymentProvidersList({
     return null;
   };
 
+  const getLogoUrl = (logoUrl: string | null | undefined): string => {
+    if (!logoUrl || !logoUrl.trim()) {
+      return "/images/banks/CBE.png";
+    }
+    const trimmed = logoUrl.trim();
+    // If it's already a full path, return it
+    if (trimmed.startsWith('/')) {
+      return trimmed;
+    }
+    // If it's just a filename, construct the full path
+    return `/images/banks/${trimmed}`;
+  };
+
   const providers: PaymentProvider[] = (data?.providers ?? []).map((p) => {
     const receiverStatus = getReceiverStatus(p.code);
 
@@ -61,9 +74,8 @@ export default function PaymentProvidersList({
         ? "disabled"
         : "not-configured"; // ACTIVE but not yet configured at merchant level
 
-    // Logo is a local file under /public/images/banks
-    const logoKey = (p.logoUrl ?? "").trim();
-    const imagePath = logoKey ? `/images/banks/${logoKey}` : "/images/banks/CBE.png";
+    // Logo URL is stored as full path in database
+    const imagePath = getLogoUrl(p.logoUrl);
 
     return {
       id: p.code.toLowerCase(),

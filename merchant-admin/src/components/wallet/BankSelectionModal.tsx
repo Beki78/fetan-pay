@@ -4,7 +4,7 @@ import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Image from "next/image";
 import type { WalletDepositReceiverAccount } from "@/lib/services/walletServiceApi";
-import type { TransactionProvider } from "@/lib/services/walletServiceApi";
+import { usePaymentProviders } from "@/hooks/usePaymentProviders";
 
 interface BankSelectionModalProps {
   isOpen: boolean;
@@ -14,28 +14,6 @@ interface BankSelectionModalProps {
   onSelect: (receiver: WalletDepositReceiverAccount) => void;
 }
 
-const getBankLogo = (provider: TransactionProvider) => {
-  const logos: Record<string, string> = {
-    CBE: "/images/banks/CBE.png",
-    TELEBIRR: "/images/banks/telebirr.png",
-    AWASH: "/images/banks/awash.png",
-    BOA: "/images/banks/boa.png",
-    DASHEN: "/images/banks/dashen.png",
-  };
-  return logos[provider] || "/images/banks/CBE.png";
-};
-
-const getBankName = (provider: TransactionProvider) => {
-  const bankNames: Record<string, string> = {
-    CBE: "Commercial Bank of Ethiopia (CBE)",
-    TELEBIRR: "Telebirr",
-    AWASH: "Awash Bank",
-    BOA: "Bank of Abyssinia (BOA)",
-    DASHEN: "Dashen Bank",
-  };
-  return bankNames[provider] || provider;
-};
-
 export default function BankSelectionModal({
   isOpen,
   onClose,
@@ -43,6 +21,7 @@ export default function BankSelectionModal({
   selectedAmount,
   onSelect,
 }: BankSelectionModalProps) {
+  const { getLogoUrl, getBankName } = usePaymentProviders();
   const activeReceivers = receivers.filter((r) => r.status === "ACTIVE");
 
   const handleSelect = (receiver: WalletDepositReceiverAccount) => {
@@ -89,7 +68,7 @@ export default function BankSelectionModal({
                 <div className="flex items-center gap-4">
                   <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-white dark:bg-gray-700 overflow-hidden shrink-0 border border-gray-200 dark:border-gray-600">
                     <Image
-                      src={getBankLogo(receiver.provider)}
+                      src={getLogoUrl(receiver.provider)}
                       alt={receiver.provider}
                       width={64}
                       height={64}

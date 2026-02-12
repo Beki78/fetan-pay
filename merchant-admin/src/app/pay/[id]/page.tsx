@@ -4,11 +4,13 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useGetPublicPaymentDetailsQuery, usePublicVerifyMutation } from "@/lib/services/transactionsServiceApi";
 import { CheckCircleIcon, ChevronDownIcon, LockIcon } from "@/icons";
+import { usePaymentProviders } from "@/hooks/usePaymentProviders";
 import { STATIC_ASSETS_BASE_URL } from "@/lib/config";
 
 export default function PublicPaymentPage() {
   const params = useParams();
   const transactionId = params?.id as string;
+  const { getLogoUrl } = usePaymentProviders();
 
   const { data: paymentDetails, isLoading, error, refetch } = useGetPublicPaymentDetailsQuery(transactionId, {
     skip: !transactionId,
@@ -104,19 +106,6 @@ export default function PublicPaymentPage() {
 
   const isExpired = paymentDetails?.isExpired || timeRemaining <= 0;
   const isVerified = paymentDetails?.status === "VERIFIED";
-
-  // Get bank logo based on provider
-  const getBankLogo = (provider: string | null) => {
-    if (!provider) return "/images/banks/CBE.png";
-    const logos: Record<string, string> = {
-      CBE: "/images/banks/CBE.png",
-      TELEBIRR: "/images/banks/telebirr.png",
-      AWASH: "/images/banks/awash.png",
-      BOA: "/images/banks/boa.png",
-      DASHEN: "/images/banks/dashen.png",
-    };
-    return logos[provider] || "/images/banks/CBE.png";
-  };
 
   if (isLoading) {
     return (
@@ -241,7 +230,7 @@ export default function PublicPaymentPage() {
               )}
               <div className="w-8 h-8 rounded-lg bg-white overflow-hidden flex items-center justify-center">
                 <Image
-                  src={getBankLogo(paymentDetails.receiverProvider)}
+                  src={getLogoUrl(paymentDetails.receiverProvider)}
                   alt="Bank"
                   width={32}
                   height={32}

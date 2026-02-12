@@ -1,9 +1,8 @@
 "use client";
 import { useState } from "react";
 import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { Tabs, TabPanel } from "@/components/common/Tabs";
-import { DollarLineIcon, GroupIcon, TableIcon, CheckCircleIcon } from "@/icons";
+import { DollarLineIcon, TableIcon } from "@/icons";
 import { 
   useGetAdminTipsSummaryQuery, 
   useListAllTipsQuery, 
@@ -13,7 +12,7 @@ import {
 import TipsOverview from "@/components/tips/TipsOverview";
 import TipsByVendor from "@/components/tips/TipsByVendor";
 import TipsByTransaction from "@/components/tips/TipsByTransaction";
-import PayoutTracking from "@/components/tips/PayoutTracking";
+import "@/styles/datepicker.css";
 
 interface DateRange {
   from?: string;
@@ -23,6 +22,10 @@ interface DateRange {
 export default function TipsPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [dateRange, setDateRange] = useState<DateRange>({});
+
+  // Convert string dates to Date objects for the date picker
+  const fromDate = dateRange.from ? new Date(dateRange.from) : null;
+  const toDate = dateRange.to ? new Date(dateRange.to) : null;
 
   // Fetch tips data
   const { data: tipsSummary, isLoading: isSummaryLoading } = useGetAdminTipsSummaryQuery(dateRange);
@@ -34,8 +37,32 @@ export default function TipsPage() {
     pageSize: 50,
   });
 
-  const handleDateRangeChange = (range: DateRange) => {
-    setDateRange(range);
+  const handleFromDateChange = (date: Date | null) => {
+    if (date) {
+      setDateRange((prev) => ({
+        ...prev,
+        from: date.toISOString().split('T')[0],
+      }));
+    } else {
+      setDateRange((prev) => ({
+        ...prev,
+        from: undefined,
+      }));
+    }
+  };
+
+  const handleToDateChange = (date: Date | null) => {
+    if (date) {
+      setDateRange((prev) => ({
+        ...prev,
+        to: date.toISOString().split('T')[0],
+      }));
+    } else {
+      setDateRange((prev) => ({
+        ...prev,
+        to: undefined,
+      }));
+    }
   };
 
   const clearDateRange = () => {
@@ -45,116 +72,63 @@ export default function TipsPage() {
   const tabs = [
     {
       id: "overview",
-      label: "Overview",
+      label: "Overview & Analytics",
       icon: <DollarLineIcon />,
     },
     {
-      id: "by-vendor",
-      label: "Tips by Vendor",
-      icon: <GroupIcon />,
-    },
-    {
-      id: "by-transaction",
-      label: "Tips by Transaction",
+      id: "transactions",
+      label: "Transactions & Payouts",
       icon: <TableIcon />,
-    },
-    {
-      id: "payouts",
-      label: "Payout Tracking",
-      icon: <CheckCircleIcon />,
     },
   ];
 
   return (
     <div>
-      <PageBreadcrumb pageTitle="Tips Management" />
-      
-      {/* Date Range Filter */}
-      <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              From:
-            </label>
-            <input
-              type="date"
-              value={dateRange.from || ""}
-              onChange={(e) =>
-                handleDateRangeChange({ ...dateRange, from: e.target.value })
-              }
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              To:
-            </label>
-            <input
-              type="date"
-              value={dateRange.to || ""}
-              onChange={(e) =>
-                handleDateRangeChange({ ...dateRange, to: e.target.value })
-              }
-              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-          </div>
-          {(dateRange.from || dateRange.to) && (
-            <button
-              onClick={clearDateRange}
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-            >
-              Clear Filter
-            </button>
-          )}
-        </div>
-      </div>
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">
+        Tips Management
+      </h1>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 lg:p-6">
         <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
         {/* Tab Panels */}
         <TabPanel activeTab={activeTab} tabId="overview">
-          <div className="mt-6">
+          <div className="mt-6 space-y-6">
             <TipsOverview 
               summary={tipsSummary}
               analytics={tipsAnalytics}
               isLoading={isSummaryLoading || isAnalyticsLoading}
             />
+            
+            {/* Tips by Vendor Section */}
+            <ComponentCard
+              title="Tips by Merchant"
+              desc="Track tips collected by each merchant for analysis and reporting"
+            >
+              <TipsByVendor 
+                data={tipsByMerchant}
+                isLoading={isByMerchantLoading}
+                dateRange={dateRange}
+                onFromDateChange={handleFromDateChange}
+                onToDateChange={handleToDateChange}
+                onClearDates={clearDateRange}
+              />
+            </ComponentCard>
           </div>
         </TabPanel>
 
-        <TabPanel activeTab={activeTab} tabId="by-vendor">
+        <TabPanel activeTab={activeTab} tabId="transactions">
           <ComponentCard
-            title="Tips by Vendor"
-            desc="Track tips collected by each service provider (waiter, shop assistant, etc.) for later payout"
-          >
-            <TipsByVendor 
-              data={tipsByMerchant}
-              isLoading={isByMerchantLoading}
-            />
-          </ComponentCard>
-        </TabPanel>
-
-        <TabPanel activeTab={activeTab} tabId="by-transaction">
-          <ComponentCard
-            title="Tips by Transaction"
-            desc="View tip details for each transaction and which service provider received the tip"
+            title="All Tip Transactions"
+            desc="Complete list of tip transactions with payment details and payout status"
           >
             <TipsByTransaction 
               data={allTips}
               isLoading={isAllTipsLoading}
-            />
-          </ComponentCard>
-        </TabPanel>
-
-        <TabPanel activeTab={activeTab} tabId="payouts">
-          <ComponentCard
-            title="Payout Tracking"
-            desc="Track and manage tip payouts to service providers (waiters, shop assistants, etc.)"
-          >
-            <PayoutTracking 
-              data={allTips}
-              isLoading={isAllTipsLoading}
+              dateRange={dateRange}
+              onFromDateChange={handleFromDateChange}
+              onToDateChange={handleToDateChange}
+              onClearDates={clearDateRange}
             />
           </ComponentCard>
         </TabPanel>

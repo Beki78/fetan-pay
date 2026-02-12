@@ -17,6 +17,14 @@ const providerLabels: Record<TransactionProvider, string> = {
   AWASH: "Awash Bank",
   BOA: "Bank of Abyssinia",
   DASHEN: "Dashen Bank",
+  AMHARA: "Amhara Bank",
+  BIRHAN: "Birhan Bank",
+  CBEBIRR: "CBE Birr",
+  COOP: "Cooperative Bank of Oromia",
+  ENAT: "Enat Bank",
+  GADDA: "Gadda Bank",
+  HIBRET: "Hibret Bank",
+  WEGAGEN: "Wegagen Bank",
 };
 
 export default function CreatePaymentIntentModal({

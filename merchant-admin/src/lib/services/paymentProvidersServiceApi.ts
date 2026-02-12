@@ -2,13 +2,26 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL } from '../config';
 
 export type ProviderStatus = 'ACTIVE' | 'COMING_SOON' | 'DISABLED';
-export type ProviderCode = 'CBE' | 'TELEBIRR' | 'AWASH' | 'BOA' | 'DASHEN';
+export type ProviderCode = 
+  | 'CBE' 
+  | 'TELEBIRR' 
+  | 'AWASH' 
+  | 'BOA' 
+  | 'DASHEN'
+  | 'AMHARA'
+  | 'BIRHAN'
+  | 'CBEBIRR'
+  | 'COOP'
+  | 'ENAT'
+  | 'GADDA'
+  | 'HIBRET'
+  | 'WEGAGEN';
 
 export interface PaymentProviderRecord {
   id: string;
   code: ProviderCode;
   name: string;
-  // Stored as a local filename (e.g. CBE.png) and rendered as `/images/banks/${logoKey}`.
+  // Full logo URL path (e.g. /images/banks/CBE.png)
   logoUrl?: string | null;
   status: ProviderStatus;
 }

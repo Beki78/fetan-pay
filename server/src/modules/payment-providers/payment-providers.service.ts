@@ -18,13 +18,13 @@ export class PaymentProvidersService {
       where: { code: dto.code },
       update: {
         name: dto.name,
-        logoUrl: dto.logoKey,
+        logoUrl: dto.logoUrl,
         status: dto.status ?? 'COMING_SOON',
       },
       create: {
         code: dto.code,
         name: dto.name,
-        logoUrl: dto.logoKey,
+        logoUrl: dto.logoUrl,
         status: dto.status ?? 'COMING_SOON',
       },
     });

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -8,22 +9,35 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
-import { Dropdown } from "../ui/dropdown/Dropdown";
-import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { MoreDotIcon, EyeIcon, GroupIcon } from "@/icons";
+import { GroupIcon } from "@/icons";
 import Input from "../form/input/InputField";
 import Select from "../form/Select";
+import DatePicker from "../common/DatePicker";
 import { TipsByMerchantResponse } from "@/lib/services/tipsApi";
 
 interface TipsByVendorProps {
   data?: TipsByMerchantResponse[];
   isLoading?: boolean;
+  dateRange: { from?: string; to?: string };
+  onFromDateChange: (date: Date | null) => void;
+  onToDateChange: (date: Date | null) => void;
+  onClearDates: () => void;
 }
 
-export default function TipsByVendor({ data, isLoading }: TipsByVendorProps) {
+export default function TipsByVendor({ 
+  data, 
+  isLoading,
+  dateRange,
+  onFromDateChange,
+  onToDateChange,
+  onClearDates
+}: TipsByVendorProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [openMenuVendorId, setOpenMenuVendorId] = useState<string | null>(null);
+
+  const fromDate = dateRange.from ? new Date(dateRange.from) : null;
+  const toDate = dateRange.to ? new Date(dateRange.to) : null;
 
   const filteredVendorTips = useMemo(() => {
     if (!data) return [];
@@ -51,14 +65,13 @@ export default function TipsByVendor({ data, isLoading }: TipsByVendorProps) {
 
   return (
     <div className="space-y-4">
-      {/* Search and Filter */}
-      <div className="flex items-center justify-between gap-4">
+      {/* Search and Filters - All Equal Width */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Input
           type="text"
           placeholder="Search merchants..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1"
         />
         <Select
           value={statusFilter}
@@ -68,9 +81,35 @@ export default function TipsByVendor({ data, isLoading }: TipsByVendorProps) {
             { value: "active", label: "Active" },
             { value: "inactive", label: "Inactive" },
           ]}
-          className="w-32"
+        />
+        <DatePicker
+          selected={fromDate}
+          onChange={onFromDateChange}
+          placeholderText="From date"
+          maxDate={toDate || new Date()}
+        />
+        <DatePicker
+          selected={toDate}
+          onChange={onToDateChange}
+          placeholderText="To date"
+          minDate={fromDate || undefined}
+          maxDate={new Date()}
         />
       </div>
+
+      {(dateRange.from || dateRange.to) && (
+        <div className="flex justify-end">
+          <button
+            onClick={onClearDates}
+            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 
+              hover:text-gray-800 dark:hover:text-gray-200 
+              hover:bg-gray-100 dark:hover:bg-gray-700
+              rounded-lg transition-colors"
+          >
+            Clear Dates
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50">
@@ -154,34 +193,13 @@ export default function TipsByVendor({ data, isLoading }: TipsByVendorProps) {
                       </span>
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <div className="relative">
-                        <button
-                          type="button"
-                          className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onClick={() =>
-                            setOpenMenuVendorId((prev) =>
-                              prev === vendorTip.merchantId ? null : vendorTip.merchantId
-                            )
-                          }
-                          aria-haspopup="menu"
-                          aria-expanded={openMenuVendorId === vendorTip.merchantId}
-                        >
-                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                        <Dropdown
-                          isOpen={openMenuVendorId === vendorTip.merchantId}
-                          onClose={() => setOpenMenuVendorId(null)}
-                        >
-                          <DropdownItem
-                            onClick={() => {
-                              setOpenMenuVendorId(null);
-                            }}
-                          >
-                            <EyeIcon className="size-4" />
-                            View Details
-                          </DropdownItem>
-                        </Dropdown>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/merchants/${vendorTip.merchantId}`)}
+                        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                      >
+                        Details
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))

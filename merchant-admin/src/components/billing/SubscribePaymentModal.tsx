@@ -15,6 +15,7 @@ import {
   type VerifyPaymentResponse
 } from "@/lib/services/pricingServiceApi";
 import { useMerchant } from "@/hooks/useMerchant";
+import { usePaymentProviders } from "@/hooks/usePaymentProviders";
 import { toast } from "sonner";
 
 interface SubscribePaymentModalProps {
@@ -28,18 +29,12 @@ interface SubscribePaymentModalProps {
   };
 }
 
-const PROVIDER_OPTIONS: Array<{ code: TransactionProvider; name: string; logo: string }> = [
-  { code: "CBE", name: "Commercial Bank of Ethiopia", logo: "/images/banks/CBE.png" },
-  { code: "TELEBIRR", name: "Telebirr", logo: "/images/banks/Telebirr.png" },
-  { code: "AWASH", name: "Awash Bank", logo: "/images/banks/Awash.png" },
-  { code: "BOA", name: "Bank of Abyssinia", logo: "/images/banks/BOA.png" },
-];
-
 export default function SubscribePaymentModal({
   isOpen,
   onClose,
   plan,
 }: SubscribePaymentModalProps) {
+  const { activeProviders, getLogoUrl } = usePaymentProviders();
   const [step, setStep] = useState<"select-bank" | "payment" | "verification">("select-bank");
   const [selectedProvider, setSelectedProvider] = useState<TransactionProvider | null>(null);
   const [selectedReceiver, setSelectedReceiver] = useState<PricingReceiverAccount | null>(null);
@@ -67,8 +62,8 @@ export default function SubscribePaymentModal({
     { skip: !selectedProvider }
   );
 
-  // Filter PROVIDER_OPTIONS based on available receivers from admin
-  const availableProviders = PROVIDER_OPTIONS.filter(provider => 
+  // Use active providers from backend instead of hardcoded list
+  const availableProviders = activeProviders.filter(provider => 
     allReceivers.some(receiver => receiver.provider === provider.code)
   );
 
@@ -301,7 +296,7 @@ export default function SubscribePaymentModal({
                     >
                       <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden">
                         <Image
-                          src={provider.logo}
+                          src={getLogoUrl(provider.code)}
                           alt={`${provider.name} logo`}
                           width={40}
                           height={40}
@@ -529,7 +524,7 @@ export default function SubscribePaymentModal({
                   {selectedProvider && (
                     <div className="w-8 h-8 rounded-lg bg-white overflow-hidden flex items-center justify-center">
                       <Image
-                        src={PROVIDER_OPTIONS.find(p => p.code === selectedProvider)?.logo || ""}
+                        src={getLogoUrl(selectedProvider)}
                         alt={`${selectedProvider} Bank`}
                         width={32}
                         height={32}
@@ -553,7 +548,7 @@ export default function SubscribePaymentModal({
 
               {/* Plan Banner - Centered */}
               <div className="bg-purple-500/30 dark:bg-purple-600/30 rounded-lg px-4 py-2.5 flex items-center justify-center gap-2">
-                <CheckCircleIcon className="w-5 h-5 text-white flex-shrink-0" />
+                <CheckCircleIcon className="w-5 h-5 text-white shrink-0" />
                 <span className="text-sm font-medium">
                   {plan.name} Plan · {plan.billingCycle}
                 </span>
@@ -801,15 +796,15 @@ export default function SubscribePaymentModal({
                   {showHowToPay && (
                     <div className="mt-4 space-y-3 transition-all duration-200">
                       <div className="flex items-start gap-3">
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold flex-shrink-0 mt-0.5">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold shrink-0 mt-0.5">
                           1
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                          Open {PROVIDER_OPTIONS.find(p => p.code === selectedProvider)?.name} or Internet Banking
+                          Open {activeProviders.find(p => p.code === selectedProvider)?.name || selectedProvider} or Internet Banking
                         </p>
                       </div>
                       <div className="flex items-start gap-3">
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold flex-shrink-0 mt-0.5">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold shrink-0 mt-0.5">
                           2
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
@@ -817,7 +812,7 @@ export default function SubscribePaymentModal({
                         </p>
                       </div>
                       <div className="flex items-start gap-3">
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold flex-shrink-0 mt-0.5">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold shrink-0 mt-0.5">
                           3
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
@@ -825,7 +820,7 @@ export default function SubscribePaymentModal({
                         </p>
                       </div>
                       <div className="flex items-start gap-3">
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold flex-shrink-0 mt-0.5">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 dark:bg-purple-500 text-white text-xs font-semibold shrink-0 mt-0.5">
                           4
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">

@@ -4,8 +4,8 @@ import React, { useMemo, useState } from "react";
 import Image from "next/image";
 import Button from "@/components/ui/button/Button";
 import Badge from "@/components/ui/badge/Badge";
-import Alert from "@/components/ui/alert/Alert";
 import Input from "@/components/form/input/InputField";
+import { toast } from "sonner";
 import {
   useDeletePaymentProviderMutation,
   useGetPaymentProvidersQuery,
@@ -14,20 +14,20 @@ import {
   type ProviderStatus,
 } from "@/lib/services/paymentProvidersServiceApi";
 
-const CODE_OPTIONS: Array<{ code: ProviderCode; name: string; defaultLogo: string }> = [
-  { code: "CBE", name: "Commercial Bank of Ethiopia", defaultLogo: "CBE.png" },
-  { code: "TELEBIRR", name: "Telebirr", defaultLogo: "Telebirr.png" },
-  { code: "AWASH", name: "Awash Bank", defaultLogo: "Awash.png" },
-  { code: "BOA", name: "Bank of Abyssinia", defaultLogo: "BOA.png" },
-  { code: "DASHEN", name: "Dashen Bank", defaultLogo: "" },
-  { code: "AMHARA", name: "Amhara Bank", defaultLogo: "Amhara.png" },
-  { code: "BIRHAN", name: "Birhan Bank", defaultLogo: "Birhan.png" },
-  { code: "CBEBIRR", name: "CBE Birr", defaultLogo: "CBEBIRR.png" },
-  { code: "COOP", name: "Cooperative Bank of Oromia", defaultLogo: "COOP.png" },
-  { code: "ENAT", name: "Enat Bank", defaultLogo: "Enat.jpg" },
-  { code: "GADDA", name: "Gadda Bank", defaultLogo: "Gadda.png" },
-  { code: "HIBRET", name: "Hibret Bank", defaultLogo: "Hibret.jpg" },
-  { code: "WEGAGEN", name: "Wegagen Bank", defaultLogo: "Wegagen.png" },
+const CODE_OPTIONS: Array<{ code: ProviderCode; name: string; logoUrl: string }> = [
+  { code: "CBE", name: "Commercial Bank of Ethiopia", logoUrl: "/images/banks/CBE.png" },
+  { code: "TELEBIRR", name: "Telebirr", logoUrl: "/images/banks/Telebirr.png" },
+  { code: "AWASH", name: "Awash Bank", logoUrl: "/images/banks/Awash.png" },
+  { code: "BOA", name: "Bank of Abyssinia", logoUrl: "/images/banks/BOA.png" },
+  { code: "DASHEN", name: "Dashen Bank", logoUrl: "/images/banks/Dashen.png" },
+  { code: "AMHARA", name: "Amhara Bank", logoUrl: "/images/banks/Amhara.png" },
+  { code: "BIRHAN", name: "Birhan Bank", logoUrl: "/images/banks/Birhan.png" },
+  { code: "CBEBIRR", name: "CBE Birr", logoUrl: "/images/banks/CBEBIRR.png" },
+  { code: "COOP", name: "Cooperative Bank of Oromia", logoUrl: "/images/banks/COOP.png" },
+  { code: "ENAT", name: "Enat Bank", logoUrl: "/images/banks/Enat.jpg" },
+  { code: "GADDA", name: "Gadda Bank", logoUrl: "/images/banks/Gadda.png" },
+  { code: "HIBRET", name: "Hibret Bank", logoUrl: "/images/banks/Hibret.jpg" },
+  { code: "WEGAGEN", name: "Wegagen Bank", logoUrl: "/images/banks/Wegagen.png" },
 ];
 
 const STATUS_OPTIONS: ProviderStatus[] = ["ACTIVE", "COMING_SOON", "DISABLED"];
@@ -42,12 +42,13 @@ export default function AdminPaymentProvidersPage() {
   const [code, setCode] = useState<ProviderCode>("CBE");
   const [name, setName] = useState<string>("Commercial Bank of Ethiopia");
   const [status, setStatus] = useState<ProviderStatus>("ACTIVE");
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const errorMessage = useMemo(() => {
     if (!error) return null;
     const anyErr = error as any;
-    return anyErr?.data?.message ?? "Failed to load providers";
+    const msg = anyErr?.data?.message ?? "Failed to load providers";
+    toast.error(msg);
+    return msg;
   }, [error]);
 
   const handlePickCode = (next: ProviderCode) => {
@@ -59,30 +60,28 @@ export default function AdminPaymentProvidersPage() {
   };
 
   const handleCreateOrUpdate = async () => {
-    setMessage(null);
     try {
       const preset = CODE_OPTIONS.find((x) => x.code === code);
-      const logoKey = preset?.defaultLogo || "";
+      const logoUrl = preset?.logoUrl || "";
       
       await upsert({
         code,
         name: name.trim(),
         status,
-        ...(logoKey.trim() ? { logoKey: logoKey.trim() } : {}),
+        ...(logoUrl.trim() ? { logoUrl: logoUrl.trim() } : {}),
       }).unwrap();
-      setMessage({ type: "success", text: "Provider saved" });
+      toast.success("Provider saved successfully");
     } catch (e: any) {
-      setMessage({ type: "error", text: e?.data?.message ?? "Failed to save provider" });
+      toast.error(e?.data?.message ?? "Failed to save provider");
     }
   };
 
   const handleDelete = async (providerCode: ProviderCode) => {
-    setMessage(null);
     try {
       await remove({ code: providerCode }).unwrap();
-      setMessage({ type: "success", text: "Provider deleted" });
+      toast.success("Provider deleted successfully");
     } catch (e: any) {
-      setMessage({ type: "error", text: e?.data?.message ?? "Failed to delete provider" });
+      toast.error(e?.data?.message ?? "Failed to delete provider");
     }
   };
 
@@ -109,15 +108,25 @@ export default function AdminPaymentProvidersPage() {
     }
   };
 
+  const getLogoUrl = (logoUrl: string | null | undefined): string => {
+    if (!logoUrl || !logoUrl.trim()) {
+      return "/images/banks/CBE.png";
+    }
+    const trimmed = logoUrl.trim();
+    // If it's already a full path, return it
+    if (trimmed.startsWith('/')) {
+      return trimmed;
+    }
+    // If it's just a filename, construct the full path
+    return `/images/banks/${trimmed}`;
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1">Payment Providers</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">Create and manage provider catalog.</p>
       </div>
-
-      {errorMessage && <Alert variant="error" title="Error" message={errorMessage} />}
-      {message && <Alert variant={message.type === "success" ? "success" : "error"} title={message.type === "success" ? "Done" : "Error"} message={message.text} />}
 
       {/* Create/Update form */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800/50">
@@ -160,10 +169,10 @@ export default function AdminPaymentProvidersPage() {
           <div className="flex items-center gap-4">
             <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-white dark:bg-gray-700 overflow-hidden shrink-0 border border-gray-200 dark:border-gray-600">
               <Image
-                src={(() => {
+                src={getLogoUrl((() => {
                   const preset = CODE_OPTIONS.find((x) => x.code === code);
-                  return preset?.defaultLogo ? `/images/banks/${preset.defaultLogo}` : "/images/banks/CBE.png";
-                })()}
+                  return preset?.logoUrl;
+                })())}
                 alt={name}
                 width={56}
                 height={56}
@@ -200,7 +209,7 @@ export default function AdminPaymentProvidersPage() {
                   <div className="flex items-center gap-3 flex-1">
                     <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-white dark:bg-gray-700 overflow-hidden shrink-0 border border-gray-200 dark:border-gray-600">
                       <Image
-                        src={p.logoUrl ? `/images/banks/${p.logoUrl}` : "/images/banks/CBE.png"}
+                        src={getLogoUrl(p.logoUrl)}
                         alt={p.name}
                         width={56}
                         height={56}

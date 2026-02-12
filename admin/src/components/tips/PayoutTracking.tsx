@@ -8,9 +8,7 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
-import { Dropdown } from "../ui/dropdown/Dropdown";
-import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { MoreDotIcon, EyeIcon, DownloadIcon, CheckCircleIcon, TimeIcon } from "@/icons";
+import { CheckCircleIcon, TimeIcon } from "@/icons";
 import Input from "../form/input/InputField";
 import Select from "../form/Select";
 import { ListTipsResponse } from "@/lib/services/tipsApi";
@@ -23,7 +21,6 @@ interface PayoutTrackingProps {
 export default function PayoutTracking({ data, isLoading }: PayoutTrackingProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [openMenuPayoutId, setOpenMenuPayoutId] = useState<string | null>(null);
 
   const tips = data?.data || [];
 
@@ -177,7 +174,7 @@ export default function PayoutTracking({ data, isLoading }: PayoutTrackingProps)
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <span className="font-bold text-brand-600 dark:text-brand-400">
-                        ETB {tip.tipAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ETB {Number(tip.tipAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </TableCell>
                     <TableCell className="px-5 py-4">
@@ -199,51 +196,21 @@ export default function PayoutTracking({ data, isLoading }: PayoutTrackingProps)
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <Badge color={getStatusColor(tip.status)}>
-                        {tip.status === "VERIFIED" && <CheckCircleIcon className="size-3 mr-1" />}
-                        {tip.status === "PENDING" && <TimeIcon className="size-3 mr-1" />}
+                        {tip.status === "VERIFIED" && <CheckCircleIcon className="mr-1" />}
+                        {tip.status === "PENDING" && <TimeIcon className="mr-1" />}
                         {getStatusLabel(tip.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 py-4">
-                      <div className="relative">
-                        <button
-                          type="button"
-                          className="dropdown-toggle p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onClick={() =>
-                            setOpenMenuPayoutId((prev) =>
-                              prev === tip.id ? null : tip.id
-                            )
-                          }
-                          aria-haspopup="menu"
-                          aria-expanded={openMenuPayoutId === tip.id}
-                        >
-                          <MoreDotIcon className="text-gray-600 dark:text-gray-400" />
-                        </button>
-
-                        <Dropdown
-                          isOpen={openMenuPayoutId === tip.id}
-                          onClose={() => setOpenMenuPayoutId(null)}
-                        >
-                          <DropdownItem
-                            onClick={() => {
-                              setOpenMenuPayoutId(null);
-                            }}
-                          >
-                            <EyeIcon className="size-4" />
-                            View Details
-                          </DropdownItem>
-                          {tip.status === "VERIFIED" && (
-                            <DropdownItem
-                              onClick={() => {
-                                setOpenMenuPayoutId(null);
-                              }}
-                            >
-                              <DownloadIcon className="size-4" />
-                              Download Receipt
-                            </DropdownItem>
-                          )}
-                        </Dropdown>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Handle view details
+                        }}
+                        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                      >
+                        Details
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))

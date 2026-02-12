@@ -5,6 +5,7 @@ import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
+import { usePaymentProviders } from "@/hooks/usePaymentProviders";
 
 interface ConfigureProviderModalProps {
   isOpen: boolean;
@@ -18,21 +19,6 @@ interface ConfigureProviderModalProps {
   onSave?: (providerId: string, action: "enable" | "disable" | "save") => void;
 }
 
-const providerInfo: { [key: string]: { name: string; imagePath: string } } = {
-  cbe: { name: "Commercial Bank of Ethiopia", imagePath: "/images/banks/CBE.png" },
-  telebirr: { name: "Telebirr", imagePath: "/images/banks/Telebirr.png" },
-  "cbe-birr": { name: "CBE Birr", imagePath: "/images/banks/CBEBIRR.png" },
-  awash: { name: "Awash Bank", imagePath: "/images/banks/Awash.png" },
-  boa: { name: "Bank of Abyssinia", imagePath: "/images/banks/BOA.png" },
-  amhara: { name: "Amhara Bank", imagePath: "/images/banks/Amhara.png" },
-  birhan: { name: "Birhan Bank", imagePath: "/images/banks/Birhan.png" },
-  coop: { name: "Cooperative Bank of Oromia", imagePath: "/images/banks/COOP.png" },
-  enat: { name: "Enat Bank", imagePath: "/images/banks/Enat.jpg" },
-  gadda: { name: "Gadda Bank", imagePath: "/images/banks/Gadda.png" },
-  hibret: { name: "Hibret Bank", imagePath: "/images/banks/Hibret.jpg" },
-  wegagen: { name: "Wegagen Bank", imagePath: "/images/banks/Wegagen.png" },
-};
-
 export default function ConfigureProviderModal({
   isOpen,
   onClose,
@@ -40,6 +26,7 @@ export default function ConfigureProviderModal({
   initialData,
   onSave,
 }: ConfigureProviderModalProps) {
+  const { getLogoUrl, getBankName } = usePaymentProviders();
   const [accountNumber, setAccountNumber] = useState(
     initialData?.accountNumber || ""
   );
@@ -52,28 +39,8 @@ export default function ConfigureProviderModal({
     accountHolderName?: string;
   }>({});
 
-  const provider = providerInfo[providerId] || {
-    name: "Provider",
-    imagePath: "/images/banks/CBE.png",
-  };
-  
-  const getDisplayName = (id: string, name: string) => {
-    const displayNames: { [key: string]: string } = {
-      boa: "BOA",
-      cbe: "CBE",
-      "cbe-birr": "CBE Birr",
-      coop: "COOP Bank",
-      amhara: "Amhara Bank",
-      birhan: "Birhan Bank",
-      enat: "Enat Bank",
-      gadda: "Gadda Bank",
-      hibret: "Hibret Bank",
-      wegagen: "Wegagen Bank",
-    };
-    return displayNames[id] || name;
-  };
-  
-  const displayName = getDisplayName(providerId, provider.name);
+  const providerName = getBankName(providerId.toUpperCase());
+  const logoUrl = getLogoUrl(providerId.toUpperCase());
 
   // Update form when modal opens or initialData changes
   useEffect(() => {
@@ -149,8 +116,8 @@ export default function ConfigureProviderModal({
           <div className="flex items-center gap-4 mb-3">
             <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-white dark:bg-gray-700 overflow-hidden border border-gray-200 dark:border-gray-600">
               <Image
-                src={provider.imagePath}
-                alt={provider.name}
+                src={logoUrl}
+                alt={providerName}
                 width={56}
                 height={56}
                 className="object-contain"
@@ -158,10 +125,10 @@ export default function ConfigureProviderModal({
             </div>
             <div>
               <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-                Configure {displayName}
+                Configure {providerName}
               </h4>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Set up your {provider.name} account.
+                Set up your {providerName} account.
               </p>
             </div>
           </div>
@@ -192,7 +159,7 @@ export default function ConfigureProviderModal({
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               {providerId === "cbe"
                 ? "Enter your full CBE account number (13-16 digits)"
-                : `Enter your ${provider.name} account number.`}
+                : `Enter your ${providerName} account number.`}
             </p>
           </div>
 

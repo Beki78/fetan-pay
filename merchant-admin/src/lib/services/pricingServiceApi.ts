@@ -6,7 +6,20 @@ export type PlanStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
 export type BillingCycle = "MONTHLY" | "YEARLY" | "WEEKLY" | "DAILY";
 export type SubscriptionStatus = "ACTIVE" | "CANCELLED" | "EXPIRED" | "SUSPENDED" | "PENDING";
 export type TransactionStatus = "PENDING" | "VERIFIED" | "FAILED" | "EXPIRED";
-export type TransactionProvider = "CBE" | "TELEBIRR" | "AWASH" | "BOA" | "DASHEN";
+export type TransactionProvider = 
+  | "CBE" 
+  | "TELEBIRR" 
+  | "AWASH" 
+  | "BOA" 
+  | "DASHEN"
+  | "AMHARA"
+  | "BIRHAN"
+  | "CBEBIRR"
+  | "COOP"
+  | "ENAT"
+  | "GADDA"
+  | "HIBRET"
+  | "WEGAGEN";
 export type PricingReceiverStatus = "ACTIVE" | "INACTIVE";
 
 export interface Plan {

@@ -1,11 +1,18 @@
 "use client";
-import React from "react";
 import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
 });
+
+const formatAmount = (amount: number | undefined | null) => {
+  const safeAmount = amount ?? 0;
+  return `${safeAmount.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} ETB`;
+};
 
 interface WalletDepositsChartProps {
   totalDeposits: number;
@@ -91,23 +98,39 @@ export default function WalletDepositsChart({
   ];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/3 sm:px-6 sm:pt-6">
+      {/* Wallet Analytics Stats */}
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-          Wallet Deposits
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90 mb-4">
+          Wallet Analytics
         </h3>
-        <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">
-          Total wallet deposits across all merchants
-        </p>
+        <div className="bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+            Total Deposits
+          </p>
+          <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+            {formatAmount(totalDeposits)}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Total wallet deposits across all merchants
+          </p>
+        </div>
       </div>
-      <div className="max-w-full overflow-x-auto custom-scrollbar">
-        <div className="min-w-[300px]">
-          <ReactApexChart
-            options={options}
-            series={series}
-            type="bar"
-            height={300}
-          />
+
+      {/* Chart */}
+      <div className="mb-4">
+        <h4 className="text-base font-medium text-gray-700 dark:text-gray-300 mb-3">
+          Deposits Visualization
+        </h4>
+        <div className="max-w-full overflow-x-auto custom-scrollbar">
+          <div className="min-w-[300px]">
+            <ReactApexChart
+              options={options}
+              series={series}
+              type="bar"
+              height={300}
+            />
+          </div>
         </div>
       </div>
     </div>

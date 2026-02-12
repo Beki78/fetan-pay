@@ -13,18 +13,20 @@ export class UpsertPaymentProviderDto {
   @IsEnum(TransactionProvider)
   code!: TransactionProvider;
 
-  @ApiProperty({ description: 'Display name', example: 'Commercial Bank of Ethiopia' })
+  @ApiProperty({
+    description: 'Display name',
+    example: 'Commercial Bank of Ethiopia',
+  })
   @IsString()
   name!: string;
 
   @ApiPropertyOptional({
-    description:
-      'Local logo filename under each frontend app public/images/banks (e.g. CBE.png, Telebirr.png)',
-    example: 'CBE.png',
+    description: 'Full logo URL path (e.g. /images/banks/CBE.png)',
+    example: '/images/banks/CBE.png',
   })
   @IsOptional()
   @IsString()
-  logoKey?: string;
+  logoUrl?: string;
 
   @ApiPropertyOptional({
     enum: ['ACTIVE', 'COMING_SOON', 'DISABLED'],

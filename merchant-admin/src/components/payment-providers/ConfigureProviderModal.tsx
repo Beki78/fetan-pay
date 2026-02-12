@@ -5,6 +5,7 @@ import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
+import { usePaymentProviders } from "@/hooks/usePaymentProviders";
 
 interface ConfigureProviderModalProps {
   isOpen: boolean;
@@ -24,14 +25,6 @@ interface ConfigureProviderModalProps {
   }) => Promise<void>;
 }
 
-const providerInfo: { [key: string]: { name: string; imagePath: string } } = {
-  cbe: { name: "Commercial Bank of Ethiopia", imagePath: "/images/banks/CBE.png" },
-  telebirr: { name: "Telebirr", imagePath: "/images/banks/Telebirr.png" },
-  "cbe-birr": { name: "CBE Birr", imagePath: "/images/banks/CBE.png" },
-  awash: { name: "Awash Bank", imagePath: "/images/banks/Awash.png" },
-  boa: { name: "Bank of Abyssinia", imagePath: "/images/banks/BOA.png" },
-};
-
 export default function ConfigureProviderModal({
   isOpen,
   onClose,
@@ -40,6 +33,7 @@ export default function ConfigureProviderModal({
   onSave,
   onSubmit,
 }: ConfigureProviderModalProps) {
+  const { getLogoUrl, getBankName } = usePaymentProviders();
   const [accountNumber, setAccountNumber] = useState(
     initialData?.accountNumber || ""
   );
@@ -54,16 +48,8 @@ export default function ConfigureProviderModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const provider = providerInfo[providerId] || {
-    name: "Provider",
-    imagePath: "/images/banks/CBE.png",
-  };
-  const displayName =
-    providerId === "boa"
-      ? "BOA"
-      : providerId === "cbe"
-      ? "CBE"
-      : provider.name;
+  const providerName = getBankName(providerId.toUpperCase());
+  const logoUrl = getLogoUrl(providerId.toUpperCase());
 
   // Update form when modal opens or initialData changes
   useEffect(() => {
@@ -171,19 +157,19 @@ export default function ConfigureProviderModal({
           <div className="flex items-center gap-3 mb-2">
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-gray-700 overflow-hidden">
               <Image
-                src={provider.imagePath}
-                alt={provider.name}
+                src={logoUrl}
+                alt={providerName}
                 width={40}
                 height={40}
                 className="object-contain"
               />
             </div>
             <h4 className="text-2xl font-semibold text-gray-800 dark:text-white">
-              Configure {displayName}
+              Configure {providerName}
             </h4>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Set up your {provider.name} account.
+            Set up your {providerName} account.
           </p>
         </div>
 
@@ -220,7 +206,7 @@ export default function ConfigureProviderModal({
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               {providerId === "cbe"
                 ? "Enter your full CBE account number (13-16 digits)"
-                : `Enter your ${provider.name} account number.`}
+                : `Enter your ${providerName} account number.`}
             </p>
           </div>
 

@@ -36,7 +36,7 @@ export default function DailyTransactionChart({
 
   // Prepare data for chart
   const dates = dailyData.map((d) => {
-    const date = new Date(d.date);
+    const date = new Date(d.date + 'T00:00:00');
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -125,7 +125,7 @@ export default function DailyTransactionChart({
     legend: {
       show: true,
       position: "top",
-      horizontalAlign: "right",
+      horizontalAlign: "left",
       fontFamily: "Outfit, sans-serif",
       fontSize: "14px",
       markers: {
@@ -162,11 +162,11 @@ export default function DailyTransactionChart({
 
   const series = [
     {
-      name: "Total Transaction Amount",
+      name: "Transaction Amount (Verified)",
       data: amounts,
     },
     {
-      name: "Total Tips",
+      name: "Tips (Verified)",
       data: tips,
     },
   ];
@@ -175,10 +175,10 @@ export default function DailyTransactionChart({
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-          Daily Transaction Amount & Tips
+          Daily Transaction Amount & Tips (Verified Only)
         </h3>
         <p className="mt-1 text-gray-500 text-sm dark:text-gray-400">
-          Daily breakdown of transaction amounts and tips over time
+          Daily breakdown of verified transaction amounts and tips ({dailyData.length} days)
         </p>
       </div>
       <div className="max-w-full overflow-x-auto custom-scrollbar">

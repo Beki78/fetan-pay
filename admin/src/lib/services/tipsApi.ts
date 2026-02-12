@@ -89,7 +89,7 @@ export const tipsApi = createApi({
         if (params?.from) query.set('from', params.from);
         if (params?.to) query.set('to', params.to);
         const qs = query.toString();
-        return { url: `/admin/tips/summary${qs ? `?${qs}` : ''}` };
+        return { url: `/payments/admin/tips/summary${qs ? `?${qs}` : ''}` };
       },
       providesTags: [{ type: 'TipsSummary', id: 'ADMIN' }],
     }),
@@ -105,7 +105,7 @@ export const tipsApi = createApi({
         if (params?.to) query.set('to', params.to);
         query.set('page', String(params?.page ?? 1));
         query.set('pageSize', String(params?.pageSize ?? 20));
-        return { url: `/admin/tips?${query.toString()}` };
+        return { url: `/payments/admin/tips?${query.toString()}` };
       },
       providesTags: [{ type: 'Tips', id: 'LIST' }],
     }),
@@ -117,7 +117,7 @@ export const tipsApi = createApi({
         if (params?.from) query.set('from', params.from);
         if (params?.to) query.set('to', params.to);
         const qs = query.toString();
-        return { url: `/admin/tips/analytics${qs ? `?${qs}` : ''}` };
+        return { url: `/payments/admin/tips/analytics${qs ? `?${qs}` : ''}` };
       },
       providesTags: [{ type: 'TipsAnalytics', id: 'ADMIN' }],
     }),
@@ -129,7 +129,7 @@ export const tipsApi = createApi({
         if (params?.from) query.set('from', params.from);
         if (params?.to) query.set('to', params.to);
         const qs = query.toString();
-        return { url: `/admin/tips/by-merchant${qs ? `?${qs}` : ''}` };
+        return { url: `/payments/admin/tips/by-merchant${qs ? `?${qs}` : ''}` };
       },
       providesTags: [{ type: 'Tips', id: 'BY_MERCHANT' }],
     }),

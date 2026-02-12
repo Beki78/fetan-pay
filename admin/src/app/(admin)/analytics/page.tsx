@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useGetAdminAnalyticsQuery } from "@/lib/services/adminDashboardApi";
 import TransactionOverviewChart from "@/components/analytics/TransactionOverviewChart";
 import WalletDepositsChart from "@/components/analytics/WalletDepositsChart";
@@ -7,9 +7,10 @@ import TransactionTypeChart from "@/components/analytics/TransactionTypeChart";
 import TransactionStatusChart from "@/components/analytics/TransactionStatusChart";
 import ProviderUsageChart from "@/components/analytics/ProviderUsageChart";
 import DailyTransactionChart from "@/components/analytics/DailyTransactionChart";
-import Input from "@/components/form/input/InputField";
+import DatePicker from "@/components/common/DatePicker";
 import Button from "@/components/ui/button/Button";
 import { exportAnalyticsToPDF } from "@/utils/pdfExport";
+import "@/styles/datepicker.css";
 
 const formatAmount = (amount: number | undefined | null) => {
   const safeAmount = amount ?? 0;
@@ -25,15 +26,40 @@ export default function AnalyticsPage() {
     to?: string;
   }>({});
 
+  // Convert string dates to Date objects for the date picker
+  const fromDate = dateRange.from ? new Date(dateRange.from) : null;
+  const toDate = dateRange.to ? new Date(dateRange.to) : null;
+
   const { data: analytics, isLoading, error } = useGetAdminAnalyticsQuery(
     dateRange.from || dateRange.to ? dateRange : undefined,
   );
 
-  const handleDateChange = (field: "from" | "to", value: string) => {
-    setDateRange((prev) => ({
-      ...prev,
-      [field]: value || undefined,
-    }));
+  const handleFromDateChange = (date: Date | null) => {
+    if (date) {
+      setDateRange((prev) => ({
+        ...prev,
+        from: date.toISOString().split('T')[0],
+      }));
+    } else {
+      setDateRange((prev) => ({
+        ...prev,
+        from: undefined,
+      }));
+    }
+  };
+
+  const handleToDateChange = (date: Date | null) => {
+    if (date) {
+      setDateRange((prev) => ({
+        ...prev,
+        to: date.toISOString().split('T')[0],
+      }));
+    } else {
+      setDateRange((prev) => ({
+        ...prev,
+        to: undefined,
+      }));
+    }
   };
 
   const clearDateFilter = () => {
@@ -93,39 +119,47 @@ export default function AnalyticsPage() {
             Analytics
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Comprehensive platform analytics and insights
+            {dateRange.from || dateRange.to 
+              ? 'Filtered analytics and insights'
+              : 'Last 30 days analytics and insights'}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Date Filter */}
-        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+              <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap font-medium">
                 From:
               </label>
-              <Input
-                type="date"
-                value={dateRange.from || ""}
-                onChange={(e) => handleDateChange("from", e.target.value)}
-                className="w-40"
+              <DatePicker
+                selected={fromDate}
+                onChange={handleFromDateChange}
+                placeholderText="Select start date"
+                maxDate={toDate || new Date()}
+                className="w-48"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+              <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap font-medium">
                 To:
               </label>
-              <Input
-                type="date"
-                value={dateRange.to || ""}
-                onChange={(e) => handleDateChange("to", e.target.value)}
-                className="w-40"
+              <DatePicker
+                selected={toDate}
+                onChange={handleToDateChange}
+                placeholderText="Select end date"
+                minDate={fromDate || undefined}
+                maxDate={new Date()}
+                className="w-48"
               />
             </div>
             {(dateRange.from || dateRange.to) && (
               <button
                 onClick={clearDateFilter}
-                className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 
+                  hover:text-gray-800 dark:hover:text-gray-200 
+                  hover:bg-gray-100 dark:hover:bg-gray-700
+                  rounded-lg transition-colors"
               >
                 Clear
               </button>
@@ -223,7 +257,7 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-              Total Unsuccessful
+              Total Unsuccessful(Expired)
             </p>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">
               {analytics.platformTransactions.totalUnsuccessful.toLocaleString()}
@@ -247,21 +281,6 @@ export default function AnalyticsPage() {
               {formatAmount(analytics.platformTransactions.totalTips)}
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Wallet Analytics Section */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800/50">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-          Wallet Analytics
-        </h2>
-        <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-            Total Deposits
-          </p>
-          <p className="text-2xl font-bold text-gray-800 dark:text-white">
-            {formatAmount(analytics.walletAnalytics.totalDeposits)}
-          </p>
         </div>
       </div>
 
