@@ -272,7 +272,7 @@ export default function BillingPage() {
               </div>
 
               {/* Days Remaining / Trial Status */}
-              <div>
+              {/* <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   {effectiveSubscription.plan.name === 'Free' ? 'Trial Status' : 'Days Remaining'}
                 </p>
@@ -300,7 +300,7 @@ export default function BillingPage() {
                       )
                   }
                 </p>
-              </div>
+              </div> */}
 
               {/* Monthly Price & Next Billing */}
               <div>

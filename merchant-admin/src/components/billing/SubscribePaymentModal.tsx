@@ -154,7 +154,8 @@ export default function SubscribePaymentModal({
         : `Receipt: ${receiptFile?.name}`;
 
       const verificationResponse = await verifyPayment({
-        provider: selectedProvider,
+        transferType: "SAME_BANK",
+        receiverBank: selectedProvider,
         reference,
         claimedAmount: plan.price,
       }).unwrap();

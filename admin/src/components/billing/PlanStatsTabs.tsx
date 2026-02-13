@@ -381,6 +381,12 @@ export default function PlanStatsTabs() {
                   >
                     Date
                   </TableCell>
+                  <TableCell
+                    isHeader
+                    className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide"
+                  >
+                    Actions
+                  </TableCell>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -413,6 +419,16 @@ export default function PlanStatsTabs() {
                       <div className="text-sm text-gray-600 dark:text-gray-400">
                         {new Date(transaction.createdAt).toLocaleDateString()}
                       </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => router.push(`/users/${transaction.merchantId}`)}
+                        className="text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/20"
+                      >
+                        Details
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -820,9 +836,7 @@ export default function PlanStatsTabs() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Plan Statistics
-          </h1>
+         
           <p className="text-gray-600 dark:text-gray-400">
             Monitor subscription plans and user activity
           </p>

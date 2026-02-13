@@ -69,14 +69,14 @@ export default function Subscription({
           </div>
 
           {/* Days Remaining */}
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               Days Remaining{" "}
               <span className="font-medium text-gray-800 dark:text-white">
                 {daysRemaining} {daysRemaining === 1 ? "day" : "days"}
               </span>
             </span>
-          </div>
+          </div> */}
 
           {/* Manage Subscription Link */}
           <Link

@@ -241,6 +241,11 @@ export class PricingController {
     @Req() req: AuthenticatedRequest,
   ) {
     const userId = req.user?.id || 'system';
+    const userRole = (req.user as any)?.role;
+
+    // Only pass assignedBy if the user is an admin (not a merchant upgrading themselves)
+    const isAdmin = userRole === 'SUPERADMIN' || userRole === 'ADMIN';
+    const assignedBy = isAdmin ? userId : undefined;
 
     try {
       // Use the new direct upgrade method for better reliability
@@ -249,7 +254,7 @@ export class PricingController {
         body.planId,
         body.paymentReference,
         body.paymentMethod,
-        userId,
+        assignedBy,
       );
 
       return {
