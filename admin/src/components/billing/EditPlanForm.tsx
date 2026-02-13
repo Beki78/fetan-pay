@@ -66,7 +66,7 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
       setFormData({
         name: plan.name,
         description: plan.description,
-        price: plan.price.toString(),
+        price: Math.round(plan.price).toString(), // Round to avoid floating-point precision issues
         billingCycle: plan.billingCycle,
         isPopular: plan.isPopular,
         displayOrder: plan.displayOrder?.toString() || "1",
@@ -118,7 +118,7 @@ export default function EditPlanForm({ planId }: EditPlanFormProps) {
         data: {
           name: formData.name,
           description: formData.description,
-          price: parseFloat(formData.price) || 0,
+          price: parseInt(formData.price) || 0,
           billingCycle: formData.billingCycle,
           limits: limits, // Use the flexible limits object
           features: features,

@@ -26,6 +26,7 @@ import {
 } from "../ui/table";
 import MerchantStatsCard from "./MerchantStatsCard";
 import MerchantBrandingCard from "../branding/MerchantBrandingCard";
+import MerchantDetailTabs from "./MerchantDetailTabs";
 import { authClient } from "@/lib/auth-client";
 
 interface UserDetailProps {
@@ -254,7 +255,7 @@ export default function UserDetail({ userId }: UserDetailProps) {
       merchantId: merchant?.id,
       status: "VERIFIED", // Only count verified payments for revenue
       page: 1,
-      pageSize: 1000, // Get a large batch to calculate stats
+      pageSize: 100, // API max limit is 100
     },
     { skip: !merchant?.id }
   );
@@ -454,89 +455,13 @@ export default function UserDetail({ userId }: UserDetailProps) {
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/60">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Team members</h3>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {merchant.users.filter((u) => u.role !== "MERCHANT_OWNER").length} total
-          </span>
-        </div>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="border-b border-gray-200 dark:border-gray-700">
-              <TableRow className="bg-gray-50 dark:bg-gray-800/80">
-                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
-                  Name
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
-                  Email
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
-                  Phone
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
-                  Role
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
-                  Status
-                </TableCell>
-                <TableCell isHeader className="px-5 py-3.5 font-semibold text-gray-600 dark:text-gray-400 text-start text-sm uppercase tracking-wide">
-                  Actions
-                </TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {merchant.users
-                .filter((u) => u.role !== "MERCHANT_OWNER") // Exclude owner from team members table
-                .map((user) => {
-                  const isUserBanned = (user as any).banned === true;
-                  return (
-                    <TableRow key={user.id} className="bg-white dark:bg-gray-800/50">
-                      <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.name ?? "-"}</TableCell>
-                      <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.email ?? "-"}</TableCell>
-                      <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.phone ?? "-"}</TableCell>
-                      <TableCell className="px-5 py-4 text-gray-800 dark:text-gray-200">{user.role}</TableCell>
-                      <TableCell className="px-5 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusBadge(isUserBanned ? "BANNED" : user.status)}`}>
-                          {isUserBanned ? "BANNED" : user.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewTeamMember(user.id)}
-                            className="text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/20"
-                          >
-                            Details
-                          </Button>
-                          {!isUserBanned ? (
-                            <Button
-                              size="sm"
-                              onClick={() => handleBanTeamMember(user.id)}
-                              disabled={deactivating || activating}
-                              className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
-                            >
-                              Ban
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              onClick={() => handleUnbanTeamMember(user.id)}
-                              disabled={deactivating || activating}
-                              className="bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
-                            >
-                              {activating ? "Activating..." : "Unban"}
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-            </TableBody>
-          </Table>
-        </div>
+        <MerchantDetailTabs
+          merchant={merchant}
+          onBanTeamMember={handleBanTeamMember}
+          onUnbanTeamMember={handleUnbanTeamMember}
+          deactivating={deactivating}
+          activating={activating}
+        />
       </div>
 
       <Modal

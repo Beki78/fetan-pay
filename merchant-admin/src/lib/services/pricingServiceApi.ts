@@ -134,8 +134,12 @@ export interface UpgradePlanRequest {
 // Payment Verification Types
 export type PaymentVerificationStatus = "VERIFIED" | "UNVERIFIED" | "PENDING";
 
+export type TransferType = "SAME_BANK" | "INTER_BANK";
+
 export interface VerifyPaymentRequest {
-  provider: TransactionProvider;
+  transferType: TransferType;
+  receiverBank: TransactionProvider;
+  senderBank?: TransactionProvider;
   reference: string;
   claimedAmount?: number;
   tipAmount?: number;
