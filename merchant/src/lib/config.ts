@@ -27,7 +27,7 @@ export const API_BASE_URL =
 export const FRONTEND_URL =
   process.env.NEXT_PUBLIC_FRONTEND_URL ||
   (process.env.NODE_ENV === 'production'
-    ? 'https://client.fetanpay.et'
+    ? 'https://fetan-pay-merchant.vercel.app'
     : 'http://localhost:3002');
 
 // Static assets base URL (for logo previews, etc.)
